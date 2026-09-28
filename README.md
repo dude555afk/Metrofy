@@ -81,14 +81,16 @@ What it does well:
 
 <div align="center">
 
-<!-- Replace with your actual screenshots -->
-<img src="docs/screenshots/home.png" width="240" alt="Home"/>
-<img src="docs/screenshots/now-playing.png" width="240" alt="Now Playing"/>
-<img src="docs/screenshots/lyrics.png" width="240" alt="Lyrics"/>
+<img src="docs/screenshots/01-home.png" width="240" alt="Home"/>
+<img src="docs/screenshots/02-settings.png" width="240" alt="Settings"/>
+<img src="docs/screenshots/03-listen-together.png" width="240" alt="Listen Together"/>
+<img src="docs/screenshots/04-home-2.png" width="240" alt="Home"/>
+<img src="docs/screenshots/05-now-playing.png" width="240" alt="Now Playing"/>
+<img src="docs/screenshots/06-lyrics.png" width="240" alt="Lyrics"/>
 
 </div>
 
-I'll add real screenshots soon. If you want to contribute some, open an issue.
+> Drop your screenshots into `docs/screenshots/` and keep these filenames, or update the paths above.
 
 ---
 
