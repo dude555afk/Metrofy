@@ -81,12 +81,12 @@ What it does well:
 
 <div align="center">
 
-<img src="docs/screenshots/home.png.jpg" width="240" alt="Home"/>
-<img src="docs/screenshots/settings.png.jpg" width="240" alt="Settings"/>
-<img src="docs/screenshots/listen-together.png.jpg" width="240" alt="Listen Together"/>
-<img src="docs/screenshots/home-2.png.jpg" width="240" alt="Home"/>
-<img src="docs/screenshots/now-playing.png.jpg" width="240" alt="Now Playing"/>
-<img src="docs/screenshots/lyrics.png.jpg" width="240" alt="Lyrics"/>
+<img src="docs/screenshots/home.png" width="240" alt="Home"/>
+<img src="docs/screenshots/settings.png" width="240" alt="Settings"/>
+<img src="docs/screenshots/listen-together.png" width="240" alt="Listen Together"/>
+<img src="docs/screenshots/home-2.png" width="240" alt="Home"/>
+<img src="docs/screenshots/now-playing.png" width="240" alt="Now Playing"/>
+<img src="docs/screenshots/lyrics.png" width="240" alt="Lyrics"/>
 
 </div>
 
