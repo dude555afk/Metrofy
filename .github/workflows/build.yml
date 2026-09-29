@@ -13,6 +13,10 @@ on:
       - ".github/FUNDING.yml"
       - ".github/ISSUE_TEMPLATE/**"
 
+concurrency:
+  group: metrofy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   discussions: write
@@ -195,8 +199,8 @@ jobs:
       - name: Build Debug APK and Run Lint
         run: ./gradlew --console=plain assemble${{ matrix.variantName }}Debug :app:lint${{ matrix.variantName }}Debug --warning-mode summary
         env:
-          METROLIST_APPLICATION_ID: com.metrofy.app
-          METROLIST_APP_NAME: Metrofy Nightly
+          METROLIST_APPLICATION_ID: com.metrofy.app.debug.ci
+          METROLIST_APP_NAME: Metrofy CI Debug
           PULL_REQUEST: "false"
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
