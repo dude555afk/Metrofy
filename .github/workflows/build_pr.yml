@@ -4,6 +4,14 @@ on:
   pull_request:
     branches:
       - "**"
+    paths-ignore:
+      - "README.md"
+      - "fastlane/**"
+      - "assets/**"
+      - "docs/**"
+      - ".github/**/*.md"
+      - ".github/FUNDING.yml"
+      - ".github/ISSUE_TEMPLATE/**"
 
 jobs:
   build:
@@ -51,7 +59,7 @@ jobs:
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -dname "CN=Metrolist PR ${{ github.event.number }},O=Metrolist,C=US"
+            -dname "CN=Metrofy PR ${{ github.event.number }},O=Metrofy,C=US"
 
       - name: Save PR debug keystore
         if: steps.pr_keystore.outputs.cache-hit != 'true'
@@ -86,8 +94,8 @@ jobs:
         run: ./gradlew --console=plain assembleFossDebug :app:lintFossDebug --warning-mode summary
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
-          METROLIST_APPLICATION_ID: com.meld.app.pr.p${{ github.event.number }}
-          METROLIST_APP_NAME: Meld PR ${{ github.event.number }}
+          METROLIST_APPLICATION_ID: com.metrofy.app.pr.p${{ github.event.number }}
+          METROLIST_APP_NAME: Metrofy PR ${{ github.event.number }}
           METROLIST_DEBUG_KEYSTORE_PATH: pr-debug.keystore
           PULL_REQUEST: "true"
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
