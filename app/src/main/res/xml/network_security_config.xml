@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext traffic for Listen Together local servers -->
+    <!-- Cleartext only for local servers (Listen Together) -->
     <!-- We're already using WSS for the prod server -->
-    <base-config cleartextTrafficPermitted="true">
+    <domain-config cleartextTrafficPermitted="true" includeSubdomains="true">
+        <domain>localhost</domain>
+        <domain>10.0.2.2</domain>
+        <!-- Add your local server domains here -->
+    </domain-config>
+
+    <!-- Default: HTTPS only -->
+    <base-config>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
