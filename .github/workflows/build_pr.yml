@@ -11,7 +11,7 @@ on:
       - "docs/**"
       - ".github/**/*.md"
       - ".github/FUNDING.yml"
-      - ".github/ISSUE_TEMPLATE/**
+      - ".github/ISSUE_TEMPLATE/**"
 
 jobs:
   build:
