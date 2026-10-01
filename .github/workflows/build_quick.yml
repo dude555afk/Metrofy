@@ -11,10 +11,14 @@ on:
       - "docs/**"
       - ".github/**/*.md"
       - ".github/FUNDING.yml"
-      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/ISSUE_TEMPLATE/**
+
+concurrency:
+  group: metrofy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build_quick:
@@ -59,24 +63,44 @@ jobs:
           CRASH_REPORT_TOKEN: ${{ secrets.CRASH_REPORT_TOKEN }}
           CRASH_REPORT_REPO: ${{ vars.CRASH_REPORT_REPO || 'dude555afk/Metrofy' }}
 
-      - name: Sign APK
-        uses: ilharp/sign-android-release@v2.0.0
-        with:
-          releaseDir: app/build/outputs/apk/foss/release/
-          signingKey: ${{ secrets.KEYSTORE }}
-          keyAlias: ${{ secrets.KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-          buildToolsVersion: 35.0.0
-
-      - name: Move signed APK
+      # This build uses a separate .test package, so a disposable CI-only key
+      # cannot overwrite the identity of an installed production Metrofy APK.
+      # Official releases remain signed ONLY by the original release key.
+      - name: Sign test APK using disposable CI key
+        shell: bash
         run: |
-          OUTPUT_DIR="app/build/outputs/apk/foss/release"
-          mkdir -p "$OUTPUT_DIR/out"
-          find "$OUTPUT_DIR" -name "*-signed.apk" -o -name "*-unsigned-signed.apk" | xargs -I{} mv {} "$OUTPUT_DIR/out/app-universal-test-release.apk"
+          set -euo pipefail
+          output_dir="app/build/outputs/apk/foss/release"
+          unsigned="$(find "$output_dir" -maxdepth 1 -type f -name '*-unsigned.apk' -print -quit)"
+          if [[ -z "$unsigned" ]]; then
+            echo "::error::Gradle did not produce an unsigned FOSS release APK."
+            exit 1
+          fi
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          build_tools="$(find "$sdk/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          [[ -x "$build_tools/zipalign" && -x "$build_tools/apksigner" ]] || {
+            echo "::error::Android build tools with zipalign/apksigner are unavailable."
+            exit 1
+          }
+          key="$RUNNER_TEMP/metrofy-ci-test.p12"
+          keytool -genkeypair -noprompt -storetype PKCS12 \
+            -keystore "$key" -storepass android -keypass android \
+            -alias metrofytest -keyalg RSA -keysize 2048 -validity 30 \
+            -dname "CN=Metrofy CI Test, O=Metrofy"
+          mkdir -p "$output_dir/out"
+          "$build_tools/zipalign" -f -p 4 "$unsigned" "$RUNNER_TEMP/metrofy-test-aligned.apk"
+          "$build_tools/apksigner" sign \
+            --ks "$key" --ks-key-alias metrofytest \
+            --ks-pass pass:android --key-pass pass:android \
+            --out "$output_dir/out/Metrofy-testing.apk" \
+            "$RUNNER_TEMP/metrofy-test-aligned.apk"
+          "$build_tools/apksigner" verify --verbose "$output_dir/out/Metrofy-testing.apk"
+          echo "### CI test APK" >> "$GITHUB_STEP_SUMMARY"
+          echo "Signed with a temporary test key, package com.metrofy.app.test. This does NOT replace the official release signer and cannot update APKs from earlier CI runs." >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload Signed APK
+      - name: Upload installable test APK
         uses: actions/upload-artifact@v6
         with:
-          name: app-universal-test-release
-          path: app/build/outputs/apk/foss/release/out/*
+          name: Metrofy-testing-disposable-signature
+          path: app/build/outputs/apk/foss/release/out/Metrofy-testing.apk
+          if-no-files-found: error
