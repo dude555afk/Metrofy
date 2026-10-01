@@ -11,7 +11,11 @@ on:
       - "docs/**"
       - ".github/**/*.md"
       - ".github/FUNDING.yml"
-      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/ISSUE_TEMPLATE/**
+
+concurrency:
+  group: metrofy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -69,7 +73,34 @@ jobs:
           CRASH_REPORT_TOKEN: ${{ secrets.CRASH_REPORT_TOKEN }}
           CRASH_REPORT_REPO: ${{ vars.CRASH_REPORT_REPO || 'dude555afk/Metrofy' }}
 
+      - name: Verify optional release signing credentials
+        id: signing
+        shell: bash
+        env:
+          SIGNING_KEY_B64: ${{ secrets.KEYSTORE }}
+          SIGNING_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$SIGNING_KEY_B64" || -z "$SIGNING_ALIAS" || -z "$SIGNING_STORE_PASSWORD" || -z "$SIGNING_KEY_PASSWORD" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Release signing secrets are incomplete. Uploading an UNSIGNED (not installable) build artifact instead. Official signing is never replaced."
+            exit 0
+          fi
+          candidate="$RUNNER_TEMP/metrofy-release-check.keystore"
+          if ! printf '%s' "$SIGNING_KEY_B64" | base64 --decode > "$candidate" || \
+             ! keytool -list -keystore "$candidate" -storepass "$SIGNING_STORE_PASSWORD" -alias "$SIGNING_ALIAS" >/dev/null 2>&1; then
+            rm -f "$candidate"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Release keystore is invalid or the store password/alias does not match. Uploading only UNSIGNED artifact."
+            exit 0
+          fi
+          rm -f "$candidate"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
       - name: Sign APK
+        if: steps.signing.outputs.available == 'true'
         uses: ilharp/sign-android-release@v2.0.0
         with:
           releaseDir: app/build/outputs/apk/${{ matrix.variant }}/release/
@@ -80,6 +111,7 @@ jobs:
           buildToolsVersion: 35.0.0
 
       - name: Move signed APK
+        if: steps.signing.outputs.available == 'true'
         run: |
           OUTPUT_DIR="app/build/outputs/apk/${{ matrix.variant }}/release"
           mkdir -p "$OUTPUT_DIR/out"
@@ -91,10 +123,19 @@ jobs:
           find "$OUTPUT_DIR" -name "*-signed.apk" -o -name "*-unsigned-signed.apk" | xargs -I{} mv {} "$OUTPUT_DIR/out/$TARGET_NAME"
 
       - name: Upload Signed APK
+        if: steps.signing.outputs.available == 'true'
         uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.variant == 'gms' && 'app-with-Google-Cast' || 'app-release' }}
           path: app/build/outputs/apk/${{ matrix.variant }}/release/out/*
+
+      - name: Upload unsigned build for diagnosis (not installable)
+        if: steps.signing.outputs.available != 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: Metrofy-${{ matrix.variant }}-UNSIGNED-not-installable
+          path: app/build/outputs/apk/${{ matrix.variant }}/release/*-unsigned.apk
+          if-no-files-found: error
 
   build_debug:
     name: Build Debug (${{ matrix.variant }})
@@ -133,15 +174,33 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Restore Persistent Keystore
+      - name: Restore verified debug keystore or generate CI-only debug signer
+        shell: bash
+        env:
+          DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE }}
         run: |
-          echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 -d > ./app/persistent-debug.keystore
+          set -euo pipefail
+          target="./app/persistent-debug.keystore"
+          candidate="$RUNNER_TEMP/metrofy-debug-check.keystore"
+          if [[ -n "$DEBUG_KEYSTORE_B64" ]] && \
+             printf '%s' "$DEBUG_KEYSTORE_B64" | base64 --decode > "$candidate" && \
+             keytool -list -keystore "$candidate" -storepass android -alias androiddebugkey >/dev/null 2>&1; then
+            mv "$candidate" "$target"
+            echo "Using validated persistent debug signing key."
+          else
+            rm -f "$candidate"
+            echo "::warning::DEBUG_KEYSTORE is missing or invalid. Generating CI-only debug key. These APKs may NOT update an older debug installation without uninstalling."
+            keytool -genkeypair -noprompt -storetype PKCS12 \
+              -keystore "$target" -storepass android -keypass android \
+              -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 30 \
+              -dname "CN=Metrofy CI Debug, O=Metrofy" >/dev/null 2>&1
+          fi
 
       - name: Build Debug APK and Run Lint
         run: ./gradlew --console=plain assemble${{ matrix.variantName }}Debug :app:lint${{ matrix.variantName }}Debug --warning-mode summary
         env:
-          METROLIST_APPLICATION_ID: com.metrofy.app
-          METROLIST_APP_NAME: Metrofy Nightly
+          METROLIST_APPLICATION_ID: com.metrofy.app.debug.ci
+          METROLIST_APP_NAME: Metrofy CI Debug
           PULL_REQUEST: "false"
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
