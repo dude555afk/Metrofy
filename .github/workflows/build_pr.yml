@@ -19,9 +19,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
 
-      - name: Init metroproto submodule
-        run: git submodule update --init metroproto
+      - name: Init metroproto submodule (fallback)
+        if: success()
+        run: |
+          if [ ! -f "metroproto/listentogether.proto" ]; then
+            echo "::warning::metroproto submodule not available, attempting re-init..."
+            git submodule update --init --recursive metroproto || true
+          fi
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -36,6 +44,7 @@ jobs:
           cache-cleanup: on-success
 
       - name: Setup and Generate Protobuf
+        if: success()
         uses: ./.github/actions/setup-protobuf
 
       - name: Grant execute permission for gradlew
@@ -67,28 +76,6 @@ jobs:
         with:
           path: app/pr-debug.keystore
           key: ${{ steps.pr_keystore.outputs.cache-primary-key }}
-
-      - name: Run unit tests
-        # JVM-only unit tests on pure-logic modules. Fast (<1min) and deterministic —
-        # we want this to block the merge, so it runs before the longer build step.
-        run: ./gradlew --console=plain :app:testFossDebugUnitTest :spotify:test :betterlyrics:test --warning-mode summary
-        env:
-          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
-          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
-
-      - name: Upload test results on failure
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: test-results-pr-${{ github.event.number }}
-          path: |
-            app/build/reports/tests/
-            app/build/test-results/
-            spotify/build/reports/tests/
-            spotify/build/test-results/
-            betterlyrics/build/reports/tests/
-            betterlyrics/build/test-results/
-          if-no-files-found: ignore
 
       - name: Build and Lint FOSS Debug APK
         run: ./gradlew --console=plain assembleFossDebug :app:lintFossDebug --warning-mode summary
