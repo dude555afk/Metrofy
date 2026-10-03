@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Init metroproto submodule
         run: git submodule update --init metroproto
@@ -66,7 +66,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: app/pr-debug.keystore
-          key: ${{ steps.pr_keystore.outputs.cache-primary-key }}
+          key: pr-debug-keystore-${{ github.event.number }}
 
       - name: Run unit tests
         # JVM-only unit tests on pure-logic modules. Fast (<1min) and deterministic —
