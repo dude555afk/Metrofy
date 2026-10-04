@@ -101,14 +101,21 @@ class PoTokenGenerator {
 
                     // create a new webPoTokenGenerator
                     webPoTokenGenerator = PoTokenWebView.getNewPoTokenGenerator(CipherDeobfuscator.appContext)
+                        ?: throw PoTokenException("Failed to create PoTokenWebView - returned null")
 
                     // The streaming poToken needs to be generated exactly once before generating
                     // any other (player) tokens.
-                    webPoTokenStreamingPot = webPoTokenGenerator!!.generatePoToken(webPoTokenSessionId!!)
-                    Timber.tag(TAG).d("Streaming poToken generated for sessionId=${webPoTokenSessionId?.take(20)}...")
+                    val currentSessionId = webPoTokenSessionId
+                        ?: throw PoTokenException("Session ID is null when generating streaming poToken")
+                    webPoTokenStreamingPot = webPoTokenGenerator!!.generatePoToken(currentSessionId)
+                    Timber.tag(TAG).d("Streaming poToken generated for sessionId=${currentSessionId.take(20)}...")
                 }
 
-                Triple(webPoTokenGenerator!!, webPoTokenStreamingPot!!, shouldRecreate)
+                val finalGenerator = webPoTokenGenerator
+                    ?: throw PoTokenException("PoTokenWebView is null after initialization")
+                val finalStreamingPot = webPoTokenStreamingPot
+                    ?: throw PoTokenException("Streaming poToken is null after initialization")
+                Triple(finalGenerator, finalStreamingPot, shouldRecreate)
             }
 
         val playerPot = try {

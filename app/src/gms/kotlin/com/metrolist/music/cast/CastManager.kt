@@ -45,7 +45,9 @@ class CastManager(
             
             // Using deprecated constructor and setSessionAvailabilityListener as the new
             // CastPlayer.Builder API requires a local player which we don't use in this architecture
-            castPlayer = CastPlayer(castContext!!)
+            val context = castContext
+                ?: throw IllegalStateException("CastContext is null after getSharedInstance")
+            castPlayer = CastPlayer(context)
             castPlayer?.setSessionAvailabilityListener(this)
             
             _castState.value = castContext?.castState ?: CastState.NO_DEVICES_AVAILABLE
