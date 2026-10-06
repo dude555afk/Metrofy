@@ -437,6 +437,7 @@ class MusicService :
 
     // URL cache for stream URLs - class-level so it can be invalidated on errors
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
+    private val songHeaderCache = HashMap<String, Map<String, String>>()
 
     // Flag to bypass cache when quality changes - forces fresh stream fetch
     private val bypassCacheForQualityChange = mutableSetOf<String>()
@@ -715,6 +716,7 @@ class MusicService :
 
                     // Clear cached URL to force fresh fetch
                     songUrlCache.remove(mediaId)
+                    songHeaderCache.remove(mediaId)
 
                     // Clear caches before reload so the new quality isn't served a stale
                     // byte-range. Using withContext(IO) instead of runBlocking keeps this
@@ -785,6 +787,7 @@ class MusicService :
                     )
 
                     songUrlCache.remove(mediaId)
+                    songHeaderCache.remove(mediaId)
                     // Toggling Qobuz settings is an explicit user retry signal —
                     // wipe the negative cache so previously-missed tracks get a
                     // fresh resolve attempt instead of silently falling through
@@ -3042,6 +3045,7 @@ class MusicService :
 
         // Clear URL cache
         songUrlCache.remove(mediaId)
+                    songHeaderCache.remove(mediaId)
 
         // Clear player cache
         try {
@@ -3239,6 +3243,7 @@ class MusicService :
 
         // Clear the cached URL
         songUrlCache.remove(mediaId)
+                    songHeaderCache.remove(mediaId)
         Timber.tag(TAG).d("Cleared cached URL for $mediaId")
 
         // Clear decryption caches
@@ -3424,9 +3429,11 @@ class MusicService :
 
                     val streamUrl: String
                     val contentLength: Long
+                    val streamHeaders: Map<String, String>
 
                     if (cachedUrl != null) {
                         streamUrl = cachedUrl.first
+                        streamHeaders = songHeaderCache[mediaId].orEmpty()
                         contentLength = database.format(mediaId).first()?.contentLength ?: C.LENGTH_UNSET.toLong()
                         Timber.tag(PRECACHE_TAG).d("[PRECACHE] Using cached URL for $mediaId, contentLength=$contentLength")
                     } else {
@@ -3442,10 +3449,12 @@ class MusicService :
                         }
 
                         streamUrl = playbackData.streamUrl
+                        streamHeaders = playbackData.streamHeaders
                         contentLength = playbackData.format.contentLength ?: C.LENGTH_UNSET.toLong()
 
                         songUrlCache[mediaId] =
                             streamUrl to System.currentTimeMillis() + (playbackData.streamExpiresInSeconds * 1000L)
+                        songHeaderCache[mediaId] = streamHeaders
                         Timber.tag(PRECACHE_TAG).d("[PRECACHE] Got stream URL for $mediaId: contentLength=$contentLength, expires in ${playbackData.streamExpiresInSeconds}s")
                     }
 
@@ -3472,6 +3481,7 @@ class MusicService :
                     val dataSpec = DataSpec.Builder()
                         .setUri(streamUrl.toUri())
                         .setKey(mediaId)
+                        .setHttpRequestHeaders(streamHeaders)
                         .setLength(if (contentLength > 0) contentLength else C.LENGTH_UNSET.toLong())
                         .build()
 
@@ -3960,7 +3970,12 @@ class MusicService :
                      * songUrlCache — first play resolved fresh and worked, replaying or skipping
                      * back to it took this branch and 403'd.
                      */
-                    return@Factory dataSpec.withUri(it.first.toUri()).subrange(0, CHUNK_LENGTH)
+                    return@Factory dataSpec
+                        .buildUpon()
+                        .setUri(it.first.toUri())
+                        .setHttpRequestHeaders(songHeaderCache[mediaId].orEmpty())
+                        .build()
+                        .subrange(0, CHUNK_LENGTH)
                 }
             } else {
                 Timber.tag("MusicService").i("BYPASSING CACHE for $mediaId due to quality change")
@@ -4079,7 +4094,13 @@ class MusicService :
 
                 songUrlCache[mediaId] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
-                return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(0, CHUNK_LENGTH)
+                songHeaderCache[mediaId] = nonNullPlayback.streamHeaders
+                return@Factory dataSpec
+                    .buildUpon()
+                    .setUri(streamUrl.toUri())
+                    .setHttpRequestHeaders(nonNullPlayback.streamHeaders)
+                    .build()
+                    .subrange(0, CHUNK_LENGTH)
             }
         }
     }
@@ -4578,6 +4599,7 @@ class MusicService :
             QobuzAudioProvider.invalidate(mediaId)
             qobuzMissUntilMs.remove(mediaId)
             songUrlCache.remove(mediaId)
+                    songHeaderCache.remove(mediaId)
             try {
                 playerCache.removeResource(mediaId)
                 downloadCache.removeResource(mediaId)
