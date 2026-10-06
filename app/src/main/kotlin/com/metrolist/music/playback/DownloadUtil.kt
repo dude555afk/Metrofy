@@ -61,6 +61,7 @@ constructor(
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
+    private val songHeaderCache = HashMap<String, Map<String, String>>()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -94,7 +95,11 @@ constructor(
             }
 
             songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
-                return@Factory dataSpec.withUri(it.first.toUri())
+                return@Factory dataSpec
+                    .buildUpon()
+                    .setUri(it.first.toUri())
+                    .setHttpRequestHeaders(songHeaderCache[mediaId].orEmpty())
+                    .build()
             }
 
             val playbackData = runBlocking(Dispatchers.IO) {
@@ -154,7 +159,12 @@ constructor(
             val expiresAt = System.currentTimeMillis() +
                 ((playbackData.streamExpiresInSeconds - 60).coerceAtLeast(0)) * 1000L
             songUrlCache[mediaId] = streamUrl to expiresAt
-            dataSpec.withUri(streamUrl.toUri())
+            songHeaderCache[mediaId] = playbackData.streamHeaders
+            dataSpec
+                .buildUpon()
+                .setUri(streamUrl.toUri())
+                .setHttpRequestHeaders(playbackData.streamHeaders)
+                .build()
         }
 
     val downloadNotificationHelper =
