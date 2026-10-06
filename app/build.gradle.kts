@@ -282,7 +282,7 @@ dependencies {
     implementation(libs.jsoup)
     ksp(libs.hilt.compiler)
 
-    implementation(project(":innertube"))
+    implementation(project(":innertube"))\n    implementation(libs.innertubex)
     implementation(project(":kugou"))
     implementation(project(":lrclib"))
     implementation(project(":kizzy"))
@@ -293,7 +293,7 @@ dependencies {
     implementation(project(":paxsenix"))
 
     implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.cio)\n    implementation(libs.ktor.client.okhttp)\n    implementation(libs.ktor.client.encoding)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.json)
 

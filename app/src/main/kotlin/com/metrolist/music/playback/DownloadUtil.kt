@@ -25,7 +25,7 @@ import com.metrolist.music.db.entities.FormatEntity
 import com.metrolist.music.db.entities.SongEntity
 import com.metrolist.music.di.DownloadCache
 import com.metrolist.music.di.PlayerCache
-import com.metrolist.music.utils.YTPlayerUtils
+import com.metrolist.music.utils.InnerTubeXPlayer
 import com.metrolist.music.utils.enumPreference
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -60,7 +60,7 @@ constructor(
     private val TAG = "DownloadUtil"
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
-    private val songUrlCache = HashMap<String, Pair<String, Long>>()
+    private val songUrlCache = StreamUrlCache()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -94,11 +94,11 @@ constructor(
             }
 
             songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
-                return@Factory dataSpec.withUri(it.first.toUri())
+                return@Factory dataSpec.withResolvedStream(it)
             }
 
             val playbackData = runBlocking(Dispatchers.IO) {
-                YTPlayerUtils.playerResponseForPlayback(
+                InnerTubeXPlayer.playerResponseForPlayback(
                     mediaId,
                     audioQuality = audioQuality,
                     connectivityManager = connectivityManager,
@@ -145,16 +145,18 @@ constructor(
                 upsert(updatedSong)
             }
 
-            val streamUrl = playbackData.streamUrl.let {
-                "${it}&range=0-${format.contentLength ?: 10000000}"
-            }
-
-            // Safety margin: treat the URL as expired 60s before its real TTL so we
-            // refresh in-flight rather than handing ExoPlayer a URL that 403s mid-open.
-            val expiresAt = System.currentTimeMillis() +
-                ((playbackData.streamExpiresInSeconds - 60).coerceAtLeast(0)) * 1000L
-            songUrlCache[mediaId] = streamUrl to expiresAt
-            dataSpec.withUri(streamUrl.toUri())
+            val cachedStream =
+                songUrlCache.putResolved(
+                    mediaId = mediaId,
+                    url = playbackData.streamUrl,
+                    expiresInSeconds = playbackData.streamExpiresInSeconds,
+                    requestHeaders = playbackData.streamHeaders,
+                    clientName = playbackData.streamClient,
+                    requireBoundedRange = playbackData.requireBoundedRange,
+                    rangeChunkSizeBytes = playbackData.rangeChunkSizeBytes,
+                    useRangeChunks = playbackData.useRangeChunks,
+                )
+            dataSpec.withResolvedStream(cachedStream)
         }
 
     val downloadNotificationHelper =

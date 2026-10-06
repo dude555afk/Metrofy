@@ -208,7 +208,7 @@ import com.metrolist.music.utils.NetworkConnectivityObserver
 import com.metrolist.music.utils.ScrobbleManager
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.Fix403
-import com.metrolist.music.utils.YTPlayerUtils
+import com.metrolist.music.utils.InnerTubeXPlayer\nimport com.metrolist.music.utils.YTPlayerUtils
 import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
@@ -436,7 +436,7 @@ class MusicService :
     private var preCacheJob: Job? = null
 
     // URL cache for stream URLs - class-level so it can be invalidated on errors
-    private val songUrlCache = HashMap<String, Pair<String, Long>>()
+    private val songUrlCache = StreamUrlCache()
 
     // Flag to bypass cache when quality changes - forces fresh stream fetch
     private val bypassCacheForQualityChange = mutableSetOf<String>()
@@ -1466,7 +1466,7 @@ class MusicService :
 
     private suspend fun recoverSong(
         mediaId: String,
-        playbackData: YTPlayerUtils.PlaybackData? = null,
+        playbackData: InnerTubeXPlayer.PlaybackData? = null,
     ) {
         val song = database.song(mediaId).first()
         val mediaMetadata =
@@ -3431,7 +3431,7 @@ class MusicService :
                         Timber.tag(PRECACHE_TAG).d("[PRECACHE] Using cached URL for $mediaId, contentLength=$contentLength")
                     } else {
                         Timber.tag(PRECACHE_TAG).d("[PRECACHE] Fetching fresh stream URL for: $title ($mediaId)")
-                        val playbackData = YTPlayerUtils.playerResponseForPlayback(
+                        val playbackData = InnerTubeXPlayer.playerResponseForPlayback(
                             mediaId,
                             audioQuality = audioQuality,
                             connectivityManager = connectivityManager,
@@ -3960,7 +3960,7 @@ class MusicService :
                      * songUrlCache — first play resolved fresh and worked, replaying or skipping
                      * back to it took this branch and 403'd.
                      */
-                    return@Factory dataSpec.withUri(it.first.toUri()).subrange(0, CHUNK_LENGTH)
+                    return@Factory dataSpec.withResolvedStream(it)
                 }
             } else {
                 Timber.tag("MusicService").i("BYPASSING CACHE for $mediaId due to quality change")
@@ -3974,7 +3974,7 @@ class MusicService :
                     // PlaybackException to the user as a skip-able error.
                     try {
                         withTimeout(30_000L) {
-                            YTPlayerUtils.playerResponseForPlayback(
+                            InnerTubeXPlayer.playerResponseForPlayback(
                                 mediaId,
                                 audioQuality = audioQuality,
                                 connectivityManager = connectivityManager,
@@ -4077,9 +4077,18 @@ class MusicService :
 
                 val streamUrl = nonNullPlayback.streamUrl
 
-                songUrlCache[mediaId] =
-                    streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
-                return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(0, CHUNK_LENGTH)
+                val cachedStream =
+                    songUrlCache.putResolved(
+                        mediaId = mediaId,
+                        url = streamUrl,
+                        expiresInSeconds = nonNullPlayback.streamExpiresInSeconds,
+                        requestHeaders = nonNullPlayback.streamHeaders,
+                        clientName = nonNullPlayback.streamClient,
+                        requireBoundedRange = nonNullPlayback.requireBoundedRange,
+                        rangeChunkSizeBytes = nonNullPlayback.rangeChunkSizeBytes,
+                        useRangeChunks = nonNullPlayback.useRangeChunks,
+                    )
+                return@Factory dataSpec.withResolvedStream(cachedStream)
             }
         }
     }
@@ -4647,7 +4656,7 @@ class MusicService :
         withContext(Dispatchers.IO) {
             try {
                 val playbackData =
-                    YTPlayerUtils
+                    InnerTubeXPlayer
                         .playerResponseForPlayback(
                             videoId = mediaId,
                             audioQuality = audioQuality,
