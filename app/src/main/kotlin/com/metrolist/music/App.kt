@@ -43,7 +43,8 @@ import com.metrolist.music.utils.CrashReporter
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.utils.SpotifyHashSync
 import com.metrolist.music.utils.SpotifyTokenManager
-import com.metrolist.music.utils.InnerTubeXPlayer\nimport com.metrolist.music.utils.cipher.CipherDeobfuscator
+import com.metrolist.music.utils.InnerTubeXPlayer
+import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.installPreferencesSnapshotCollector
 import com.metrolist.music.utils.reportException
@@ -107,7 +108,8 @@ class App :
         AnrWatchdog.start()
 
         // Initialize cipher deobfuscator for WEB_REMIX streaming
-        CipherDeobfuscator.initialize(this)\n        InnerTubeXPlayer.initialize(this)
+        CipherDeobfuscator.initialize(this)
+        InnerTubeXPlayer.initialize(this)
 
         Timber.plant(Timber.DebugTree())
 

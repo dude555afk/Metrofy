@@ -208,7 +208,8 @@ import com.metrolist.music.utils.NetworkConnectivityObserver
 import com.metrolist.music.utils.ScrobbleManager
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.Fix403
-import com.metrolist.music.utils.InnerTubeXPlayer\nimport com.metrolist.music.utils.YTPlayerUtils
+import com.metrolist.music.utils.InnerTubeXPlayer
+import com.metrolist.music.utils.YTPlayerUtils
 import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
