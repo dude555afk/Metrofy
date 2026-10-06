@@ -283,6 +283,7 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(project(":innertube"))
+    implementation(libs.innertubex)
     implementation(project(":kugou"))
     implementation(project(":lrclib"))
     implementation(project(":kizzy"))
