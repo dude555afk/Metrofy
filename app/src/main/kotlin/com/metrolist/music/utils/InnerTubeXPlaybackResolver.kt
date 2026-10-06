@@ -68,7 +68,7 @@ object InnerTubeXPlaybackResolver {
                 YtConfigParserImpl(
                     httpClient = httpClient,
                     innerTube = innerTube,
-                    configStore = configStore,
+                    remotePlayerConfigStore = configStore,
                     cipherService = cipherService,
                 ),
             cipherService = cipherService,
