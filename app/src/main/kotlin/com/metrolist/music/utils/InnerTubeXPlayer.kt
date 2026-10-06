@@ -29,9 +29,7 @@ import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.utils.potoken.PoTokenGenerator
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.contentencoding.ContentEncoding
-import io.ktor.client.plugins.contentencoding.deflate
-import io.ktor.client.plugins.contentencoding.gzip
+import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
