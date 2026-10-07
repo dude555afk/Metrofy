@@ -208,6 +208,7 @@ import com.metrolist.music.utils.NetworkConnectivityObserver
 import com.metrolist.music.utils.ScrobbleManager
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.Fix403
+import com.metrolist.music.utils.InnerTubeXPlaybackResolver
 import com.metrolist.music.utils.YTPlayerUtils
 import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
@@ -438,6 +439,15 @@ class MusicService :
     // URL cache for stream URLs - class-level so it can be invalidated on errors
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
     private val songHeaderCache = HashMap<String, Map<String, String>>()
+
+    private data class StreamTransportPolicy(
+        val clientName: String,
+        val requireBoundedRange: Boolean,
+        val rangeChunkSizeBytes: Long,
+        val useRangeChunks: Boolean,
+    )
+
+    private val songTransportCache = HashMap<String, StreamTransportPolicy>()
 
     // Flag to bypass cache when quality changes - forces fresh stream fetch
     private val bypassCacheForQualityChange = mutableSetOf<String>()
@@ -717,6 +727,12 @@ class MusicService :
                     // Clear cached URL to force fresh fetch
                     songUrlCache.remove(mediaId)
                     songHeaderCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
 
                     // Clear caches before reload so the new quality isn't served a stale
                     // byte-range. Using withContext(IO) instead of runBlocking keeps this
@@ -788,6 +804,12 @@ class MusicService :
 
                     songUrlCache.remove(mediaId)
                     songHeaderCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
                     // Toggling Qobuz settings is an explicit user retry signal —
                     // wipe the negative cache so previously-missed tracks get a
                     // fresh resolve attempt instead of silently falling through
@@ -2890,6 +2912,7 @@ class MusicService :
         }
 
         val mediaId = player.currentMediaItem?.mediaId
+        val failedStreamClient = mediaId?.let { songTransportCache[it]?.clientName }
         Timber
             .tag(TAG)
             .w(error, "Player error occurred for $mediaId: errorCode=${error.errorCode}, message=${error.message}")
@@ -2980,13 +3003,29 @@ class MusicService :
             }
 
             isExpiredUrlError(error) -> {
-                Timber.tag(TAG).d("Expired URL (403) detected, refreshing stream URL")
+                Timber.tag(TAG).d("Expired URL (403/410) detected, refreshing stream URL")
+                if (mediaId != null && !failedStreamClient.isNullOrBlank()) {
+                    InnerTubeXPlaybackResolver.markStreamClientFailed(mediaId, failedStreamClient)
+                }
+                scope.launch(Dispatchers.IO) {
+                    runCatching { InnerTubeXPlaybackResolver.refreshAfterStreamRejection() }
+                        .onSuccess { changed ->
+                            if (changed) {
+                                InnerTubeXPlaybackResolver.clearStreamClientFailures()
+                                Timber.tag(TAG).d("InnerTubeX player config refreshed after stream rejection")
+                            }
+                        }
+                        .onFailure { Timber.tag(TAG).w(it, "InnerTubeX stream-rejection refresh failed") }
+                }
                 handleExpiredUrlError(mediaId)
                 return
             }
 
             isMissingStreamDataError(error) -> {
-                Timber.tag(TAG).d("Missing stream data from YouTube, refreshing stream URL")
+                Timber.tag(TAG).d("Missing stream data from YouTube, trying another stream client")
+                if (mediaId != null && !failedStreamClient.isNullOrBlank()) {
+                    InnerTubeXPlaybackResolver.markStreamClientFailed(mediaId, failedStreamClient)
+                }
                 handleExpiredUrlError(mediaId)
                 return
             }
@@ -3046,6 +3085,12 @@ class MusicService :
         // Clear URL cache
         songUrlCache.remove(mediaId)
                     songHeaderCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
 
         // Clear player cache
         try {
@@ -3244,6 +3289,12 @@ class MusicService :
         // Clear the cached URL
         songUrlCache.remove(mediaId)
                     songHeaderCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
         Timber.tag(TAG).d("Cleared cached URL for $mediaId")
 
         // Clear decryption caches
@@ -3455,7 +3506,14 @@ class MusicService :
                         songUrlCache[mediaId] =
                             streamUrl to System.currentTimeMillis() + (playbackData.streamExpiresInSeconds * 1000L)
                         songHeaderCache[mediaId] = streamHeaders
-                        Timber.tag(PRECACHE_TAG).d("[PRECACHE] Got stream URL for $mediaId: contentLength=$contentLength, expires in ${playbackData.streamExpiresInSeconds}s")
+                        songTransportCache[mediaId] =
+                            StreamTransportPolicy(
+                                clientName = playbackData.streamClient,
+                                requireBoundedRange = playbackData.requireBoundedRange,
+                                rangeChunkSizeBytes = playbackData.rangeChunkSizeBytes,
+                                useRangeChunks = playbackData.useRangeChunks,
+                            )
+                        Timber.tag(PRECACHE_TAG).d("[PRECACHE] Got stream URL for $mediaId: contentLength=$contentLength, client=${playbackData.streamClient}, expires in ${playbackData.streamExpiresInSeconds}s")
                     }
 
                     // Build a CacheDataSource that writes into playerCache
@@ -3970,12 +4028,11 @@ class MusicService :
                      * songUrlCache — first play resolved fresh and worked, replaying or skipping
                      * back to it took this branch and 403'd.
                      */
-                    return@Factory dataSpec
-                        .buildUpon()
-                        .setUri(it.first.toUri())
-                        .setHttpRequestHeaders(songHeaderCache[mediaId].orEmpty())
-                        .build()
-                        .subrange(0, CHUNK_LENGTH)
+                    return@Factory dataSpec.withResolvedStream(
+                        url = it.first,
+                        headers = songHeaderCache[mediaId].orEmpty(),
+                        policy = songTransportCache[mediaId],
+                    )
                 }
             } else {
                 Timber.tag("MusicService").i("BYPASSING CACHE for $mediaId due to quality change")
@@ -4095,13 +4152,53 @@ class MusicService :
                 songUrlCache[mediaId] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
                 songHeaderCache[mediaId] = nonNullPlayback.streamHeaders
-                return@Factory dataSpec
-                    .buildUpon()
-                    .setUri(streamUrl.toUri())
-                    .setHttpRequestHeaders(nonNullPlayback.streamHeaders)
-                    .build()
-                    .subrange(0, CHUNK_LENGTH)
+                songTransportCache[mediaId] =
+                    StreamTransportPolicy(
+                        clientName = nonNullPlayback.streamClient,
+                        requireBoundedRange = nonNullPlayback.requireBoundedRange,
+                        rangeChunkSizeBytes = nonNullPlayback.rangeChunkSizeBytes,
+                        useRangeChunks = nonNullPlayback.useRangeChunks,
+                    )
+                return@Factory dataSpec.withResolvedStream(
+                    url = streamUrl,
+                    headers = nonNullPlayback.streamHeaders,
+                    policy = songTransportCache[mediaId],
+                )
             }
+        }
+    }
+
+    private fun DataSpec.withResolvedStream(
+        url: String,
+        headers: Map<String, String>,
+        policy: StreamTransportPolicy?,
+    ): DataSpec {
+        val resolved =
+            buildUpon()
+                .setUri(url.toUri())
+                .setHttpRequestHeaders(httpRequestHeaders + headers)
+                .build()
+
+        val chunkSize = policy?.rangeChunkSizeBytes?.takeIf { it > 0L }
+        if (policy != null &&
+            (policy.requireBoundedRange || policy.useRangeChunks) &&
+            chunkSize != null
+        ) {
+            val boundedLength =
+                if (resolved.length == C.LENGTH_UNSET.toLong()) {
+                    chunkSize
+                } else {
+                    minOf(resolved.length, chunkSize)
+                }
+            return resolved.subrange(0, boundedLength)
+        }
+
+        // Compatibility fallback for clients that do not advertise a range policy.
+        // A bounded first request avoids Range-less googlevideo 403s on art tracks.
+        return if (resolved.position == 0L && resolved.length == C.LENGTH_UNSET.toLong()) {
+            resolved.subrange(0, CHUNK_LENGTH)
+        } else {
+            resolved
         }
     }
 
@@ -4600,6 +4697,12 @@ class MusicService :
             qobuzMissUntilMs.remove(mediaId)
             songUrlCache.remove(mediaId)
                     songHeaderCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
+                    songTransportCache.remove(mediaId)
             try {
                 playerCache.removeResource(mediaId)
                 downloadCache.removeResource(mediaId)
