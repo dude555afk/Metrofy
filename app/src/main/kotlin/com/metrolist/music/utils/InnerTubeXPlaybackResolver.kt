@@ -1,5 +1,6 @@
 package com.metrolist.music.utils
 
+import android.content.Context
 import android.net.ConnectivityManager
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.Thumbnail
@@ -11,30 +12,58 @@ import com.metrolist.innertubex.cipher.RemotePlayerConfigStore
 import com.metrolist.innertubex.cipher.YouTubeCipherService
 import com.metrolist.innertubex.extraction.AudioQuality as InnerTubeXAudioQuality
 import com.metrolist.innertubex.extraction.ContentHints
+import com.metrolist.innertubex.extraction.ExtractedStream
 import com.metrolist.innertubex.extraction.InnerTubeExtractor
+import com.metrolist.innertubex.extraction.PoTokenResult
+import com.metrolist.innertubex.extraction.StreamResolveException
+import com.metrolist.innertubex.extraction.TokenProvider
+import com.metrolist.innertubex.extraction.TokenProviderCapabilities
+import com.metrolist.innertubex.extraction.YtConfigParser
 import com.metrolist.innertubex.extraction.YtConfigParserImpl
 import com.metrolist.innertubex.extraction.generateClientPlaybackNonce
+import com.metrolist.innertubex.extraction.strategy.PoTokenProviderKind
 import com.metrolist.innertubex.models.YouTubeLocale
 import com.metrolist.music.constants.AudioQuality
+import com.metrolist.music.utils.potoken.PoTokenGenerator
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Playback-only bridge to InnerTubeX.
+ * Playback-only InnerTubeX bridge.
  *
- * Metrofy keeps its existing YouTube metadata/browse stack so Spotify Canvas, lyrics and
- * mappings remain untouched. Only audio stream extraction is delegated to the resolver used by
- * current Metrolist, including the v0.7.4 client/fallback fixes.
+ * This deliberately mirrors the reliability pieces used by upstream Metrolist:
+ * persistent player-config caching, WebView PoToken support, client blacklisting after a rejected
+ * stream, and propagation of the stream's bounded-range policy into Media3.
  */
 object InnerTubeXPlaybackResolver {
     private const val TAG = "InnerTubeXPlayback"
     private const val DEFAULT_STREAM_TTL_SECONDS = 5 * 60
+    private const val STREAM_CLIENT_FAILURE_TTL_MS = 5 * 60 * 1000L
+    private const val PLAYER_CONFIG_URL =
+        "https://raw.githubusercontent.com/ZemerTeam/zemer-cipher/master/library/src/main/assets/player_configs.json"
+
+    @Volatile
+    private var applicationContext: Context? = null
+
+    private data class FailedStreamClients(
+        val clientNames: Set<String>,
+        val failedAtMs: Long,
+    )
+
+    private val streamClientFailures = ConcurrentHashMap<String, FailedStreamClients>()
+
+    @Synchronized
+    fun initialize(context: Context) {
+        if (applicationContext == null) applicationContext = context.applicationContext
+    }
 
     @OptIn(ExperimentalSerializationApi::class)
     private val httpClient =
@@ -53,16 +82,68 @@ object InnerTubeXPlaybackResolver {
                 gzip()
                 deflate()
             }
+            engine {
+                config {
+                    retryOnConnectionFailure(true)
+                    YouTube.proxy?.let(::proxy)
+                    YouTube.proxyAuth?.let { auth ->
+                        proxyAuthenticator { _, response ->
+                            response.request
+                                .newBuilder()
+                                .header("Proxy-Authorization", auth)
+                                .build()
+                        }
+                    }
+                }
+            }
         }
 
     private val innerTube = InnerTube(httpClient)
-    private val configStore =
+
+    private val configRepository: PlayerConfigRepository by lazy {
+        AndroidPlayerConfigRepository(
+            requireNotNull(applicationContext) { "InnerTubeXPlaybackResolver is not initialized" },
+        )
+    }
+
+    private val configStore by lazy {
         RemotePlayerConfigStore(
             httpClient = httpClient,
-            repository = PlayerConfigRepository.disabled(),
+            repository = configRepository,
         )
-    private val cipherService = YouTubeCipherService(httpClient, configStore)
-    private val extractor =
+    }
+
+    private val cipherService by lazy {
+        YouTubeCipherService(httpClient, configStore)
+    }
+
+    private val poTokenGenerator by lazy { PoTokenGenerator() }
+
+    private val tokenProvider =
+        object : TokenProvider {
+            override val capabilities =
+                TokenProviderCapabilities(
+                    providers = setOf(PoTokenProviderKind.WEB_BOTGUARD),
+                    usesWebView = true,
+                )
+
+            override suspend fun getPoToken(
+                videoId: String,
+                visitorData: String,
+                cookie: String?,
+            ): PoTokenResult? =
+                poTokenGenerator.getWebClientPoToken(videoId, visitorData)?.let { token ->
+                    PoTokenResult(
+                        playerRequestToken = token.playerRequestPoToken,
+                        streamingDataToken = token.streamingDataPoToken,
+                        visitorData = visitorData,
+                    )
+                }
+
+            override suspend fun close() = Unit
+        }
+
+    private val extractor by lazy {
         InnerTubeExtractor(
             configParser =
                 YtConfigParserImpl(
@@ -70,10 +151,17 @@ object InnerTubeXPlaybackResolver {
                     innerTube = innerTube,
                     remotePlayerConfigStore = configStore,
                     cipherService = cipherService,
-                ),
+                ).withEmbeddedConfigFallback(),
             cipherService = cipherService,
             innerTube = innerTube,
+            tokenProvider = tokenProvider,
         )
+    }
+
+    suspend fun prewarm() {
+        syncSession()
+        extractor.prewarm()
+    }
 
     suspend fun resolve(
         videoId: String,
@@ -81,7 +169,7 @@ object InnerTubeXPlaybackResolver {
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
     ): Result<YTPlayerUtils.PlaybackData> =
-        runCatching {
+        try {
             syncSession()
 
             val isUploaded =
@@ -103,27 +191,73 @@ object InnerTubeXPlaybackResolver {
                     extractor.extract(
                         videoId = videoId,
                         hints = hints,
+                        excludedClients = failedStreamClients(videoId),
                         audioQuality = audioQuality.toInnerTubeX(connectivityManager),
                         clientPlaybackNonce = generateClientPlaybackNonce(),
                     ),
                 ) { "InnerTubeX returned no playable stream" }
 
             check(stream.sabrBootstrap == null) {
-                "InnerTubeX selected SABR even though Metrofy's playback path requested direct audio"
+                "InnerTubeX selected SABR even though Metrofy requested direct audio"
             }
 
             Timber
                 .tag(TAG)
                 .i(
-                    "Resolved %s with client=%s itag=%d mime=%s",
+                    "Resolved %s with client=%s itag=%d mime=%s bounded=%s chunk=%d",
                     videoId,
                     stream.clientName,
                     stream.itag,
                     stream.mimeType,
+                    stream.requireBoundedRange || stream.useRangeChunks,
+                    stream.rangeChunkSizeBytes,
                 )
 
-            stream.toPlaybackData()
+            Result.success(stream.toPlaybackData())
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: StreamResolveException) {
+            val cause = error.cause
+            Result.failure(
+                if (error.reason == StreamResolveException.Reason.NETWORK && cause != null) {
+                    cause
+                } else {
+                    error
+                },
+            )
+        } catch (error: Exception) {
+            Result.failure(error)
         }
+
+    fun markStreamClientFailed(
+        videoId: String,
+        clientName: String,
+        nowMs: Long = System.currentTimeMillis(),
+    ) {
+        streamClientFailures.compute(videoId) { _, failures ->
+            FailedStreamClients(failures?.clientNames.orEmpty() + clientName, nowMs)
+        }
+        Timber.tag(TAG).w("Blacklisted stream client=%s for video=%s", clientName, videoId)
+    }
+
+    fun clearStreamClientFailures() {
+        streamClientFailures.clear()
+    }
+
+    suspend fun refreshAfterStreamRejection(): Boolean =
+        cipherService.refreshAfterStreamRejection()
+
+    private fun failedStreamClients(
+        videoId: String,
+        nowMs: Long = System.currentTimeMillis(),
+    ): Set<String> {
+        val failures = streamClientFailures[videoId] ?: return emptySet()
+        if ((nowMs - failures.failedAtMs) !in 0 until STREAM_CLIENT_FAILURE_TTL_MS) {
+            streamClientFailures.remove(videoId, failures)
+            return emptySet()
+        }
+        return failures.clientNames
+    }
 
     private fun syncSession() {
         innerTube.locale =
@@ -150,7 +284,7 @@ object InnerTubeXPlaybackResolver {
                 }
         }
 
-    private fun com.metrolist.innertubex.extraction.ExtractedStream.toPlaybackData(): YTPlayerUtils.PlaybackData {
+    private fun ExtractedStream.toPlaybackData(): YTPlayerUtils.PlaybackData {
         val metadata = mediaMetadata
         val fullMimeType =
             if (codecs.isNullOrBlank()) {
@@ -243,6 +377,51 @@ object InnerTubeXPlaybackResolver {
             streamUrl = audioUrl,
             streamExpiresInSeconds = ttlSeconds,
             streamHeaders = headers,
+            streamClient = clientName,
+            requireBoundedRange = requireBoundedRange,
+            rangeChunkSizeBytes = rangeChunkSizeBytes,
+            useRangeChunks = useRangeChunks,
         )
     }
+
+    private class AndroidPlayerConfigRepository(context: Context) : PlayerConfigRepository {
+        private val preferences =
+            context.getSharedPreferences("innertubex_player_config", Context.MODE_PRIVATE)
+
+        override val enabled: Boolean = true
+        override val sourceUrl: String = PLAYER_CONFIG_URL
+        override val defaultSourceUrl: String = PLAYER_CONFIG_URL
+
+        override var cachedJson: String
+            get() = preferences.getString("json", "").orEmpty()
+            set(value) = preferences.edit().putString("json", value).apply()
+
+        override var cachedAtMs: Long
+            get() = preferences.getLong("cached_at_ms", 0L)
+            set(value) = preferences.edit().putLong("cached_at_ms", value).apply()
+
+        override var cachedSourceUrl: String
+            get() = preferences.getString("source_url", "").orEmpty()
+            set(value) = preferences.edit().putString("source_url", value).apply()
+
+        override var cachedEtag: String
+            get() = preferences.getString("etag", "").orEmpty()
+            set(value) = preferences.edit().putString("etag", value).apply()
+    }
+
+    private fun YtConfigParser.withEmbeddedConfigFallback(): YtConfigParser =
+        object : YtConfigParser by this {
+            override suspend fun fetchConfig(
+                videoId: String,
+                useLoginCookies: Boolean,
+            ) =
+                try {
+                    this@withEmbeddedConfigFallback.fetchConfig(videoId, useLoginCookies)
+                } catch (_: IllegalStateException) {
+                    this@withEmbeddedConfigFallback.fetchEmbeddedConfig(
+                        videoId,
+                        useLoginCookies = false,
+                    )
+                }
+        }
 }
