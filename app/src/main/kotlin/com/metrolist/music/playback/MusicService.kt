@@ -728,11 +728,6 @@ class MusicService :
                     songUrlCache.remove(mediaId)
                     songHeaderCache.remove(mediaId)
                     songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
 
                     // Clear caches before reload so the new quality isn't served a stale
                     // byte-range. Using withContext(IO) instead of runBlocking keeps this
@@ -804,11 +799,6 @@ class MusicService :
 
                     songUrlCache.remove(mediaId)
                     songHeaderCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
                     songTransportCache.remove(mediaId)
                     // Toggling Qobuz settings is an explicit user retry signal —
                     // wipe the negative cache so previously-missed tracks get a
@@ -3086,11 +3076,6 @@ class MusicService :
         songUrlCache.remove(mediaId)
                     songHeaderCache.remove(mediaId)
                     songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
 
         // Clear player cache
         try {
@@ -3289,11 +3274,6 @@ class MusicService :
         // Clear the cached URL
         songUrlCache.remove(mediaId)
                     songHeaderCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
                     songTransportCache.remove(mediaId)
         Timber.tag(TAG).d("Cleared cached URL for $mediaId")
 
@@ -4697,11 +4677,6 @@ class MusicService :
             qobuzMissUntilMs.remove(mediaId)
             songUrlCache.remove(mediaId)
                     songHeaderCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
-                    songTransportCache.remove(mediaId)
                     songTransportCache.remove(mediaId)
             try {
                 playerCache.removeResource(mediaId)
