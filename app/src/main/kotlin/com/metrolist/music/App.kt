@@ -40,6 +40,7 @@ import com.metrolist.music.extensions.toInetSocketAddress
 import com.metrolist.music.utils.AnrWatchdog
 import com.metrolist.music.utils.CrashHandler
 import com.metrolist.music.utils.CrashReporter
+import com.metrolist.music.utils.InnerTubeXPlaybackResolver
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.utils.SpotifyHashSync
 import com.metrolist.music.utils.SpotifyTokenManager
@@ -106,8 +107,9 @@ class App :
         CrashHandler.install(this)
         AnrWatchdog.start()
 
-        // Initialize cipher deobfuscator for WEB_REMIX streaming
+        // Initialize stream extraction before the first playback request.
         CipherDeobfuscator.initialize(this)
+        InnerTubeXPlaybackResolver.initialize(this)
 
         Timber.plant(Timber.DebugTree())
 
@@ -120,6 +122,10 @@ class App :
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {
             initializeSettings()
+            applicationScope.launch(Dispatchers.IO) {
+                runCatching { InnerTubeXPlaybackResolver.prewarm() }
+                    .onFailure { Timber.tag("InnerTubeXPlayback").w(it, "Playback prewarm failed") }
+            }
             observeSettingsChanges()
         }
     }
