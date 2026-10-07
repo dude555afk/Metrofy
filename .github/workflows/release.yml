@@ -159,7 +159,7 @@ jobs:
       - name: Upload Signed APKs
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.variant == 'gms' && 'Meld-with-Google-Cast' || matrix.variant == 'izzy' && 'Meld-izzy' || 'Meld' }}
+          name: ${{ matrix.variant == 'gms' && 'Metrofy-with-Google-Cast' || matrix.variant == 'izzy' && 'Metrofy-izzy' || 'Metrofy' }}
           path: app/build/outputs/apk/${{ matrix.variant }}/release/out/*.apk
 
   create-release:
@@ -216,7 +216,6 @@ jobs:
           gh release create "v${{ needs.check-version.outputs.new_version }}" \
             --title "${{ needs.check-version.outputs.new_version }}" \
             --notes-file release_notes.md \
-            --draft \
             release_files/*.apk
 
           echo "Release created successfully!"
