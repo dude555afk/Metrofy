@@ -203,6 +203,10 @@ object YTPlayerUtils {
         val streamUrl: String,
         val streamExpiresInSeconds: Int,
         val streamHeaders: Map<String, String> = emptyMap(),
+        val streamClient: String = "",
+        val requireBoundedRange: Boolean = false,
+        val rangeChunkSizeBytes: Long = 0L,
+        val useRangeChunks: Boolean = false,
     )
     /**
      * Custom player response intended to use for playback.
