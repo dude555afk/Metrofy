@@ -1,3 +1,11 @@
+---v0.8.9.2
+# Playback hotfix
+
+- Replaced Metrofy's failing YouTube audio stream resolution path with InnerTubeX v0.7.4.
+- Fixed songs getting stuck loading or failing/skipping when YouTube stream extraction breaks.
+- Preserved per-client stream request headers for playback and downloads.
+- Kept Spotify Canvas, synced lyrics, Spotify metadata/mapping, and optional Qobuz fallback unchanged.
+
 ---v13.4.0
 # MAINTENANCE MODE
 Metrolist is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
