@@ -1,3 +1,12 @@
+---v0.8.9.3
+# Playback transport hotfix
+
+- Reworked YouTube playback transport handling around InnerTubeX v0.7.4.
+- Added player config and PoToken support for stream extraction.
+- Preserved stream client headers and bounded-range requirements through Media3.
+- Added failed-client fallback tracking so rejected stream clients can be retried with alternatives.
+- Removed the unused debug APK CI matrix that was failing on the stale debug keystore.
+
 ---v0.8.9.2
 # Playback hotfix
 
