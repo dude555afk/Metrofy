@@ -148,7 +148,7 @@ suspend fun PersistQueue.toRuntimeQueue(
         mapper = SpotifyYouTubeMapper(database),
         context = context,
         database = database,
-        preloadItem = items.getOrNull(mediaItemIndex),
+        preloadItem = null,
         restoredItems = items,
         restoredStartIndex = mediaItemIndex,
         restoredPosition = position,
