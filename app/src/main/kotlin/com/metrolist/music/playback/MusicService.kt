@@ -3260,6 +3260,28 @@ class MusicService :
             }
     }
 
+    fun playbackDiagnostics(): InnerTubeXPlaybackResolver.PlaybackDiagnostics =
+        InnerTubeXPlaybackResolver.diagnostics(player.currentMetadata?.id)
+
+    /**
+     * User-triggered escape hatch for a bad YouTube extraction client.
+     * The currently resolved client is blacklisted for this video, caches are
+     * invalidated, and the ordinary 403 recovery path re-resolves the stream.
+     */
+    fun retryWithAnotherStreamClient() {
+        val mediaId = player.currentMetadata?.id ?: return
+        songTransportCache[mediaId]
+            ?.clientName
+            ?.takeIf { it.isNotBlank() }
+            ?.let { InnerTubeXPlaybackResolver.markStreamClientFailed(mediaId, it) }
+
+        scope.launch(Dispatchers.IO) {
+            runCatching { InnerTubeXPlaybackResolver.refreshAfterStreamRejection() }
+                .onFailure { Timber.tag(TAG).w(it, "Manual stream client refresh failed") }
+        }
+        handleExpiredUrlError(mediaId)
+    }
+
     /**
      * Handles expired URL (403) errors by clearing caches and retrying.
      */
