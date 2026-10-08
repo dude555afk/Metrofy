@@ -5,15 +5,20 @@
 
 package com.metrolist.music.extensions
 
+import android.content.Context
+import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.models.PersistQueue
 import com.metrolist.music.models.QueueData
 import com.metrolist.music.models.QueueType
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.playback.queues.LocalAlbumRadio
+import com.metrolist.music.playback.SpotifyYouTubeMapper
 import com.metrolist.music.playback.queues.Queue
+import com.metrolist.music.playback.queues.SpotifyQueue
 import com.metrolist.music.playback.queues.YouTubeAlbumRadio
 import com.metrolist.music.playback.queues.YouTubeQueue
+import com.metrolist.spotify.Spotify
 
 fun Queue.toPersistQueue(
     title: String?,
@@ -68,6 +73,14 @@ fun Queue.toPersistQueue(
                 )
             )
         }
+        is SpotifyQueue -> PersistQueue(
+            title = title,
+            items = items,
+            mediaItemIndex = mediaItemIndex,
+            position = position,
+            queueType = QueueType.SPOTIFY,
+            queueData = QueueData.SpotifyData(seedTrackId = this.seedTrackId),
+        )
         else -> PersistQueue(
             title = title,
             items = items,
@@ -113,5 +126,31 @@ fun PersistQueue.toQueue(): Queue {
                 position = position
             )
         }
+        is QueueType.SPOTIFY -> ListQueue(
+            title = title,
+            items = items.map { it.toMediaItem() },
+            startIndex = mediaItemIndex,
+            position = position,
+        )
     }
+}
+
+suspend fun PersistQueue.toRuntimeQueue(
+    context: Context,
+    database: MusicDatabase,
+): Queue {
+    val spotifyData = queueData as? QueueData.SpotifyData
+    if (queueType !is QueueType.SPOTIFY || spotifyData == null) return toQueue()
+
+    val seedTrack = Spotify.track(spotifyData.seedTrackId).getOrNull() ?: return toQueue()
+    return SpotifyQueue(
+        initialTrack = seedTrack,
+        mapper = SpotifyYouTubeMapper(database),
+        context = context,
+        database = database,
+        preloadItem = items.getOrNull(mediaItemIndex),
+        restoredItems = items,
+        restoredStartIndex = mediaItemIndex,
+        restoredPosition = position,
+    )
 }
