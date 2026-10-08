@@ -147,6 +147,7 @@ val MaxSongCacheSizeKey = intPreferencesKey("maxSongCacheSize")
 val EnableSongCacheKey = booleanPreferencesKey("enableSongCache")
 val PreCacheTracksKey = intPreferencesKey("preCacheTracks")
 val PreCacheOnlyWifiKey = booleanPreferencesKey("preCacheOnlyWifi")
+val DownloadWifiOnlyKey = booleanPreferencesKey("downloadWifiOnly")
 
 val PauseListenHistoryKey = booleanPreferencesKey("pauseListenHistory")
 val PauseSearchHistoryKey = booleanPreferencesKey("pauseSearchHistory")
