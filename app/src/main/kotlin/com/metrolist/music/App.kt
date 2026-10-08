@@ -41,6 +41,7 @@ import com.metrolist.music.utils.AnrWatchdog
 import com.metrolist.music.utils.CrashHandler
 import com.metrolist.music.utils.CrashReporter
 import com.metrolist.music.utils.InnerTubeXPlaybackResolver
+import com.metrolist.music.utils.Updater
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.utils.SpotifyHashSync
 import com.metrolist.music.utils.SpotifyTokenManager
@@ -106,6 +107,10 @@ class App :
         CrashReporter.init(this)
         CrashHandler.install(this)
         AnrWatchdog.start()
+
+        // Update APKs live only in private cache. Clear leftovers after an app
+        // replacement, cancelled install, or ordinary restart.
+        Updater.cleanupCachedUpdates(this)
 
         // Initialize stream extraction before the first playback request.
         CipherDeobfuscator.initialize(this)
