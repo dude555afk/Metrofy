@@ -46,6 +46,7 @@ import coil3.request.ImageRequest
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.R
+import com.metrolist.spotify.Spotify
 import com.metrolist.spotify.SpotifyMapper
 import com.metrolist.spotify.models.SpotifyTrack
 import kotlinx.coroutines.Dispatchers
@@ -66,7 +67,8 @@ private data class SuggestedYouTubeMatch(
 
 @Composable
 fun YouTubeMatchDialog(
-    spotifyTrack: SpotifyTrack,
+    spotifyTrack: SpotifyTrack? = null,
+    spotifyTrackId: String? = null,
     currentYouTubeId: String?,
     onConfirm: (YouTubeMatchResult) -> Unit,
     onRestoreAutomatic: (() -> Unit)? = null,
@@ -80,7 +82,18 @@ fun YouTubeMatchDialog(
     var currentMatchInfo by remember { mutableStateOf<SongItem?>(null) }
     var isLoadingCurrent by remember { mutableStateOf(currentYouTubeId != null) }
     var suggestions by remember { mutableStateOf<List<SuggestedYouTubeMatch>>(emptyList()) }
-    var isLoadingSuggestions by remember { mutableStateOf(true) }
+    var isLoadingSuggestions by remember { mutableStateOf(spotifyTrack != null || spotifyTrackId != null) }
+    var resolvedSpotifyTrack by remember(spotifyTrack, spotifyTrackId) { mutableStateOf(spotifyTrack) }
+
+    LaunchedEffect(spotifyTrack, spotifyTrackId) {
+        resolvedSpotifyTrack = spotifyTrack
+        if (resolvedSpotifyTrack == null && !spotifyTrackId.isNullOrBlank()) {
+            resolvedSpotifyTrack =
+                withContext(Dispatchers.IO) {
+                    Spotify.track(spotifyTrackId).getOrNull()
+                }
+        }
+    }
 
     LaunchedEffect(currentYouTubeId) {
         if (currentYouTubeId == null) {
@@ -97,11 +110,17 @@ fun YouTubeMatchDialog(
         isLoadingCurrent = false
     }
 
-    LaunchedEffect(spotifyTrack.id) {
+    LaunchedEffect(resolvedSpotifyTrack?.id) {
+        val track = resolvedSpotifyTrack
+        if (track == null) {
+            suggestions = emptyList()
+            isLoadingSuggestions = false
+            return@LaunchedEffect
+        }
         isLoadingSuggestions = true
         suggestions =
             withContext(Dispatchers.IO) {
-                val query = SpotifyMapper.buildSearchQuery(spotifyTrack)
+                val query = SpotifyMapper.buildSearchQuery(track)
                 val result = YouTube.searchSummary(query, incognito = true).getOrNull()
                 result
                     ?.summaries
@@ -111,9 +130,9 @@ fun YouTubeMatchDialog(
                     .map { song ->
                         val score =
                             SpotifyMapper.matchScore(
-                                spotifyTitle = spotifyTrack.name,
-                                spotifyArtist = spotifyTrack.artists.firstOrNull()?.name.orEmpty(),
-                                spotifyDurationMs = spotifyTrack.durationMs,
+                                spotifyTitle = track.name,
+                                spotifyArtist = track.artists.firstOrNull()?.name.orEmpty(),
+                                spotifyDurationMs = track.durationMs,
                                 candidateTitle = song.title,
                                 candidateArtist = song.artists.firstOrNull()?.name.orEmpty(),
                                 candidateDurationSec = song.duration ?: 0,
