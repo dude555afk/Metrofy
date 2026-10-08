@@ -42,6 +42,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -96,6 +97,7 @@ import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.DownloadWifiOnlyKey
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.SongSortDescendingKey
 import com.metrolist.music.constants.SongSortType
@@ -215,8 +217,15 @@ fun AutoPlaylistScreen(
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
 
     val downloadUtil = LocalDownloadUtil.current
+    val downloads by downloadUtil.downloads.collectAsState()
+    val (downloadWifiOnly, onDownloadWifiOnlyChange) =
+        rememberPreference(DownloadWifiOnlyKey, false)
     var downloadState by remember {
         mutableIntStateOf(Download.STATE_STOPPED)
+    }
+
+    LaunchedEffect(downloadWifiOnly) {
+        downloadUtil.setWifiOnly(downloadWifiOnly)
     }
 
     val scope = rememberCoroutineScope()
@@ -511,6 +520,22 @@ fun AutoPlaylistScreen(
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
             if (songs != null) {
+                if (playlistType == PlaylistType.DOWNLOAD && !isSearching) {
+                    item(key = "download_manager") {
+                        DownloadManagerCard(
+                            downloads = downloads.values.toList(),
+                            storageBytes = downloadUtil.downloadedBytes(),
+                            wifiOnly = downloadWifiOnly,
+                            onWifiOnlyChange = onDownloadWifiOnlyChange,
+                            onPause = downloadUtil::pauseDownload,
+                            onResume = downloadUtil::resumeDownload,
+                            onRetry = downloadUtil::retryDownload,
+                            onRemove = downloadUtil::removeDownload,
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                }
+
                 if (songs!!.isEmpty()) {
                     item(key = "empty_placeholder") {
                         EmptyPlaceholder(
@@ -1018,6 +1043,166 @@ private fun AutoPlaylistHeader(
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DownloadManagerCard(
+    downloads: List<Download>,
+    storageBytes: Long,
+    wifiOnly: Boolean,
+    onWifiOnlyChange: (Boolean) -> Unit,
+    onPause: (String) -> Unit,
+    onResume: (String) -> Unit,
+    onRetry: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val visibleDownloads =
+        remember(downloads) {
+            downloads
+                .filter { it.state != Download.STATE_REMOVING }
+                .sortedWith(
+                    compareBy<Download> {
+                        when (it.state) {
+                            Download.STATE_DOWNLOADING -> 0
+                            Download.STATE_QUEUED -> 1
+                            Download.STATE_FAILED -> 2
+                            Download.STATE_STOPPED -> 3
+                            else -> 4
+                        }
+                    }.thenBy { it.request.id },
+                )
+        }
+    val activeCount =
+        visibleDownloads.count {
+            it.state == Download.STATE_DOWNLOADING || it.state == Download.STATE_QUEUED
+        }
+    val storageLabel =
+        if (storageBytes >= 1024L * 1024L * 1024L) {
+            String.format("%.2f GB", storageBytes / (1024f * 1024f * 1024f))
+        } else {
+            String.format("%.1f MB", storageBytes / (1024f * 1024f))
+        }
+
+    Surface(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.download_manager),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = buildString {
+                            append(stringResource(R.string.download_storage_used, storageLabel))
+                            if (activeCount > 0) {
+                                append(" · ")
+                                append(stringResource(R.string.download_active_count, activeCount))
+                            }
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = stringResource(R.string.download_wifi_only),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    Switch(
+                        checked = wifiOnly,
+                        onCheckedChange = onWifiOnlyChange,
+                    )
+                }
+            }
+
+            visibleDownloads.take(8).forEach { download ->
+                Spacer(Modifier.height(12.dp))
+                val title =
+                    download.request.data
+                        .takeIf { it.isNotEmpty() }
+                        ?.toString(Charsets.UTF_8)
+                        ?.takeIf { it.isNotBlank() }
+                        ?: download.request.id
+                val progress =
+                    download.percentDownloaded
+                        .takeIf { it >= 0f }
+                        ?.toInt()
+                        ?.coerceIn(0, 100)
+                        ?: 0
+                val stateText =
+                    when (download.state) {
+                        Download.STATE_QUEUED -> stringResource(R.string.download_state_queued)
+                        Download.STATE_DOWNLOADING -> stringResource(R.string.download_state_downloading)
+                        Download.STATE_STOPPED -> stringResource(R.string.download_state_paused)
+                        Download.STATE_FAILED -> stringResource(R.string.download_state_failed)
+                        Download.STATE_COMPLETED -> stringResource(R.string.download_state_completed)
+                        else -> stringResource(R.string.downloading)
+                    }
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(R.string.download_progress, progress, stateText),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (download.state != Download.STATE_COMPLETED) {
+                    LinearProgressIndicator(
+                        progress = { progress / 100f },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    when (download.state) {
+                        Download.STATE_DOWNLOADING,
+                        Download.STATE_QUEUED -> {
+                            TextButton(onClick = { onPause(download.request.id) }) {
+                                Text(stringResource(R.string.pause))
+                            }
+                        }
+
+                        Download.STATE_STOPPED -> {
+                            TextButton(onClick = { onResume(download.request.id) }) {
+                                Text(stringResource(R.string.resume))
+                            }
+                        }
+
+                        Download.STATE_FAILED -> {
+                            TextButton(onClick = { onRetry(download.request.id) }) {
+                                Text(stringResource(R.string.retry))
+                            }
+                        }
+                    }
+                    TextButton(onClick = { onRemove(download.request.id) }) {
+                        Text(stringResource(R.string.remove))
+                    }
                 }
             }
         }
