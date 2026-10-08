@@ -189,6 +189,7 @@ import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.extensions.toPersistQueue
 import com.metrolist.music.extensions.toQueue
+import com.metrolist.music.extensions.toRuntimeQueue
 import com.metrolist.music.lyrics.LyricsHelper
 import com.metrolist.music.models.PersistPlayerState
 import com.metrolist.music.models.PersistQueue
@@ -1066,11 +1067,12 @@ class MusicService :
                         }
                     }
                 }.onSuccess { queue ->
-                    runCatching {
-                        // Convert back to proper queue type
-                        val restoredQueue = queue.toQueue()
-                        // Wait for player initialization before playing
-                        scope.launch {
+                    scope.launch {
+                        runCatching {
+                            val restoredQueue =
+                                withContext(Dispatchers.IO) {
+                                    queue.toRuntimeQueue(this@MusicService, database)
+                                }
                             playerInitialized.first { it }
                             if (isActive) {
                                 playQueue(
@@ -1078,10 +1080,10 @@ class MusicService :
                                     playWhenReady = false,
                                 )
                             }
+                        }.onFailure { error ->
+                            Timber.tag(TAG).w(error, "Failed to restore persisted queue, clearing data")
+                            clearPersistedQueueFiles()
                         }
-                    }.onFailure { error ->
-                        Timber.tag(TAG).w(error, "Failed to restore persisted queue, clearing data")
-                        clearPersistedQueueFiles()
                     }
                 }.onFailure { error ->
                     Timber.tag(TAG).w(error, "Failed to read persisted queue, clearing data")
