@@ -6,6 +6,7 @@
 package com.metrolist.music.ui.component
 
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -45,8 +46,11 @@ import coil3.request.ImageRequest
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.R
+import com.metrolist.spotify.SpotifyMapper
+import com.metrolist.spotify.models.SpotifyTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 data class YouTubeMatchResult(
     val videoId: String,
@@ -55,10 +59,17 @@ data class YouTubeMatchResult(
     val thumbnail: String?,
 )
 
+private data class SuggestedYouTubeMatch(
+    val song: SongItem,
+    val confidence: Int,
+)
+
 @Composable
 fun YouTubeMatchDialog(
+    spotifyTrack: SpotifyTrack,
     currentYouTubeId: String?,
     onConfirm: (YouTubeMatchResult) -> Unit,
+    onRestoreAutomatic: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
     var url by remember { mutableStateOf("") }
@@ -68,6 +79,8 @@ fun YouTubeMatchDialog(
 
     var currentMatchInfo by remember { mutableStateOf<SongItem?>(null) }
     var isLoadingCurrent by remember { mutableStateOf(currentYouTubeId != null) }
+    var suggestions by remember { mutableStateOf<List<SuggestedYouTubeMatch>>(emptyList()) }
+    var isLoadingSuggestions by remember { mutableStateOf(true) }
 
     LaunchedEffect(currentYouTubeId) {
         if (currentYouTubeId == null) {
@@ -82,6 +95,39 @@ fun YouTubeMatchDialog(
             currentMatchInfo = result?.firstOrNull()
         } catch (_: Exception) { }
         isLoadingCurrent = false
+    }
+
+    LaunchedEffect(spotifyTrack.id) {
+        isLoadingSuggestions = true
+        suggestions =
+            withContext(Dispatchers.IO) {
+                val query = SpotifyMapper.buildSearchQuery(spotifyTrack)
+                val result = YouTube.searchSummary(query, incognito = true).getOrNull()
+                result
+                    ?.summaries
+                    .orEmpty()
+                    .flatMap { it.items }
+                    .filterIsInstance<SongItem>()
+                    .map { song ->
+                        val score =
+                            SpotifyMapper.matchScore(
+                                spotifyTitle = spotifyTrack.name,
+                                spotifyArtist = spotifyTrack.artists.firstOrNull()?.name.orEmpty(),
+                                spotifyDurationMs = spotifyTrack.durationMs,
+                                candidateTitle = song.title,
+                                candidateArtist = song.artists.firstOrNull()?.name.orEmpty(),
+                                candidateDurationSec = song.duration ?: 0,
+                            )
+                        SuggestedYouTubeMatch(
+                            song = song,
+                            confidence = (score * 100.0).roundToInt().coerceIn(0, 100),
+                        )
+                    }
+                    .sortedByDescending { it.confidence }
+                    .distinctBy { it.song.id }
+                    .take(4)
+            }
+        isLoadingSuggestions = false
     }
 
     fun extractVideoId(input: String): String? {
@@ -132,6 +178,16 @@ fun YouTubeMatchDialog(
             Text(text = stringResource(R.string.change_youtube_version))
         },
         buttons = {
+            if (currentYouTubeId != null && onRestoreAutomatic != null) {
+                TextButton(
+                    onClick = {
+                        onRestoreAutomatic()
+                        onDismiss()
+                    },
+                ) {
+                    Text(text = stringResource(R.string.restore_automatic_matching))
+                }
+            }
             TextButton(onClick = onDismiss) {
                 Text(text = stringResource(android.R.string.cancel))
             }
@@ -184,6 +240,86 @@ fun YouTubeMatchDialog(
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(16.dp))
             }
+
+            Text(
+                text = stringResource(R.string.suggested_matches),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (isLoadingSuggestions) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.searching),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            } else {
+                suggestions.forEach { suggestion ->
+                    val song = suggestion.song
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    preview = song
+                                    errorMessage = null
+                                }
+                                .padding(vertical = 6.dp),
+                    ) {
+                        AsyncImage(
+                            model =
+                                ImageRequest.Builder(LocalContext.current)
+                                    .data(song.thumbnail)
+                                    .build(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier =
+                                Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = song.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = song.artists.joinToString(", ") { it.name },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.match_confidence, suggestion.confidence),
+                            style = MaterialTheme.typography.labelSmall,
+                            color =
+                                if (song.id == currentYouTubeId) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = url,
