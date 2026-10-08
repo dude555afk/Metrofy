@@ -17,16 +17,20 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadNotificationHelper
+import androidx.media3.exoplayer.scheduler.Requirements
 import com.metrolist.innertube.YouTube
 import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.constants.AudioQualityKey
+import com.metrolist.music.constants.DownloadWifiOnlyKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.FormatEntity
 import com.metrolist.music.db.entities.SongEntity
 import com.metrolist.music.di.DownloadCache
 import com.metrolist.music.di.PlayerCache
 import com.metrolist.music.utils.YTPlayerUtils
+import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.enumPreference
+import com.metrolist.music.utils.get
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -51,7 +55,7 @@ import javax.inject.Singleton
 class DownloadUtil
 @Inject
 constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     val database: MusicDatabase,
     val databaseProvider: DatabaseProvider,
     @DownloadCache val downloadCache: SimpleCache,
@@ -239,11 +243,40 @@ constructor(
             result[cursor.download.request.id] = cursor.download
         }
         downloads.value = result
+        setWifiOnly(context.dataStore.get(DownloadWifiOnlyKey, false))
     }
+
+    fun setWifiOnly(enabled: Boolean) {
+        val networkRequirement =
+            if (enabled) Requirements.NETWORK_UNMETERED else Requirements.NETWORK
+        downloadManager.setRequirements(Requirements(networkRequirement))
+    }
+
+    fun pauseDownload(id: String) {
+        downloadManager.setStopReason(id, USER_STOP_REASON)
+    }
+
+    fun resumeDownload(id: String) {
+        downloadManager.setStopReason(id, Download.STOP_REASON_NONE)
+    }
+
+    fun retryDownload(id: String) {
+        downloads.value[id]?.let { downloadManager.addDownload(it.request) }
+    }
+
+    fun removeDownload(id: String) {
+        downloadManager.removeDownload(id)
+    }
+
+    fun downloadedBytes(): Long = downloadCache.cacheSpace
 
     fun getDownload(songId: String): Flow<Download?> = downloads.map { it[songId] }
 
     fun release() {
         scope.cancel()
+    }
+
+    companion object {
+        private const val USER_STOP_REASON = 1
     }
 }
