@@ -5,6 +5,9 @@
 
 package com.metrolist.music.ui.screens.settings
 
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -19,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -45,11 +49,13 @@ import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
+import com.metrolist.music.utils.ReleaseInfo
 import com.metrolist.music.utils.Updater
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,12 +69,36 @@ fun UpdaterScreen(
     var isChecking by remember { mutableStateOf(false) }
     var updateAvailable by remember { mutableStateOf(false) }
     var latestVersion by remember { mutableStateOf<String?>(null) }
+    var latestRelease by remember { mutableStateOf<ReleaseInfo?>(null) }
     var showChangelog by remember { mutableStateOf(false) }
     var changelogContent by remember { mutableStateOf<String?>(null) }
     var checkError by remember { mutableStateOf<String?>(null) }
+    var isDownloading by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableStateOf(0) }
+    var downloadedApk by remember { mutableStateOf<File?>(null) }
     val failedToCheckUpdatesTemplate = stringResource(R.string.failed_to_check_updates)
 
     val coroutineScope = rememberCoroutineScope()
+
+    val installPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            val apk = downloadedApk
+            if (apk != null && apk.exists() && Updater.canRequestPackageInstalls(context)) {
+                Updater.installUpdate(context, apk)
+                    .onFailure { checkError = it.message ?: "Could not open Android installer" }
+            }
+        }
+
+    fun startInstall(apk: File) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !Updater.canRequestPackageInstalls(context)
+        ) {
+            installPermissionLauncher.launch(Updater.installPermissionIntent(context))
+        } else {
+            Updater.installUpdate(context, apk)
+                .onFailure { checkError = it.message ?: "Could not open Android installer" }
+        }
+    }
 
     fun performManualCheck() {
         coroutineScope.launch {
@@ -80,8 +110,11 @@ fun UpdaterScreen(
                     .onSuccess { (releaseInfo, hasUpdate) ->
                         if (releaseInfo != null) {
                             latestVersion = releaseInfo.versionName
+                            latestRelease = releaseInfo
                             updateAvailable = hasUpdate
                             changelogContent = releaseInfo.description
+                            downloadedApk = null
+                            downloadProgress = 0
                         }
                     }.onFailure {
                         checkError = String.format(failedToCheckUpdatesTemplate, it.message ?: "Unknown error")
@@ -216,6 +249,72 @@ fun UpdaterScreen(
 
         if (updateAvailable && latestVersion != null) {
             Spacer(Modifier.height(16.dp))
+
+            if (isDownloading) {
+                Text(
+                    text = stringResource(R.string.downloading_update, downloadProgress),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { downloadProgress / 100f },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                )
+                Spacer(Modifier.height(12.dp))
+            }
+
+            Button(
+                enabled = !isDownloading,
+                onClick = {
+                    val readyApk = downloadedApk?.takeIf { it.exists() }
+                    if (readyApk != null) {
+                        startInstall(readyApk)
+                    } else {
+                        val release = latestRelease
+                        if (release != null) {
+                            coroutineScope.launch {
+                                isDownloading = true
+                                checkError = null
+                                downloadProgress = 0
+                                Updater.downloadUpdate(context, release) { progress ->
+                                    coroutineScope.launch { downloadProgress = progress }
+                                }.onSuccess { apk ->
+                                    downloadedApk = apk
+                                    isDownloading = false
+                                    startInstall(apk)
+                                }.onFailure { error ->
+                                    isDownloading = false
+                                    checkError =
+                                        context.getString(
+                                            R.string.update_download_failed,
+                                            error.message ?: "Unknown error",
+                                        )
+                                }
+                            }
+                        }
+                    }
+                },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+            ) {
+                Text(
+                    when {
+                        isDownloading -> stringResource(R.string.downloading_update, downloadProgress)
+                        downloadedApk?.exists() == true &&
+                            !Updater.canRequestPackageInstalls(context) ->
+                            stringResource(R.string.allow_install_updates)
+                        downloadedApk?.exists() == true -> stringResource(R.string.install_update)
+                        else -> stringResource(R.string.download_and_install)
+                    },
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
             Button(
                 onClick = { showChangelog = !showChangelog },
                 modifier =
