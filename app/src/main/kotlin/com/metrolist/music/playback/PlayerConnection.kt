@@ -244,6 +244,12 @@ class PlayerConnection(
         }
     }
 
+    fun playbackDiagnostics() = service.playbackDiagnostics()
+
+    fun retryWithAnotherStreamClient() {
+        service.retryWithAnotherStreamClient()
+    }
+
     fun startRadioSeamlessly() {
         // Block if Listen Together guest
         if (shouldBlockPlaybackChanges?.invoke() == true) {
