@@ -123,6 +123,15 @@ class SpotifyYouTubeMapper(
     }
 
     /**
+     * Removes any cached/manual mapping so the next play uses automatic matching again.
+     */
+    suspend fun resetMatch(spotifyId: String) = withContext(Dispatchers.IO) {
+        database.deleteSpotifyMatch(spotifyId)
+        memoryCache.remove(spotifyId)
+        Timber.d("Spotify match reset to automatic: $spotifyId")
+    }
+
+    /**
      * Resolves a Spotify track to a MediaItem suitable for the player queue.
      * The MediaItem's id is the YouTube video ID, allowing the existing
      * ResolvingDataSource to resolve the actual stream URL.
