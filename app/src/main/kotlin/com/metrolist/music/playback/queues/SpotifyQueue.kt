@@ -8,6 +8,7 @@ package com.metrolist.music.playback.queues
 import android.content.Context
 import androidx.media3.common.MediaItem
 import com.metrolist.music.db.MusicDatabase
+import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.playback.SpotifyRecommendationEngine
 import com.metrolist.music.playback.SpotifyYouTubeMapper
@@ -43,7 +44,12 @@ class SpotifyQueue(
     private val context: Context? = null,
     private val database: MusicDatabase? = null,
     override val preloadItem: MediaMetadata? = null,
+    private val restoredItems: List<MediaMetadata> = emptyList(),
+    private val restoredStartIndex: Int = 0,
+    private val restoredPosition: Long = 0L,
 ) : Queue {
+    val seedTrackId: String
+        get() = initialTrack.id
 
     companion object {
         private const val RESOLVE_BATCH_SIZE = 10
@@ -51,6 +57,7 @@ class SpotifyQueue(
     }
 
     private val queuedTracks = mutableListOf<SpotifyTrack>()
+    private val restoredMediaIds = restoredItems.mapTo(mutableSetOf()) { it.id }
     private var resolveOffset = 0
 
     // Recommendations are generated lazily on the first nextPage() so playback
@@ -59,6 +66,20 @@ class SpotifyQueue(
     private var recommendationsGenerated = false
 
     override suspend fun getInitialStatus(): Queue.Status = withContext(Dispatchers.IO) {
+        if (restoredItems.isNotEmpty()) {
+            val safeIndex = restoredStartIndex.coerceIn(0, restoredItems.lastIndex)
+            Timber.d(
+                "SpotifyQueue: restored ${restoredItems.size} items at index=$safeIndex; " +
+                    "smart recommendations will continue lazily",
+            )
+            return@withContext Queue.Status(
+                title = null,
+                items = restoredItems.map { it.toMediaItem() },
+                mediaItemIndex = safeIndex,
+                position = restoredPosition.coerceAtLeast(0L),
+            )
+        }
+
         val initialMediaItem = mapper.resolveToMediaItem(initialTrack)
 
         if (initialMediaItem == null) {
@@ -172,6 +193,7 @@ class SpotifyQueue(
             batch.map { track -> async { mapper.resolveToMediaItem(track) } }
                 .awaitAll()
                 .filterNotNull()
+                .filter { item -> restoredMediaIds.add(item.mediaId) }
         }
     }
 }
