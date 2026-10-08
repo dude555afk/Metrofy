@@ -21,6 +21,7 @@ sealed class QueueType : Serializable {
     object YOUTUBE : QueueType()
     object YOUTUBE_ALBUM_RADIO : QueueType()
     object LOCAL_ALBUM_RADIO : QueueType()
+    object SPOTIFY : QueueType()
 }
 
 sealed class QueueData : Serializable {
@@ -42,5 +43,9 @@ sealed class QueueData : Serializable {
         val playlistId: String? = null,
         val continuation: String? = null,
         val firstTimeLoaded: Boolean = false
+    ) : QueueData()
+
+    data class SpotifyData(
+        val seedTrackId: String,
     ) : QueueData()
 }
