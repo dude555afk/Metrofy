@@ -406,6 +406,9 @@
     <string name="allow_install_updates">Allow Metrofy to install updates</string>
     <string name="update_download_failed">Update download failed: %s</string>
     <string name="update_ready">Update downloaded and ready to install</string>
+    <string name="playback_stream_client">Stream client: %s</string>
+    <string name="playback_failed_clients">Rejected clients: %s</string>
+    <string name="try_another_stream_client">Try another stream client</string>
 
     <!-- Offload -->
     <string name="audio_offload">Enable audio offload</string>
