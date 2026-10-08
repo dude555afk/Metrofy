@@ -408,6 +408,19 @@
     <string name="update_ready">Update downloaded and ready to install</string>
     <string name="playback_stream_client">Stream client: %s</string>
     <string name="playback_failed_clients">Rejected clients: %s</string>
+    <string name="download_manager">Download manager</string>
+    <string name="download_storage_used">Storage used: %s</string>
+    <string name="download_wifi_only">Wi-Fi only</string>
+    <string name="download_active_count">%1$d active</string>
+    <string name="download_progress">%1$d%% · %2$s</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="remove">Remove</string>
+    <string name="download_state_queued">Queued</string>
+    <string name="download_state_downloading">Downloading</string>
+    <string name="download_state_paused">Paused</string>
+    <string name="download_state_failed">Failed</string>
+    <string name="download_state_completed">Completed</string>
     <string name="try_another_stream_client">Try another stream client</string>
 
     <!-- Offload -->
