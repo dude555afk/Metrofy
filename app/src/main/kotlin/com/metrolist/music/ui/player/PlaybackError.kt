@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,12 +32,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.PlaybackException
 import com.metrolist.music.R
+import com.metrolist.music.utils.InnerTubeXPlaybackResolver
 
 @Composable
 fun PlaybackError(
     error: PlaybackException,
     isLoggedIn: Boolean,
     retry: () -> Unit,
+    retryWithAnotherClient: (() -> Unit)? = null,
+    diagnostics: InnerTubeXPlaybackResolver.PlaybackDiagnostics? = null,
 ) {
     val rawErrorMessage = error.cause?.cause?.message 
         ?: error.cause?.message 
@@ -108,6 +112,29 @@ fun PlaybackError(
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             textAlign = TextAlign.Center
         )
+
+        diagnostics?.activeClient?.takeIf { it.isNotBlank() }?.let { client ->
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.playback_stream_client, client),
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+        diagnostics?.failedClients?.takeIf { it.isNotEmpty() }?.let { failed ->
+            Text(
+                text = stringResource(
+                    R.string.playback_failed_clients,
+                    failed.sorted().joinToString(", "),
+                ),
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         
         Spacer(modifier = Modifier.height(16.dp))
         
@@ -126,6 +153,16 @@ fun PlaybackError(
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(text = stringResource(R.string.retry))
+        }
+
+        if (retryWithAnotherClient != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = retryWithAnotherClient,
+                shape = RoundedCornerShape(20.dp),
+            ) {
+                Text(text = stringResource(R.string.try_another_stream_client))
+            }
         }
     }
 }
