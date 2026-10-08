@@ -56,17 +56,48 @@ object Updater {
      * Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal
      */
     fun compareVersions(v1: String, v2: String): Int {
-        val v1Parts = v1.removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }
-        val v2Parts = v2.removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }
-        val maxLength = maxOf(v1Parts.size, v2Parts.size)
-        
+        fun parse(version: String): Pair<List<Int>, List<String>?> {
+            val clean = version.removePrefix("v")
+            val pieces = clean.split("-", limit = 2)
+            val core = pieces[0].split(".").map { it.toIntOrNull() ?: 0 }
+            val pre = pieces.getOrNull(1)?.split(".")?.filter { it.isNotBlank() }
+            return core to pre
+        }
+
+        val (core1, pre1) = parse(v1)
+        val (core2, pre2) = parse(v2)
+        val maxLength = maxOf(core1.size, core2.size)
+
         for (i in 0 until maxLength) {
-            val part1 = v1Parts.getOrNull(i) ?: 0
-            val part2 = v2Parts.getOrNull(i) ?: 0
+            val part1 = core1.getOrNull(i) ?: 0
+            val part2 = core2.getOrNull(i) ?: 0
             when {
                 part1 > part2 -> return 1
                 part1 < part2 -> return -1
             }
+        }
+
+        // Same numeric version: stable beats prerelease.
+        if (pre1 == null && pre2 != null) return 1
+        if (pre1 != null && pre2 == null) return -1
+        if (pre1 == null && pre2 == null) return 0
+
+        val left = pre1.orEmpty()
+        val right = pre2.orEmpty()
+        val maxPreLength = maxOf(left.size, right.size)
+        for (i in 0 until maxPreLength) {
+            val a = left.getOrNull(i) ?: return -1
+            val b = right.getOrNull(i) ?: return 1
+            val aNumber = a.toIntOrNull()
+            val bNumber = b.toIntOrNull()
+            val result =
+                when {
+                    aNumber != null && bNumber != null -> aNumber.compareTo(bNumber)
+                    aNumber != null -> -1
+                    bNumber != null -> 1
+                    else -> a.compareTo(b, ignoreCase = true)
+                }
+            if (result != 0) return result
         }
         return 0
     }
@@ -378,15 +409,38 @@ object Updater {
             )
         }
 
-    /** Removes APKs left behind after a completed, cancelled, or superseded update. */
+    /**
+     * Removes an installer immediately after an app replacement, while keeping a
+     * freshly downloaded APK across an ordinary process restart long enough for
+     * the user to finish Android's install-permission flow.
+     */
     fun cleanupCachedUpdates(context: Context) {
         runCatching {
+            val preferences =
+                context.getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE)
+            val previousVersionCode = preferences.getLong(KEY_LAST_VERSION_CODE, -1L)
+            val currentVersionCode = BuildConfig.VERSION_CODE.toLong()
+            val appWasUpdated =
+                previousVersionCode != -1L && previousVersionCode != currentVersionCode
+            val staleBefore = System.currentTimeMillis() - UPDATE_CACHE_MAX_AGE_MS
+
             File(context.cacheDir, UPDATE_CACHE_DIR)
                 .listFiles()
-                ?.forEach(File::delete)
+                ?.forEach { file ->
+                    if (appWasUpdated || file.lastModified() < staleBefore) {
+                        file.delete()
+                    }
+                }
+
+            preferences.edit()
+                .putLong(KEY_LAST_VERSION_CODE, currentVersionCode)
+                .apply()
         }
     }
 
     private const val UPDATE_CACHE_DIR = "updates"
+    private const val UPDATE_PREFS = "metrofy_updater"
+    private const val KEY_LAST_VERSION_CODE = "last_version_code"
+    private const val UPDATE_CACHE_MAX_AGE_MS = 24L * 60L * 60L * 1000L
     private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
 }
