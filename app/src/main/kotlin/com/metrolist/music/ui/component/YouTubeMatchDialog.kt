@@ -66,7 +66,7 @@ private data class SuggestedYouTubeMatch(
 
 @Composable
 fun YouTubeMatchDialog(
-    spotifyTrack: SpotifyTrack,
+    spotifyTrack: SpotifyTrack? = null,
     currentYouTubeId: String?,
     onConfirm: (YouTubeMatchResult) -> Unit,
     onRestoreAutomatic: (() -> Unit)? = null,
@@ -97,11 +97,18 @@ fun YouTubeMatchDialog(
         isLoadingCurrent = false
     }
 
-    LaunchedEffect(spotifyTrack.id) {
+    LaunchedEffect(spotifyTrack?.id) {
+        val track = spotifyTrack
+        if (track == null) {
+            suggestions = emptyList()
+            isLoadingSuggestions = false
+            return@LaunchedEffect
+        }
+
         isLoadingSuggestions = true
         suggestions =
             withContext(Dispatchers.IO) {
-                val query = SpotifyMapper.buildSearchQuery(spotifyTrack)
+                val query = SpotifyMapper.buildSearchQuery(track)
                 val result = YouTube.searchSummary(query, incognito = true).getOrNull()
                 result
                     ?.summaries
@@ -111,9 +118,9 @@ fun YouTubeMatchDialog(
                     .map { song ->
                         val score =
                             SpotifyMapper.matchScore(
-                                spotifyTitle = spotifyTrack.name,
-                                spotifyArtist = spotifyTrack.artists.firstOrNull()?.name.orEmpty(),
-                                spotifyDurationMs = spotifyTrack.durationMs,
+                                spotifyTitle = track.name,
+                                spotifyArtist = track.artists.firstOrNull()?.name.orEmpty(),
+                                spotifyDurationMs = track.durationMs,
                                 candidateTitle = song.title,
                                 candidateArtist = song.artists.firstOrNull()?.name.orEmpty(),
                                 candidateDurationSec = song.duration ?: 0,
@@ -241,14 +248,16 @@ fun YouTubeMatchDialog(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Text(
-                text = stringResource(R.string.suggested_matches),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            if (spotifyTrack != null) {
+                Text(
+                    text = stringResource(R.string.suggested_matches),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
-            if (isLoadingSuggestions) {
+            if (spotifyTrack != null && isLoadingSuggestions) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(vertical = 8.dp),
@@ -260,7 +269,7 @@ fun YouTubeMatchDialog(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-            } else {
+            } else if (spotifyTrack != null) {
                 suggestions.forEach { suggestion ->
                     val song = suggestion.song
                     Row(
@@ -317,9 +326,11 @@ fun YouTubeMatchDialog(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(12.dp))
+            if (spotifyTrack != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             OutlinedTextField(
                 value = url,
