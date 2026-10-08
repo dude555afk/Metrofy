@@ -44,6 +44,13 @@ import java.util.concurrent.ConcurrentHashMap
  * stream, and propagation of the stream's bounded-range policy into Media3.
  */
 object InnerTubeXPlaybackResolver {
+    data class PlaybackDiagnostics(
+        val videoId: String?,
+        val activeClient: String?,
+        val failedClients: Set<String>,
+        val lastResolvedAtMs: Long?,
+    )
+
     private const val TAG = "InnerTubeXPlayback"
     private const val DEFAULT_STREAM_TTL_SECONDS = 5 * 60
     private const val STREAM_CLIENT_FAILURE_TTL_MS = 5 * 60 * 1000L
@@ -59,6 +66,7 @@ object InnerTubeXPlaybackResolver {
     )
 
     private val streamClientFailures = ConcurrentHashMap<String, FailedStreamClients>()
+    private val lastResolvedClients = ConcurrentHashMap<String, Pair<String, Long>>()
 
     @Synchronized
     fun initialize(context: Context) {
@@ -213,6 +221,7 @@ object InnerTubeXPlaybackResolver {
                     stream.rangeChunkSizeBytes,
                 )
 
+            lastResolvedClients[videoId] = stream.clientName to System.currentTimeMillis()
             Result.success(stream.toPlaybackData())
         } catch (error: CancellationException) {
             throw error
@@ -242,6 +251,24 @@ object InnerTubeXPlaybackResolver {
 
     fun clearStreamClientFailures() {
         streamClientFailures.clear()
+    }
+
+    fun diagnostics(videoId: String?): PlaybackDiagnostics {
+        if (videoId.isNullOrBlank()) {
+            return PlaybackDiagnostics(
+                videoId = videoId,
+                activeClient = null,
+                failedClients = emptySet(),
+                lastResolvedAtMs = null,
+            )
+        }
+        val resolved = lastResolvedClients[videoId]
+        return PlaybackDiagnostics(
+            videoId = videoId,
+            activeClient = resolved?.first,
+            failedClients = failedStreamClients(videoId),
+            lastResolvedAtMs = resolved?.second,
+        )
     }
 
     suspend fun refreshAfterStreamRejection(): Boolean =
