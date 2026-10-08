@@ -52,21 +52,47 @@ object Updater {
     private const val GITHUB_API_BASE = "https://api.github.com/repos/dude555afk/Metrofy"
 
     /**
-     * Compares two version strings.
-     * Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+     * SemVer-ish comparison used by stable and preview builds.
+     * Stable 0.8.9.4 correctly sorts after 0.8.9.4-preview.1.
      */
     fun compareVersions(v1: String, v2: String): Int {
-        val v1Parts = v1.removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }
-        val v2Parts = v2.removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }
-        val maxLength = maxOf(v1Parts.size, v2Parts.size)
-        
-        for (i in 0 until maxLength) {
-            val part1 = v1Parts.getOrNull(i) ?: 0
-            val part2 = v2Parts.getOrNull(i) ?: 0
-            when {
-                part1 > part2 -> return 1
-                part1 < part2 -> return -1
+        fun parse(version: String): Pair<List<Int>, List<String>?> {
+            val normalized = version.removePrefix("v").substringBefore("+")
+            val core = normalized.substringBefore("-")
+                .split(".")
+                .map { it.toIntOrNull() ?: 0 }
+            val prerelease = normalized.substringAfter("-", "")
+                .takeIf { it.isNotBlank() }
+                ?.split(".")
+            return core to prerelease
+        }
+
+        val (core1, pre1) = parse(v1)
+        val (core2, pre2) = parse(v2)
+        val maxCore = maxOf(core1.size, core2.size)
+        for (i in 0 until maxCore) {
+            val a = core1.getOrNull(i) ?: 0
+            val b = core2.getOrNull(i) ?: 0
+            if (a != b) return a.compareTo(b)
+        }
+
+        if (pre1 == null && pre2 == null) return 0
+        if (pre1 == null) return 1
+        if (pre2 == null) return -1
+
+        val maxPre = maxOf(pre1.size, pre2.size)
+        for (i in 0 until maxPre) {
+            val a = pre1.getOrNull(i) ?: return -1
+            val b = pre2.getOrNull(i) ?: return 1
+            val an = a.toIntOrNull()
+            val bn = b.toIntOrNull()
+            val cmp = when {
+                an != null && bn != null -> an.compareTo(bn)
+                an != null -> -1
+                bn != null -> 1
+                else -> a.compareTo(b, ignoreCase = true)
             }
+            if (cmp != 0) return cmp
         }
         return 0
     }
