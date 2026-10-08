@@ -209,6 +209,7 @@ fun SongMenu(
     if (showYouTubeMatchDialog) {
         val mapper = remember { com.metrolist.music.playback.SpotifyYouTubeMapper(database) }
         YouTubeMatchDialog(
+            spotifyTrackId = resolvedSpotifyMatch?.spotifyId ?: spotifyId,
             currentYouTubeId = resolvedSpotifyMatch?.youtubeId,
             onConfirm = { result ->
                 val sid = resolvedSpotifyMatch?.spotifyId ?: spotifyId ?: return@YouTubeMatchDialog
