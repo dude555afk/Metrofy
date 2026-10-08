@@ -160,6 +160,7 @@ fun SpotifyTrackMenu(
 
     if (showYouTubeMatchDialog) {
         YouTubeMatchDialog(
+            spotifyTrack = track,
             currentYouTubeId = currentMatch?.youtubeId,
             onConfirm = { result ->
                 coroutineScope.launch(Dispatchers.IO) {
@@ -169,6 +170,19 @@ fun SpotifyTrackMenu(
                         title = result.title,
                         artist = result.artist,
                     )
+                }
+            },
+            onRestoreAutomatic = {
+                coroutineScope.launch(Dispatchers.IO) {
+                    mapper.resetMatch(track.id)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.automatic_matching_restored),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        onDismiss()
+                    }
                 }
             },
             onDismiss = { showYouTubeMatchDialog = false },
