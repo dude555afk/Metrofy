@@ -1,3 +1,13 @@
+---v0.8.9.4
+# Feature pack
+
+- Added an in-app updater that downloads the correct APK to Metrofy's private cache, opens the Android installer, and cleans up cached update files.
+- Added playback diagnostics with visible stream-client information and a manual "Try another stream client" recovery action.
+- Improved Smart Queue persistence so Spotify recommendation queues can continue after app restarts instead of degrading to a plain static queue.
+- Expanded download management with pause, resume, retry, Wi-Fi-only requirements, and download storage reporting.
+- Upgraded Spotify → YouTube matching with ranked suggestions, confidence scores, manual override, and restore-to-automatic matching.
+- Hardened update version comparison so preview builds correctly upgrade to stable releases.
+
 ---v0.8.9.3
 # Playback transport hotfix
 
