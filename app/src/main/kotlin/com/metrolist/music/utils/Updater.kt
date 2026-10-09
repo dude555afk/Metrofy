@@ -132,8 +132,9 @@ object Updater {
             
             // Parse architecture and variant from filename
             val (arch, variant) = when {
-                name == "Metrofy.apk" -> "universal" to "foss"
-                name == "Metrofy-with-Google-Cast.apk" -> "universal" to "gms"
+                name == "Metrofy.apk" || name == "Metrofy-preview.apk" -> "universal" to "foss"
+                name == "Metrofy-with-Google-Cast.apk" ||
+                    name == "Metrofy-preview-with-Google-Cast.apk" -> "universal" to "gms"
                 name.startsWith("app-") && name.endsWith("-release.apk") -> {
                     val arch = name.removePrefix("app-").removeSuffix("-release.apk")
                     arch to "foss"
@@ -164,17 +165,51 @@ object Updater {
                     return@runCatching cachedReleaseInfo!!
                 }
                 
-                val response = client.get("$GITHUB_API_BASE/releases/latest")
-                    .bodyAsText()
-                val json = JSONObject(response)
-                
-                val releaseInfo = ReleaseInfo(
-                    tagName = json.getString("tag_name"),
-                    versionName = json.getString("name"),
-                    description = json.getString("body"),
-                    releaseDate = json.getString("published_at"),
-                    assets = parseAssets(json.getJSONArray("assets"))
-                )
+                val releaseInfo =
+                    if (BuildConfig.VERSION_NAME.contains("-")) {
+                        val response = client.get("$GITHUB_API_BASE/releases?per_page=30")
+                            .bodyAsText()
+                        val releases = JSONArray(response)
+                        val candidates =
+                            buildList {
+                                for (i in 0 until releases.length()) {
+                                    val json = releases.getJSONObject(i)
+                                    if (json.optBoolean("draft", false)) continue
+                                    val tag = json.getString("tag_name")
+                                    val version =
+                                        json.optString("name")
+                                            .takeIf { it.isNotBlank() }
+                                            ?: tag.removePrefix("v")
+                                    add(
+                                        ReleaseInfo(
+                                            tagName = tag,
+                                            versionName = version,
+                                            description = json.optString("body"),
+                                            releaseDate = json.optString("published_at"),
+                                            assets = parseAssets(json.getJSONArray("assets")),
+                                        ),
+                                    )
+                                }
+                            }
+                        candidates.maxWithOrNull { a, b ->
+                            compareVersions(a.versionName, b.versionName)
+                        } ?: error("No releases found")
+                    } else {
+                        val response = client.get("$GITHUB_API_BASE/releases/latest")
+                            .bodyAsText()
+                        val json = JSONObject(response)
+
+                        ReleaseInfo(
+                            tagName = json.getString("tag_name"),
+                            versionName =
+                                json.optString("name")
+                                    .takeIf { it.isNotBlank() }
+                                    ?: json.getString("tag_name").removePrefix("v"),
+                            description = json.optString("body"),
+                            releaseDate = json.optString("published_at"),
+                            assets = parseAssets(json.getJSONArray("assets")),
+                        )
+                    }
                 
                 cachedReleaseInfo = releaseInfo
                 lastCheckTime = System.currentTimeMillis()
