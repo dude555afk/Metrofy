@@ -223,6 +223,7 @@ class MainActivity : ComponentActivity() {
         private const val ACTION_SEARCH = "com.metrolist.music.action.SEARCH"
         private const val ACTION_LIBRARY = "com.metrolist.music.action.LIBRARY"
         const val ACTION_RECOGNITION = "com.metrolist.music.action.RECOGNITION"
+        const val ACTION_OPEN_UPDATER = "com.metrolist.music.action.OPEN_UPDATER"
         const val EXTRA_AUTO_START_RECOGNITION = "auto_start_recognition"
     }
 
@@ -439,13 +440,15 @@ class MainActivity : ComponentActivity() {
                             if (releaseInfo != null) {
                                 onLatestVersionNameChange(releaseInfo.versionName)
                                 if (hasUpdate && notifEnabled) {
-                                    val downloadUrl = Updater.getDownloadUrlForCurrentVariant(releaseInfo)
-                                    if (downloadUrl != null) {
-                                        val intent = Intent(Intent.ACTION_VIEW, downloadUrl.toUri())
+                                    if (Updater.getDownloadUrlForCurrentVariant(releaseInfo) != null) {
+                                        val intent =
+                                            Intent(this@MainActivity, MainActivity::class.java)
+                                                .setAction(ACTION_OPEN_UPDATER)
+                                                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
                                         val flags =
                                             PendingIntent.FLAG_UPDATE_CURRENT or
-                                                (PendingIntent.FLAG_IMMUTABLE)
+                                                PendingIntent.FLAG_IMMUTABLE
                                         val pending = PendingIntent.getActivity(this@MainActivity, 1001, intent, flags)
 
                                         val notif =
@@ -870,10 +873,12 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     if (pendingIntent != null) {
+                        handleUpdaterIntent(pendingIntent!!, navController)
                         handleRecognitionIntent(pendingIntent!!, navController)
                         handleDeepLinkIntent(pendingIntent!!, navController)
                         pendingIntent = null
                     } else {
+                        handleUpdaterIntent(intent, navController)
                         handleRecognitionIntent(intent, navController)
                         handleDeepLinkIntent(intent, navController)
                     }
@@ -882,6 +887,7 @@ class MainActivity : ComponentActivity() {
                 DisposableEffect(Unit) {
                     val listener =
                         Consumer<Intent> { intent ->
+                            handleUpdaterIntent(intent, navController)
                             handleRecognitionIntent(intent, navController)
                             handleDeepLinkIntent(intent, navController)
                         }
@@ -968,7 +974,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                             IconButton(onClick = { showAccountDialog = true }) {
                                                 BadgedBox(badge = {
-                                                    if (latestVersionName != BuildConfig.VERSION_NAME) {
+                                                    if (Updater.isUpdateAvailable(BuildConfig.VERSION_NAME, latestVersionName)) {
                                                         Badge()
                                                     }
                                                 }) {
@@ -1342,6 +1348,17 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    private fun handleUpdaterIntent(
+        intent: Intent,
+        navController: NavHostController,
+    ) {
+        if (intent.action != ACTION_OPEN_UPDATER) return
+        intent.action = null
+        navController.navigate("settings/updater") {
+            launchSingleTop = true
         }
     }
 
