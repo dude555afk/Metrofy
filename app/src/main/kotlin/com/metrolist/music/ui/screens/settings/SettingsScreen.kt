@@ -233,15 +233,19 @@ fun SettingsScreen(
                         onClick = { navController.navigate("settings/about") }
                     )
                 )
-                if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.VERSION_NAME) {
+                if (
+                    BuildConfig.UPDATER_AVAILABLE &&
+                    Updater.isUpdateAvailable(BuildConfig.VERSION_NAME, latestVersionName)
+                ) {
                     val releaseInfo = Updater.getCachedLatestRelease()
-                    val downloadUrl = releaseInfo?.let { Updater.getDownloadUrlForCurrentVariant(it) }
+                    val hasCompatibleAsset =
+                        releaseInfo?.let { Updater.getDownloadUrlForCurrentVariant(it) } != null
 
-                    if (downloadUrl != null) {
+                    if (hasCompatibleAsset) {
                         add(
                             Material3SettingsItem(
                                 icon = painterResource(R.drawable.update),
-                                title = { 
+                                title = {
                                     Text(
                                         text = stringResource(R.string.new_version_available),
                                     )
@@ -254,14 +258,14 @@ fun SettingsScreen(
                                     )
                                 },
                                 showBadge = true,
-                                onClick = { uriHandler.openUri(downloadUrl) }
+                                onClick = { navController.navigate("settings/updater") }
                             )
                         )
                     }
                 }
             }
         )
-    if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.VERSION_NAME) {
+    if (BuildConfig.UPDATER_AVAILABLE && Updater.isUpdateAvailable(BuildConfig.VERSION_NAME, latestVersionName)) {
             Spacer(modifier = Modifier.height(16.dp))
             ReleaseNotesCard()
         }
