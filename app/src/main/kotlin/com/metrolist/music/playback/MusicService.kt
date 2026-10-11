@@ -4898,13 +4898,13 @@ class MusicService :
     private fun startCrossfade() {
         if (isCrossfading) return
 
-        // Preserve player state before creating the secondary player
-        val savedRepeatMode = dataStore.get(RepeatModeKey, REPEAT_MODE_OFF)
-        val savedShuffleEnabled = dataStore.get(ShuffleModeKey, false)
+        // Preserve the live player state. DataStore can lag behind an in-flight UI change.
+        val repeatMode = player.repeatMode
+        val shuffleModeEnabled = player.shuffleModeEnabled
 
-        // For repeat-one, crossfade back into the same track
+        // For repeat-one, crossfade back into the same track.
         val targetIndex =
-            if (savedRepeatMode == REPEAT_MODE_ONE) {
+            if (repeatMode == REPEAT_MODE_ONE) {
                 player.currentMediaItemIndex
             } else {
                 player.nextMediaItemIndex
@@ -4928,8 +4928,8 @@ class MusicService :
         secPlayer.volume = 0f
 
         // Copy repeat and shuffle state to the new player
-        secPlayer.repeatMode = savedRepeatMode
-        secPlayer.shuffleModeEnabled = savedShuffleEnabled
+        secPlayer.repeatMode = repeatMode
+        secPlayer.shuffleModeEnabled = shuffleModeEnabled
 
         secPlayer.prepare()
         secPlayer.playWhenReady = true
@@ -4937,7 +4937,7 @@ class MusicService :
         performCrossfadeSwap()
 
         // Rebuild shuffle order on the new primary player if shuffle was active
-        if (savedShuffleEnabled) {
+        if (shuffleModeEnabled) {
             val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
             applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
         }
@@ -4953,8 +4953,10 @@ class MusicService :
         _playerFlow.value = player
         secondaryPlayer = null
 
+        // Detach first so the retired player's temporary repeat state cannot leak back.
         fadingPlayer?.removeListener(this)
         fadingPlayer?.removeListener(sleepTimer)
+        fadingPlayer?.repeatMode = Player.REPEAT_MODE_OFF
 
         // Add listener to sync play/pause state
         player.addListener(
