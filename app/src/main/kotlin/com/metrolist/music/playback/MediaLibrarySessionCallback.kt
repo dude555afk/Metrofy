@@ -689,7 +689,28 @@ constructor(
                 MusicService.SEARCH -> {
                     val songId = path.getOrNull(2) ?: return@future defaultResult
                     val searchQuery = path.getOrNull(1) ?: return@future defaultResult
-                    
+                    val isVoiceSearch = songId.isBlank() && searchQuery.isNotBlank()
+
+                    if (isVoiceSearch) {
+                        // Android Auto voice requests for an exact local playlist should open
+                        // that playlist, not a mixed bag of similarly named search results.
+                        val exactLocalPlaylist =
+                            database.searchPlaylists(searchQuery).first().firstOrNull {
+                                it.playlist.name.equals(searchQuery, ignoreCase = true)
+                            }
+                        if (exactLocalPlaylist != null) {
+                            val exactPlaylistSongs =
+                                database.playlistSongs(exactLocalPlaylist.id).first()
+                            if (exactPlaylistSongs.isNotEmpty()) {
+                                return@future MediaItemsWithStartPosition(
+                                    exactPlaylistSongs.map { it.song.toMediaItem() },
+                                    0,
+                                    C.TIME_UNSET,
+                                )
+                            }
+                        }
+                    }
+
                     val searchResults = mutableListOf<Song>()
 
                     val localSongs = database.allSongs().first().filter { song ->
@@ -750,9 +771,22 @@ constructor(
                     if (searchResults.isEmpty()) {
                         return@future defaultResult
                     }
-                    
+
+                    if (isVoiceSearch) {
+                        // Snapshot before ranking because online results can be appended while
+                        // this search path is active.
+                        val snapshot = synchronized(searchResults) { searchResults.toList() }
+                        VoiceSearchMatcher.findBest(searchQuery, snapshot)?.let { bestMatch ->
+                            return@future MediaItemsWithStartPosition(
+                                listOf(bestMatch.toMediaItem()),
+                                0,
+                                C.TIME_UNSET,
+                            )
+                        }
+                    }
+
                     val targetIndex = searchResults.indexOfFirst { it.id == songId }
-                    
+
                     MediaItemsWithStartPosition(
                         searchResults.map { it.toMediaItem() },
                         if (targetIndex >= 0) targetIndex else 0,
