@@ -34,6 +34,8 @@ import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.R
+import com.metrolist.music.constants.AddToPlaylistPosition
+import com.metrolist.music.constants.AddToPlaylistPositionKey
 import com.metrolist.music.constants.AddToPlaylistSortDescendingKey
 import com.metrolist.music.constants.AddToPlaylistSortTypeKey
 import com.metrolist.music.constants.InnerTubeCookieKey
@@ -89,6 +91,10 @@ fun AddToPlaylistDialog(
     val database = LocalDatabase.current
     val syncUtils = LocalSyncUtils.current
     val coroutineScope = rememberCoroutineScope()
+    val (addToPlaylistPosition) = rememberEnumPreference(
+        AddToPlaylistPositionKey,
+        AddToPlaylistPosition.BEGINNING,
+    )
     val (sortType, onSortTypeChange) = rememberEnumPreference(
         AddToPlaylistSortTypeKey,
         PlaylistSortType.NAME
@@ -123,7 +129,11 @@ fun AddToPlaylistDialog(
     }
 
     suspend fun addSongsAndSync(targetPlaylist: Playlist, ids: List<String>) {
-        database.addSongToPlaylist(targetPlaylist, ids)
+        database.addSongToPlaylist(
+            targetPlaylist,
+            ids,
+            prepend = addToPlaylistPosition.prepend,
+        )
         targetPlaylist.playlist.browseId?.let { plist ->
             ids.forEach { songId ->
                 syncUtils.registerPendingAdd(plist, songId)
