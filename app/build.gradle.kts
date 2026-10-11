@@ -34,7 +34,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 32
-        versionName = "0.8.9.5-preview.1"
+        versionName = "0.8.9.5"
         resValue("string", "app_name", appNameOverride ?: "Metrofy")
         manifestPlaceholders["applicationLabel"] = appNameOverride ?: "Metrofy"
 
