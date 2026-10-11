@@ -621,6 +621,8 @@ class PlayerConnection(
     }
 
     override fun onRepeatModeChanged(mode: Int) {
+        // Crossfade temporarily retires the old player. Ignore stale callbacks from it.
+        if (mode != player.repeatMode) return
         repeatMode.value = mode
         updateCanSkipPreviousAndNext()
     }
