@@ -146,18 +146,20 @@ class PlayerConnection(
         )
 
     val mediaMetadata = MutableStateFlow(try { player.currentMetadata } catch (_: Exception) { null })
+    // Keep the latest DB-backed now-playing state hot so returning to the app
+    // does not wait for Room to re-run the same queries before repainting.
     val currentSong =
         mediaMetadata.flatMapLatest {
             database.song(it?.id)
-        }
+        }.stateIn(scope, SharingStarted.Lazily, null)
     val currentLyrics =
         mediaMetadata.flatMapLatest { mediaMetadata ->
             database.lyrics(mediaMetadata?.id)
-        }
+        }.stateIn(scope, SharingStarted.Lazily, null)
     val currentFormat =
         mediaMetadata.flatMapLatest { mediaMetadata ->
             database.format(mediaMetadata?.id)
-        }
+        }.stateIn(scope, SharingStarted.Lazily, null)
 
     val queueTitle = MutableStateFlow<String?>(null)
     val queueWindows = MutableStateFlow<List<Timeline.Window>>(emptyList())
@@ -621,6 +623,8 @@ class PlayerConnection(
     }
 
     override fun onRepeatModeChanged(mode: Int) {
+        // Crossfade temporarily retires the old player. Ignore stale callbacks from it.
+        if (mode != player.repeatMode) return
         repeatMode.value = mode
         updateCanSkipPreviousAndNext()
     }

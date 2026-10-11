@@ -5,8 +5,13 @@
 
 package com.metrolist.music.ui.player
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,8 +26,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -31,8 +38,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.PlaybackException
+import com.metrolist.music.BuildConfig
 import com.metrolist.music.R
 import com.metrolist.music.utils.InnerTubeXPlaybackResolver
+import java.time.Instant
 
 @Composable
 fun PlaybackError(
@@ -42,6 +51,13 @@ fun PlaybackError(
     retryWithAnotherClient: (() -> Unit)? = null,
     diagnostics: InnerTubeXPlaybackResolver.PlaybackDiagnostics? = null,
 ) {
+    val context = LocalContext.current
+    val causes = remember(error) { error.causeChain() }
+    val reportedAt = remember(error) { Instant.now() }
+    val errorReport = remember(error, diagnostics, reportedAt) {
+        buildPlaybackErrorReport(error, diagnostics, reportedAt)
+    }
+
     val rawErrorMessage = error.cause?.cause?.message 
         ?: error.cause?.message 
         ?: error.message 
@@ -138,21 +154,43 @@ fun PlaybackError(
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Retry button
-        Button(
-            onClick = retry,
-            shape = RoundedCornerShape(20.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.replay),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text = stringResource(R.string.retry))
+            Button(
+                onClick = retry,
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                ),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.replay),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = stringResource(R.string.retry))
+            }
+
+            OutlinedButton(
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(
+                        ClipData.newPlainText("Metrofy Playback Error", errorReport),
+                    )
+                },
+                shape = RoundedCornerShape(20.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.content_copy),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = stringResource(R.string.copy))
+            }
         }
 
         if (retryWithAnotherClient != null) {
@@ -166,6 +204,45 @@ fun PlaybackError(
         }
     }
 }
+
+internal fun Throwable.causeChain(): List<Throwable> =
+    generateSequence(this) { it.cause }.take(8).toList()
+
+private fun buildPlaybackErrorReport(
+    error: PlaybackException,
+    diagnostics: InnerTubeXPlaybackResolver.PlaybackDiagnostics?,
+    reportedAt: Instant,
+): String =
+    buildString {
+        appendLine("Metrofy Playback Error Report")
+        appendLine("============================")
+        appendLine("Time: $reportedAt")
+        appendLine("App version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        appendLine("Architecture: ${BuildConfig.ARCHITECTURE}")
+        appendLine("Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+        appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
+        appendLine()
+        appendLine("Playback")
+        appendLine("--------")
+        appendLine("Video ID: ${diagnostics?.videoId ?: "Unknown"}")
+        appendLine("Stream client: ${diagnostics?.activeClient ?: "Not resolved"}")
+        appendLine(
+            "Rejected clients: " +
+                diagnostics?.failedClients?.sorted()?.joinToString(", ").orEmpty().ifBlank { "None" },
+        )
+        diagnostics?.lastResolvedAtMs?.let { appendLine("Last stream resolution: ${Instant.ofEpochMilli(it)}") }
+        appendLine()
+        appendLine("Error")
+        appendLine("-----")
+        appendLine("Code: ${getErrorCodeName(error.errorCode)} (${error.errorCode})")
+        error.causeChain().forEachIndexed { index, cause ->
+            appendLine("[$index] ${cause.javaClass.name}: ${cause.message ?: "(no message)"}")
+        }
+        appendLine()
+        appendLine("Stack trace")
+        appendLine("-----------")
+        append(error.stackTraceToString())
+    }
 
 /**
  * Get human-readable error code name from PlaybackException error code

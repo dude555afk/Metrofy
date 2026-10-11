@@ -1,0 +1,48 @@
+name: Metrofy 13.7 PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: metrofy-13-7-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-lint:
+    name: Validate ${{ matrix.variant }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: Foss
+          - variant: Gms
+          - variant: Izzy
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Init metroproto submodule
+        run: git submodule update --init metroproto
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-disabled: true
+      - uses: ./.github/actions/setup-protobuf
+      - name: Build and lint release variant (without publishing or signing)
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-configuration-cache --console=plain assemble${{ matrix.variant }}Release :app:lint${{ matrix.variant }}Release --warning-mode summary
+        env:
+          METROLIST_APPLICATION_ID: com.metrofy.app
+          METROLIST_APP_NAME: Metrofy
+          PULL_REQUEST: 'true'
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
