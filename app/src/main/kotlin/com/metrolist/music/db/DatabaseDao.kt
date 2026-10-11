@@ -1146,21 +1146,48 @@ interface DatabaseDao {
         playlistId: String,
         now: LocalDateTime = LocalDateTime.now(),
     )
+    @Query("UPDATE playlist_song_map SET position = position + :delta WHERE playlistId = :playlistId")
+    fun shiftPlaylistSongPositions(playlistId: String, delta: Int)
+
+    @Query("SELECT COALESCE(MAX(position) + 1, 0) FROM playlist_song_map WHERE playlistId = :playlistId")
+    fun nextPlaylistSongPosition(playlistId: String): Int
+
     @Transaction
-    fun addSongToPlaylist(playlist: Playlist, songIds: List<String>) {
-        var position = playlist.songCount
-        songIds.forEach { id ->
-            val existingSong = getSongByIdBlocking(id)
-            if (existingSong != null) {
+    fun addSongToPlaylist(
+        playlist: Playlist,
+        songIds: List<String>,
+        prepend: Boolean = false,
+    ) {
+        val existingSongIds =
+            songIds.filter { id ->
+                getSongByIdBlocking(id) != null
+            }
+        if (existingSongIds.isEmpty()) return
+
+        if (prepend) {
+            shiftPlaylistSongPositions(playlist.id, existingSongIds.size)
+            existingSongIds.forEachIndexed { index, id ->
                 insert(
                     PlaylistSongMap(
                         songId = id,
                         playlistId = playlist.id,
-                        position = position++
-                    )
+                        position = index,
+                    ),
+                )
+            }
+        } else {
+            var position = nextPlaylistSongPosition(playlist.id)
+            existingSongIds.forEach { id ->
+                insert(
+                    PlaylistSongMap(
+                        songId = id,
+                        playlistId = playlist.id,
+                        position = position++,
+                    ),
                 )
             }
         }
+
         updatePlaylistLastUpdated(playlist.id)
     }
 
