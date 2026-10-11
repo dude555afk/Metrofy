@@ -24,7 +24,6 @@ import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
-import android.media.audiofx.LoudnessEnhancer
 import android.net.ConnectivityManager
 import android.os.Binder
 import android.os.Build
@@ -197,6 +196,7 @@ import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.alarm.MusicAlarmScheduler
 import com.metrolist.music.playback.alarm.MusicAlarmStore
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
+import com.metrolist.music.playback.audio.VolumeNormalizationAudioProcessor
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.playback.queues.Queue
@@ -418,7 +418,9 @@ class MusicService :
     private val instantSilenceSkipEnabled = MutableStateFlow(false)
 
     private var isAudioEffectSessionOpened = false
-    private var loudnessEnhancer: LoudnessEnhancer? = null
+    private val playerNormalizationProcessors = HashMap<Player, VolumeNormalizationAudioProcessor>()
+    @Volatile private var normalizationEnabledCached = false
+    @Volatile private var normalizationGainMbCached: Int? = null
 
     private var discordRpc: DiscordRPC? = null
     private var lastPlaybackSpeed = 1.0f
@@ -930,7 +932,7 @@ class MusicService :
                 .distinctUntilChanged(),
         ) { format, normalizeAudio ->
             format to normalizeAudio
-        }.collectLatest(scope) { (format, normalizeAudio) -> setupLoudnessEnhancer() }
+        }.collectLatest(scope) { (format, normalizeAudio) -> setupAudioNormalization() }
 
         combine(
             dataStore.data.map { it[AudioOffload] ?: false },
@@ -1173,6 +1175,12 @@ class MusicService :
     }
 
     private fun createExoPlayer(): ExoPlayer {
+        val normalizationProcessor =
+            VolumeNormalizationAudioProcessor().apply {
+                normalizationGainMbCached?.let(::setTargetGain)
+                enabled = normalizationEnabledCached && normalizationGainMbCached != null
+            }
+
         val eqProcessor = CustomEqualizerAudioProcessor()
         equalizerService.addAudioProcessor(eqProcessor)
 
@@ -1189,7 +1197,7 @@ class MusicService :
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory(eqProcessor, silenceProcessor))
+                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, silenceProcessor))
                 .setHandleAudioBecomingNoisy(true)
                 .setWakeMode(C.WAKE_MODE_NETWORK)
                 .setAudioAttributes(
@@ -1205,6 +1213,7 @@ class MusicService :
                 .build()
 
         playerSilenceProcessors[player] = silenceProcessor
+        playerNormalizationProcessors[player] = normalizationProcessor
 
         player.apply {
             val offload = dataStore.get(AudioOffload, false)
@@ -2146,28 +2155,24 @@ class MusicService :
         startRadioSeamlessly()
     }
 
-    private fun setupLoudnessEnhancer() {
-        val audioSessionId = player.audioSessionId
+    private fun applyAudioNormalization(
+        enabled: Boolean,
+        gainMb: Int?,
+    ) {
+        normalizationEnabledCached = enabled && gainMb != null
+        normalizationGainMbCached = gainMb
 
-        if (audioSessionId == C.AUDIO_SESSION_ID_UNSET || audioSessionId <= 0) {
-            Timber
-                .tag(TAG)
-                .w("setupLoudnessEnhancer: invalid audioSessionId ($audioSessionId), cannot create effect yet")
-            return
-        }
-
-        // Create or recreate enhancer if needed
-        if (loudnessEnhancer == null) {
-            try {
-                loudnessEnhancer = LoudnessEnhancer(audioSessionId)
-                Timber.tag(TAG).d("LoudnessEnhancer created for sessionId=$audioSessionId")
-            } catch (e: Exception) {
-                reportException(e)
-                loudnessEnhancer = null
-                return
+        playerNormalizationProcessors.values.forEach { processor ->
+            if (normalizationEnabledCached && gainMb != null) {
+                processor.setTargetGain(gainMb)
+                processor.enabled = true
+            } else {
+                processor.enabled = false
             }
         }
+    }
 
+    private fun setupAudioNormalization() {
         scope.launch {
             try {
                 val currentMediaId =
@@ -2186,69 +2191,37 @@ class MusicService :
                             database.format(currentMediaId).first()
                         }
 
-                    Timber.tag(TAG).d("Audio normalization enabled: $normalizeAudio")
-                    Timber
-                        .tag(TAG)
-                        .d("Format loudnessDb: ${format?.loudnessDb}, perceptualLoudnessDb: ${format?.perceptualLoudnessDb}")
-
-                    // Use loudnessDb if available, otherwise fall back to perceptualLoudnessDb
                     val loudness = format?.loudnessDb ?: format?.perceptualLoudnessDb
-
                     withContext(Dispatchers.Main) {
                         if (loudness != null) {
-                            val loudnessDb = loudness.toFloat()
-                            val targetGain = (-loudnessDb * 100).toInt()
+                            val targetGain = (-loudness.toFloat() * 100).toInt()
                             val clampedGain = targetGain.coerceIn(MIN_GAIN_MB, MAX_GAIN_MB)
-
-                            Timber
-                                .tag(TAG)
-                                .d("Calculated raw normalization gain: $targetGain mB (from loudness: $loudnessDb)")
-
-                            try {
-                                loudnessEnhancer?.setTargetGain(clampedGain)
-                                loudnessEnhancer?.enabled = true
-                                Timber.tag(TAG).i("LoudnessEnhancer gain applied: $clampedGain mB")
-                            } catch (e: Exception) {
-                                Timber.tag(TAG).e(e, "Failed to apply loudness enhancement")
-                                reportException(e)
-                                releaseLoudnessEnhancer()
-                            }
+                            applyAudioNormalization(enabled = true, gainMb = clampedGain)
+                            Timber.tag(TAG).d(
+                                "PCM normalization gain applied: $clampedGain mB (from loudness: $loudness)",
+                            )
                         } else {
-                            loudnessEnhancer?.enabled = false
-                            Timber
-                                .tag(TAG)
-                                .w("Normalization enabled but no loudness data available - no normalization applied")
+                            applyAudioNormalization(enabled = false, gainMb = null)
+                            Timber.tag(TAG).d("No loudness data available; normalization disabled for this track")
                         }
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        loudnessEnhancer?.enabled = false
-                        Timber.tag(TAG).d("setupLoudnessEnhancer: normalization disabled or mediaId unavailable")
+                        applyAudioNormalization(enabled = false, gainMb = null)
                     }
                 }
             } catch (e: Exception) {
                 reportException(e)
-                releaseLoudnessEnhancer()
+                withContext(Dispatchers.Main) {
+                    applyAudioNormalization(enabled = false, gainMb = null)
+                }
             }
-        }
-    }
-
-    private fun releaseLoudnessEnhancer() {
-        try {
-            loudnessEnhancer?.release()
-            Timber.tag(TAG).d("LoudnessEnhancer released")
-        } catch (e: Exception) {
-            reportException(e)
-            Timber.tag(TAG).e(e, "Error releasing LoudnessEnhancer: ${e.message}")
-        } finally {
-            loudnessEnhancer = null
         }
     }
 
     private fun openAudioEffectSession() {
         if (isAudioEffectSessionOpened) return
         isAudioEffectSessionOpened = true
-        setupLoudnessEnhancer()
         sendBroadcast(
             Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
                 putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
@@ -2261,7 +2234,6 @@ class MusicService :
     private fun closeAudioEffectSession() {
         if (!isAudioEffectSessionOpened) return
         isAudioEffectSessionOpened = false
-        releaseLoudnessEnhancer()
         sendBroadcast(
             Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
                 putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
@@ -2346,7 +2318,7 @@ class MusicService :
 
         lastPlaybackSpeed = -1.0f // force update song
 
-        setupLoudnessEnhancer()
+        setupAudioNormalization()
 
         discordUpdateJob?.cancel()
 
@@ -2478,7 +2450,7 @@ class MusicService :
         }
 
         if (playWhenReady) {
-            setupLoudnessEnhancer()
+            setupAudioNormalization()
         }
     }
 
@@ -4213,6 +4185,7 @@ class MusicService :
         )
 
     private fun createRenderersFactory(
+        normalizationProcessor: VolumeNormalizationAudioProcessor,
         eqProcessor: CustomEqualizerAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
     ) = object : DefaultRenderersFactory(this) {
@@ -4228,6 +4201,7 @@ class MusicService :
                 DefaultAudioSink.DefaultAudioProcessorChain(
                     // 2. Inject processor into audio pipeline
                     arrayOf(
+                        normalizationProcessor,
                         eqProcessor,
                         silenceProcessor,
                     ),
@@ -4395,12 +4369,12 @@ class MusicService :
         discordRpc = null
         connectivityObserver.unregister()
         abandonAudioFocus()
-        releaseLoudnessEnhancer()
         mediaLibrarySessionCallback.release()
         mediaSession.release()
         player.removeListener(this)
         player.removeListener(sleepTimer)
         playerSilenceProcessors.remove(player)
+        playerNormalizationProcessors.clear()
         // Note: equalizerService audio processors are cleared in equalizerService.release() if needed,
         // or we can't easily reference the specific processor created in createExoPlayer here without storing it.
         // But since we are destroying the service, it's fine.
@@ -5030,9 +5004,13 @@ class MusicService :
     }
 
     private fun cleanupCrossfade() {
-        fadingPlayer?.stop()
-        fadingPlayer?.clearMediaItems()
-        fadingPlayer?.release()
+        fadingPlayer?.let { retiredPlayer ->
+            playerSilenceProcessors.remove(retiredPlayer)
+            playerNormalizationProcessors.remove(retiredPlayer)
+            retiredPlayer.stop()
+            retiredPlayer.clearMediaItems()
+            retiredPlayer.release()
+        }
         fadingPlayer = null
         isCrossfading = false
         applyEffectiveVolume()
