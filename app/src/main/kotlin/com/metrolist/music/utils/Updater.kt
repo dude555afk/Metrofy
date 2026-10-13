@@ -308,7 +308,11 @@ object Updater {
 
                 val releaseInfo =
                     if (shouldFetch) {
-                        getLatestRelease(forceRefresh = forceRefresh, channel = channel).getOrThrow()
+                        getLatestRelease(
+                            forceRefresh = forceRefresh ||
+                                (System.currentTimeMillis() - lastCheckTime) > CHECK_INTERVAL_MILLIS,
+                            channel = channel,
+                        ).getOrThrow()
                     } else {
                         cached
                     }
