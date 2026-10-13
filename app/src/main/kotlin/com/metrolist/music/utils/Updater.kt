@@ -40,13 +40,18 @@ data class ReleaseAsset(
     val variant: String // "foss" or "gms"
 )
 
+enum class UpdateChannel {
+    STABLE,
+    PREVIEW,
+}
+
 object Updater {
     private val client = HttpClient()
     var lastCheckTime = -1L
         private set
     
-    private var cachedReleaseInfo: ReleaseInfo? = null
-    private var cachedAllReleases: List<ReleaseInfo> = emptyList()
+    private val cachedReleaseInfo = mutableMapOf<UpdateChannel, ReleaseInfo>()
+    private var cachedAllReleases: List<Pair<ReleaseInfo, Boolean>> = emptyList()
     
     private const val CHECK_INTERVAL_MILLIS = 2 * 60 * 60 * 1000L // 2 hours
     private const val GITHUB_API_BASE = "https://api.github.com/repos/dude555afk/Metrofy"
@@ -157,61 +162,34 @@ object Updater {
     /**
      * Fetch latest release from GitHub API
      */
-    suspend fun getLatestRelease(forceRefresh: Boolean = false): Result<ReleaseInfo> =
+    suspend fun getLatestRelease(
+        forceRefresh: Boolean = false,
+        channel: UpdateChannel = UpdateChannel.STABLE,
+    ): Result<ReleaseInfo> =
         withContext(Dispatchers.IO) {
             runCatching {
-                // Return cached if available and not forcing refresh
-                if (cachedReleaseInfo != null && !forceRefresh) {
-                    return@runCatching cachedReleaseInfo!!
+                cachedReleaseInfo[channel]?.takeIf { !forceRefresh }?.let {
+                    return@runCatching it
                 }
-                
-                val releaseInfo =
-                    if (BuildConfig.VERSION_NAME.contains("-")) {
-                        val response = client.get("$GITHUB_API_BASE/releases?per_page=30")
-                            .bodyAsText()
-                        val releases = JSONArray(response)
-                        val candidates =
-                            buildList {
-                                for (i in 0 until releases.length()) {
-                                    val json = releases.getJSONObject(i)
-                                    if (json.optBoolean("draft", false)) continue
-                                    val tag = json.getString("tag_name")
-                                    val version =
-                                        json.optString("name")
-                                            .takeIf { it.isNotBlank() }
-                                            ?: tag.removePrefix("v")
-                                    add(
-                                        ReleaseInfo(
-                                            tagName = tag,
-                                            versionName = version,
-                                            description = json.optString("body"),
-                                            releaseDate = json.optString("published_at"),
-                                            assets = parseAssets(json.getJSONArray("assets")),
-                                        ),
-                                    )
-                                }
-                            }
-                        candidates.maxWithOrNull { a, b ->
-                            compareVersions(a.versionName, b.versionName)
-                        } ?: error("No releases found")
-                    } else {
-                        val response = client.get("$GITHUB_API_BASE/releases/latest")
-                            .bodyAsText()
-                        val json = JSONObject(response)
 
-                        ReleaseInfo(
-                            tagName = json.getString("tag_name"),
-                            versionName =
-                                json.optString("name")
-                                    .takeIf { it.isNotBlank() }
-                                    ?: json.getString("tag_name").removePrefix("v"),
-                            description = json.optString("body"),
-                            releaseDate = json.optString("published_at"),
-                            assets = parseAssets(json.getJSONArray("assets")),
-                        )
-                    }
-                
-                cachedReleaseInfo = releaseInfo
+                val releases = getAllReleases(forceRefresh = forceRefresh).getOrThrow()
+                val candidates =
+                    releases
+                        .filter { (info, prerelease) ->
+                            when (channel) {
+                                UpdateChannel.STABLE -> !prerelease
+                                UpdateChannel.PREVIEW -> true
+                            }
+                        }
+                        .map { it.first }
+                        .filter { it.assets.isNotEmpty() }
+
+                val releaseInfo =
+                    candidates.maxWithOrNull { a, b ->
+                        compareVersions(a.versionName, b.versionName)
+                    } ?: error("No compatible releases found for $channel")
+
+                cachedReleaseInfo[channel] = releaseInfo
                 lastCheckTime = System.currentTimeMillis()
                 releaseInfo
             }
@@ -220,43 +198,77 @@ object Updater {
     /**
      * Fetch all releases from GitHub API (paginated)
      */
-    suspend fun getAllReleases(forceRefresh: Boolean = false): Result<List<ReleaseInfo>> =
+    suspend fun getAllReleases(
+        forceRefresh: Boolean = false,
+    ): Result<List<Pair<ReleaseInfo, Boolean>>> =
         withContext(Dispatchers.IO) {
             runCatching {
                 if (cachedAllReleases.isNotEmpty() && !forceRefresh) {
                     return@runCatching cachedAllReleases
                 }
-                
-                val releases = mutableListOf<ReleaseInfo>()
+
+                val releases = mutableListOf<Pair<ReleaseInfo, Boolean>>()
                 var page = 1
                 var hasMore = true
-                
-                while (hasMore && page <= 10) { // Limit to 10 pages
-                    val response = client.get("$GITHUB_API_BASE/releases?page=$page&per_page=30")
-                        .bodyAsText()
+
+                while (hasMore && page <= 10) {
+                    val response =
+                        client.get("$GITHUB_API_BASE/releases?page=$page&per_page=30")
+                            .bodyAsText()
                     val json = JSONArray(response)
-                    
+
                     if (json.length() == 0) {
                         hasMore = false
                         break
                     }
-                    
+
                     for (i in 0 until json.length()) {
                         val releaseObj = json.getJSONObject(i)
-                        releases.add(ReleaseInfo(
-                            tagName = releaseObj.getString("tag_name"),
-                            versionName = releaseObj.getString("name"),
-                            description = releaseObj.getString("body"),
-                            releaseDate = releaseObj.getString("published_at"),
-                            assets = parseAssets(releaseObj.getJSONArray("assets"))
-                        ))
+                        if (releaseObj.optBoolean("draft", false)) continue
+
+                        val tag = releaseObj.getString("tag_name")
+                        val version =
+                            releaseObj.optString("name")
+                                .takeIf { it.isNotBlank() }
+                                ?: tag.removePrefix("v")
+
+                        releases +=
+                            ReleaseInfo(
+                                tagName = tag,
+                                versionName = version,
+                                description = releaseObj.optString("body"),
+                                releaseDate = releaseObj.optString("published_at"),
+                                assets = parseAssets(releaseObj.getJSONArray("assets")),
+                            ) to releaseObj.optBoolean("prerelease", false)
                     }
-                    
+
+                    hasMore = json.length() == 30
                     page++
                 }
-                
+
                 cachedAllReleases = releases
                 releases
+            }
+        }
+
+    suspend fun getPreviousRelease(
+        channel: UpdateChannel = UpdateChannel.STABLE,
+        currentVersion: String = BuildConfig.VERSION_NAME,
+        forceRefresh: Boolean = false,
+    ): Result<ReleaseInfo> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                getAllReleases(forceRefresh)
+                    .getOrThrow()
+                    .asSequence()
+                    .filter { (_, prerelease) ->
+                        channel == UpdateChannel.PREVIEW || !prerelease
+                    }
+                    .map { it.first }
+                    .filter { it.assets.isNotEmpty() }
+                    .filter { compareVersions(it.versionName, currentVersion) < 0 }
+                    .maxWithOrNull { a, b -> compareVersions(a.versionName, b.versionName) }
+                    ?: error("No previous compatible release found")
             }
         }
 
@@ -281,32 +293,36 @@ object Updater {
     /**
      * Check if update is needed (respects 2-hour cache)
      */
-    suspend fun checkForUpdate(forceRefresh: Boolean = false): Result<Pair<ReleaseInfo?, Boolean>> =
+    suspend fun checkForUpdate(
+        forceRefresh: Boolean = false,
+        channel: UpdateChannel = UpdateChannel.STABLE,
+        skippedVersion: String? = null,
+    ): Result<Pair<ReleaseInfo?, Boolean>> =
         withContext(Dispatchers.IO) {
             runCatching {
-                // Check if we should fetch (2 hour interval)
-                val shouldFetch = forceRefresh || 
-                    (System.currentTimeMillis() - lastCheckTime) > CHECK_INTERVAL_MILLIS
-                
-                if (!shouldFetch && cachedReleaseInfo != null) {
-                    val hasUpdate = isUpdateAvailable(
-                        BuildConfig.VERSION_NAME,
-                        cachedReleaseInfo!!.versionName
-                    )
-                    return@runCatching cachedReleaseInfo!! to hasUpdate
-                }
-                
-                val result = getLatestRelease(forceRefresh = true)
-                if (result.isSuccess) {
-                    val releaseInfo = result.getOrThrow()
-                    val hasUpdate = isUpdateAvailable(
-                        BuildConfig.VERSION_NAME,
-                        releaseInfo.versionName
-                    )
-                    releaseInfo to hasUpdate
-                } else {
-                    throw result.exceptionOrNull() ?: Exception("Unknown error")
-                }
+                val cached = cachedReleaseInfo[channel]
+                val shouldFetch =
+                    forceRefresh ||
+                        cached == null ||
+                        (System.currentTimeMillis() - lastCheckTime) > CHECK_INTERVAL_MILLIS
+
+                val releaseInfo =
+                    if (shouldFetch) {
+                        getLatestRelease(
+                            forceRefresh = forceRefresh ||
+                                (System.currentTimeMillis() - lastCheckTime) > CHECK_INTERVAL_MILLIS,
+                            channel = channel,
+                        ).getOrThrow()
+                    } else {
+                        cached
+                    }
+
+                val hasUpdate =
+                    releaseInfo != null &&
+                        releaseInfo.versionName != skippedVersion &&
+                        isUpdateAvailable(BuildConfig.VERSION_NAME, releaseInfo.versionName)
+
+                releaseInfo to hasUpdate
             }
         }
 
@@ -314,14 +330,17 @@ object Updater {
      * Get the download URL for the correct app variant
      * Returns null if no matching asset is found
      */
-    fun getLatestDownloadUrl(): String? {
-        return cachedReleaseInfo?.let { getDownloadUrlForCurrentVariant(it) }
-    }
-    
+    fun getLatestDownloadUrl(
+        channel: UpdateChannel = UpdateChannel.STABLE,
+    ): String? =
+        cachedReleaseInfo[channel]?.let { getDownloadUrlForCurrentVariant(it) }
+
     /**
      * Get the latest release info (cached)
      */
-    fun getCachedLatestRelease(): ReleaseInfo? = cachedReleaseInfo
+    fun getCachedLatestRelease(
+        channel: UpdateChannel = UpdateChannel.STABLE,
+    ): ReleaseInfo? = cachedReleaseInfo[channel]
 
     /**
      * Downloads the correct APK for this build directly into Metrofy's private cache.

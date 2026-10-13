@@ -5,6 +5,8 @@
 
 package com.metrolist.music
 
+import com.metrolist.music.playback.SpotifyMatchPreferenceLearner
+
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -79,6 +81,7 @@ class App :
 
     override fun onCreate() {
         super.onCreate()
+        SpotifyMatchPreferenceLearner.initialize(this)
 
         if (BuildConfig.DEBUG) {
             // Logs main-thread disk/network I/O and leaked resources to logcat so ANR

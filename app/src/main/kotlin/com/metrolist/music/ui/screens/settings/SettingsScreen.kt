@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -32,12 +33,15 @@ import androidx.navigation.NavController
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
+import com.metrolist.music.constants.UpdateChannelKey
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.ReleaseNotesCard
 import com.metrolist.music.ui.utils.backToMain
+import com.metrolist.music.utils.UpdateChannel
 import com.metrolist.music.utils.Updater
+import com.metrolist.music.utils.rememberPreference
 import androidx.compose.runtime.remember
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,6 +52,10 @@ fun SettingsScreen(
 ) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    val updateChannelName by rememberPreference(UpdateChannelKey, UpdateChannel.STABLE.name)
+    val updateChannel =
+        runCatching { UpdateChannel.valueOf(updateChannelName) }
+            .getOrDefault(UpdateChannel.STABLE)
     val isAndroid12OrLater = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val hasAndroidAuto = remember {
         try {
@@ -96,6 +104,12 @@ fun SettingsScreen(
                     icon = painterResource(R.drawable.play),
                     title = { Text(stringResource(R.string.player_and_audio)) },
                     onClick = { navController.navigate("settings/player") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.info),
+                    title = { Text("Playback Health") },
+                    description = { Text("Stream client, failures and repair tools") },
+                    onClick = { navController.navigate("settings/playback_health") }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.language),
@@ -237,7 +251,7 @@ fun SettingsScreen(
                     BuildConfig.UPDATER_AVAILABLE &&
                     Updater.isUpdateAvailable(BuildConfig.VERSION_NAME, latestVersionName)
                 ) {
-                    val releaseInfo = Updater.getCachedLatestRelease()
+                    val releaseInfo = Updater.getCachedLatestRelease(updateChannel)
                     val hasCompatibleAsset =
                         releaseInfo?.let { Updater.getDownloadUrlForCurrentVariant(it) } != null
 

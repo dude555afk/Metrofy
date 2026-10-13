@@ -76,6 +76,7 @@ import com.metrolist.music.constants.SpotifyHomeOnlyKey
 import com.metrolist.music.constants.UseSpotifyHomeKey
 import com.metrolist.music.constants.UseSpotifySearchKey
 import com.metrolist.music.models.MediaMetadata
+import com.metrolist.music.playback.SpotifyMatchPreferenceLearner
 import com.metrolist.music.playback.SpotifyMetadataRegistry
 import com.metrolist.music.playback.SpotifyProfileCache
 import com.metrolist.music.playback.SpotifyYouTubeMapper
@@ -495,6 +496,42 @@ fun SpotifySettings(
 
                 QobuzBackendHealthSection(currentBackend = qobuzBackend)
             }
+
+            var learnedMatchChoices by remember {
+                mutableStateOf(SpotifyMatchPreferenceLearner.learnedChoices())
+            }
+
+            PreferenceGroupTitle(
+                title = "YouTube matching",
+            )
+
+            PreferenceEntry(
+                title = { Text("Learned match preferences") },
+                description =
+                    if (learnedMatchChoices == 0) {
+                        "Metrofy will learn broad version preferences from manual match corrections."
+                    } else {
+                        "$learnedMatchChoices manual corrections learned locally."
+                    },
+                icon = {
+                    Icon(
+                        painterResource(R.drawable.info),
+                        contentDescription = null,
+                    )
+                },
+                trailingContent = {
+                    if (learnedMatchChoices > 0) {
+                        OutlinedButton(
+                            onClick = {
+                                SpotifyMatchPreferenceLearner.reset()
+                                learnedMatchChoices = 0
+                            },
+                        ) {
+                            Text("Reset")
+                        }
+                    }
+                },
+            )
 
             PreferenceGroupTitle(
                 title = stringResource(R.string.information),

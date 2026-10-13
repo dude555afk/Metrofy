@@ -35,6 +35,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Playback-only InnerTubeX bridge.
@@ -49,6 +50,11 @@ object InnerTubeXPlaybackResolver {
         val activeClient: String?,
         val failedClients: Set<String>,
         val lastResolvedAtMs: Long?,
+        val totalResolutions: Long,
+        val totalFailures: Long,
+        val lastFailureMessage: String?,
+        val lastFailureAtMs: Long?,
+        val lastRefreshAtMs: Long?,
     )
 
     private const val TAG = "InnerTubeXPlayback"
@@ -67,6 +73,17 @@ object InnerTubeXPlaybackResolver {
 
     private val streamClientFailures = ConcurrentHashMap<String, FailedStreamClients>()
     private val lastResolvedClients = ConcurrentHashMap<String, Pair<String, Long>>()
+    private val resolutionCount = AtomicLong(0)
+    private val failureCount = AtomicLong(0)
+
+    @Volatile
+    private var lastFailureMessage: String? = null
+
+    @Volatile
+    private var lastFailureAtMs: Long? = null
+
+    @Volatile
+    private var lastRefreshAtMs: Long? = null
 
     @Synchronized
     fun initialize(context: Context) {
@@ -222,10 +239,12 @@ object InnerTubeXPlaybackResolver {
                 )
 
             lastResolvedClients[videoId] = stream.clientName to System.currentTimeMillis()
+            resolutionCount.incrementAndGet()
             Result.success(stream.toPlaybackData())
         } catch (error: CancellationException) {
             throw error
         } catch (error: StreamResolveException) {
+            recordFailure(error)
             val cause = error.cause
             Result.failure(
                 if (error.reason == StreamResolveException.Reason.NETWORK && cause != null) {
@@ -235,6 +254,7 @@ object InnerTubeXPlaybackResolver {
                 },
             )
         } catch (error: Exception) {
+            recordFailure(error)
             Result.failure(error)
         }
 
@@ -260,6 +280,11 @@ object InnerTubeXPlaybackResolver {
                 activeClient = null,
                 failedClients = emptySet(),
                 lastResolvedAtMs = null,
+                totalResolutions = resolutionCount.get(),
+                totalFailures = failureCount.get(),
+                lastFailureMessage = lastFailureMessage,
+                lastFailureAtMs = lastFailureAtMs,
+                lastRefreshAtMs = lastRefreshAtMs,
             )
         }
         val resolved = lastResolvedClients[videoId]
@@ -268,11 +293,25 @@ object InnerTubeXPlaybackResolver {
             activeClient = resolved?.first,
             failedClients = failedStreamClients(videoId),
             lastResolvedAtMs = resolved?.second,
+            totalResolutions = resolutionCount.get(),
+            totalFailures = failureCount.get(),
+            lastFailureMessage = lastFailureMessage,
+            lastFailureAtMs = lastFailureAtMs,
+            lastRefreshAtMs = lastRefreshAtMs,
         )
     }
 
-    suspend fun refreshAfterStreamRejection(): Boolean =
-        cipherService.refreshAfterStreamRejection()
+    suspend fun refreshAfterStreamRejection(): Boolean {
+        val changed = cipherService.refreshAfterStreamRejection()
+        lastRefreshAtMs = System.currentTimeMillis()
+        return changed
+    }
+
+    private fun recordFailure(error: Throwable) {
+        failureCount.incrementAndGet()
+        lastFailureMessage = error.message ?: error::class.java.simpleName
+        lastFailureAtMs = System.currentTimeMillis()
+    }
 
     private fun failedStreamClients(
         videoId: String,

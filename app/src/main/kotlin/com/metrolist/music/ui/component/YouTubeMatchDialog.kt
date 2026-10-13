@@ -46,6 +46,7 @@ import coil3.request.ImageRequest
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.R
+import com.metrolist.music.playback.SpotifyMatchPreferenceLearner
 import com.metrolist.spotify.Spotify
 import com.metrolist.spotify.SpotifyMapper
 import com.metrolist.spotify.models.SpotifyTrack
@@ -128,7 +129,7 @@ fun YouTubeMatchDialog(
                     .flatMap { it.items }
                     .filterIsInstance<SongItem>()
                     .map { song ->
-                        val score =
+                        val rawScore =
                             SpotifyMapper.matchScore(
                                 spotifyTitle = track.name,
                                 spotifyArtist = track.artists.firstOrNull()?.name.orEmpty(),
@@ -137,9 +138,15 @@ fun YouTubeMatchDialog(
                                 candidateArtist = song.artists.firstOrNull()?.name.orEmpty(),
                                 candidateDurationSec = song.duration ?: 0,
                             )
+                        val learnedScore =
+                            rawScore +
+                                SpotifyMatchPreferenceLearner.scoreAdjustment(
+                                    spotifyTitle = track.name,
+                                    candidateTitle = song.title,
+                                )
                         SuggestedYouTubeMatch(
                             song = song,
-                            confidence = (score * 100.0).roundToInt().coerceIn(0, 100),
+                            confidence = (learnedScore * 100.0).roundToInt().coerceIn(0, 100),
                         )
                     }
                     .sortedByDescending { it.confidence }
