@@ -105,6 +105,7 @@ class SpotifyYouTubeMapper(
         youtubeId: String,
         title: String,
         artist: String,
+        spotifyTitle: String? = null,
     ) = withContext(Dispatchers.IO) {
         database.upsertSpotifyMatch(
             SpotifyMatchEntity(
@@ -119,6 +120,10 @@ class SpotifyYouTubeMapper(
         memoryCache.put(spotifyId, CachedMatch(
             youtubeId, title, artist, isManualOverride = true,
         ))
+        SpotifyMatchPreferenceLearner.recordManualChoice(
+            spotifyTitle = spotifyTitle,
+            selectedYouTubeTitle = title,
+        )
         Timber.d("Manual override saved: $spotifyId -> $youtubeId ($title by $artist)")
     }
 
@@ -183,7 +188,13 @@ class SpotifyYouTubeMapper(
                 candidateArtist = song.artists.firstOrNull()?.name ?: "",
                 candidateDurationSec = song.duration,
             )
-            val adjusted = score - variantPenalty(spotifyTitleLower, song.title)
+            val adjusted =
+                score -
+                    variantPenalty(spotifyTitleLower, song.title) +
+                    SpotifyMatchPreferenceLearner.scoreAdjustment(
+                        spotifyTitle = spotifyTrack.name,
+                        candidateTitle = song.title,
+                    )
 
             if (adjusted > bestAdjusted) {
                 bestAdjusted = adjusted
