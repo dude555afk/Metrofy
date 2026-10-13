@@ -31,6 +31,7 @@ import com.metrolist.music.extensions.metadata
 import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.playback.MusicService.MusicBinder
 import com.metrolist.music.playback.queues.Queue
+import com.metrolist.music.utils.InnerTubeXPlaybackResolver
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import kotlinx.coroutines.CoroutineScope
@@ -251,6 +252,18 @@ class PlayerConnection(
     fun retryWithAnotherStreamClient() {
         service.retryWithAnotherStreamClient()
     }
+
+    fun clearPlaybackClientFailures() {
+        InnerTubeXPlaybackResolver.clearStreamClientFailures()
+    }
+
+    suspend fun refreshPlaybackEngine(): Result<Boolean> =
+        runCatching {
+            InnerTubeXPlaybackResolver.clearStreamClientFailures()
+            val changed = InnerTubeXPlaybackResolver.refreshAfterStreamRejection()
+            InnerTubeXPlaybackResolver.prewarm()
+            changed
+        }
 
     fun startRadioSeamlessly() {
         // Block if Listen Together guest
