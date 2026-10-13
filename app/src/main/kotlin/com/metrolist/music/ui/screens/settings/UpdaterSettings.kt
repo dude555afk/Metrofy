@@ -44,12 +44,15 @@ import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.CheckForUpdatesKey
+import com.metrolist.music.constants.SkippedUpdateVersionKey
+import com.metrolist.music.constants.UpdateChannelKey
 import com.metrolist.music.constants.UpdateNotificationsEnabledKey
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.ReleaseInfo
+import com.metrolist.music.utils.UpdateChannel
 import com.metrolist.music.utils.Updater
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +67,13 @@ fun UpdaterScreen(
 ) {
     val (checkForUpdates, onCheckForUpdatesChange) = rememberPreference(CheckForUpdatesKey, true)
     val (updateNotifications, onUpdateNotificationsChange) = rememberPreference(UpdateNotificationsEnabledKey, true)
+    val (updateChannelName, onUpdateChannelChange) =
+        rememberPreference(UpdateChannelKey, UpdateChannel.STABLE.name)
+    val (skippedVersion, onSkippedVersionChange) =
+        rememberPreference(SkippedUpdateVersionKey, "")
+    val updateChannel =
+        runCatching { UpdateChannel.valueOf(updateChannelName) }
+            .getOrDefault(UpdateChannel.STABLE)
 
     val context = LocalContext.current
     var isChecking by remember { mutableStateOf(false) }
@@ -106,7 +116,11 @@ fun UpdaterScreen(
             checkError = null
             withContext(Dispatchers.IO) {
                 Updater
-                    .checkForUpdate(forceRefresh = true)
+                    .checkForUpdate(
+                        forceRefresh = true,
+                        channel = updateChannel,
+                        skippedVersion = skippedVersion.takeIf { it.isNotBlank() },
+                    )
                     .onSuccess { (releaseInfo, hasUpdate) ->
                         if (releaseInfo != null) {
                             latestVersion = releaseInfo.versionName
@@ -195,6 +209,61 @@ fun UpdaterScreen(
                                     )
                                 },
                                 onClick = { onUpdateNotificationsChange(!updateNotifications) },
+                            ),
+                        )
+                    }
+
+                    add(
+                        Material3SettingsItem(
+                            title = { Text("Update channel") },
+                            description = {
+                                Text(
+                                    if (updateChannel == UpdateChannel.STABLE) {
+                                        "Stable releases only"
+                                    } else {
+                                        "Preview releases + stable releases"
+                                    },
+                                )
+                            },
+                            icon = painterResource(R.drawable.update),
+                            trailingContent = {
+                                Text(
+                                    if (updateChannel == UpdateChannel.STABLE) "Stable" else "Preview",
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            onClick = {
+                                val next =
+                                    if (updateChannel == UpdateChannel.STABLE) {
+                                        UpdateChannel.PREVIEW
+                                    } else {
+                                        UpdateChannel.STABLE
+                                    }
+                                onUpdateChannelChange(next.name)
+                                latestVersion = null
+                                latestRelease = null
+                                updateAvailable = false
+                                downloadedApk = null
+                                checkError = null
+                            },
+                        ),
+                    )
+
+                    if (skippedVersion.isNotBlank()) {
+                        add(
+                            Material3SettingsItem(
+                                title = { Text("Skipped version") },
+                                description = { Text(skippedVersion) },
+                                icon = painterResource(R.drawable.info),
+                                trailingContent = {
+                                    Text("Clear", color = MaterialTheme.colorScheme.primary)
+                                },
+                                onClick = {
+                                    onSkippedVersionChange("")
+                                    latestVersion = null
+                                    latestRelease = null
+                                    updateAvailable = false
+                                },
                             ),
                         )
                     }
@@ -336,6 +405,66 @@ fun UpdaterScreen(
                             .padding(16.dp),
                 )
             }
+
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    latestVersion?.let { version ->
+                        onSkippedVersionChange(version)
+                        updateAvailable = false
+                    }
+                },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+            ) {
+                Text("Skip this version")
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            enabled = !isDownloading,
+            onClick = {
+                coroutineScope.launch {
+                    isDownloading = true
+                    checkError = null
+                    downloadProgress = 0
+                    Updater.getPreviousRelease(
+                        channel = updateChannel,
+                        forceRefresh = true,
+                    ).onSuccess { previous ->
+                        latestVersion = previous.versionName
+                        Updater.downloadUpdate(context, previous) { progress ->
+                            coroutineScope.launch { downloadProgress = progress }
+                        }.onSuccess { apk ->
+                            downloadedApk = apk
+                            isDownloading = false
+                            startInstall(apk)
+                        }.onFailure { error ->
+                            isDownloading = false
+                            checkError = error.message ?: "Rollback download failed"
+                        }
+                    }.onFailure { error ->
+                        isDownloading = false
+                        checkError = error.message ?: "No previous release available"
+                    }
+                }
+            },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+        ) {
+            Text(
+                if (isDownloading) {
+                    "Preparing package… $downloadProgress%"
+                } else {
+                    "Rollback to previous release"
+                },
+            )
         }
 
         Spacer(Modifier.height(32.dp))
