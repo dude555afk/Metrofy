@@ -54,8 +54,9 @@ fun PlaybackHealthScreen(
     var refreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(playerConnection) {
-        while (playerConnection != null) {
-            diagnostics = playerConnection.playbackDiagnostics()
+        val connection = playerConnection ?: return@LaunchedEffect
+        while (true) {
+            diagnostics = connection.playbackDiagnostics()
             delay(1_000)
         }
     }
