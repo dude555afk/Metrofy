@@ -169,6 +169,7 @@ fun SpotifyTrackMenu(
                         youtubeId = result.videoId,
                         title = result.title,
                         artist = result.artist,
+                        spotifyTitle = track.name,
                     )
                 }
             },
