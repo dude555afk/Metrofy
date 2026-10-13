@@ -86,9 +86,40 @@ fun UpdaterScreen(
     var isDownloading by remember { mutableStateOf(false) }
     var downloadProgress by remember { mutableStateOf(0) }
     var downloadedApk by remember { mutableStateOf<File?>(null) }
+    var pendingRollbackApk by remember { mutableStateOf<File?>(null) }
+    var rollbackExportStatus by remember { mutableStateOf<String?>(null) }
     val failedToCheckUpdatesTemplate = stringResource(R.string.failed_to_check_updates)
 
     val coroutineScope = rememberCoroutineScope()
+
+    val exportRollbackLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("application/vnd.android.package-archive"),
+        ) { uri ->
+            if (uri != null) {
+                val apk = pendingRollbackApk
+                if (apk == null || !apk.exists()) {
+                    checkError = "Previous APK is no longer available. Please download it again."
+                } else {
+                    coroutineScope.launch {
+                        withContext(Dispatchers.IO) {
+                            runCatching {
+                                val output = context.contentResolver.openOutputStream(uri)
+                                    ?: error("Cannot create exported APK")
+                                output.use { stream ->
+                                    apk.inputStream().use { input -> input.copyTo(stream) }
+                                }
+                            }
+                        }.onSuccess {
+                            rollbackExportStatus =
+                                "Previous APK saved. Back up your data, uninstall Metrofy, then install the saved APK."
+                        }.onFailure { error ->
+                            checkError = error.message ?: "Could not export previous APK"
+                        }
+                    }
+                }
+            }
+        }
 
     val installPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -425,31 +456,47 @@ fun UpdaterScreen(
 
         Spacer(Modifier.height(16.dp))
 
+        Text(
+            text = "Android blocks installing an older version over a newer one. " +
+                "Export the previous APK, back up your data, uninstall Metrofy, " +
+                "then install the exported APK. Uninstalling may erase local data.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+
+        Spacer(Modifier.height(8.dp))
+
         Button(
             enabled = !isDownloading,
             onClick = {
-                coroutineScope.launch {
-                    isDownloading = true
-                    checkError = null
-                    downloadProgress = 0
-                    Updater.getPreviousRelease(
-                        channel = updateChannel,
-                        forceRefresh = true,
-                    ).onSuccess { previous ->
-                        latestVersion = previous.versionName
-                        Updater.downloadUpdate(context, previous) { progress ->
-                            coroutineScope.launch { downloadProgress = progress }
-                        }.onSuccess { apk ->
-                            downloadedApk = apk
-                            isDownloading = false
-                            startInstall(apk)
+                val cachedApk = pendingRollbackApk?.takeIf { it.exists() }
+                if (cachedApk != null) {
+                    exportRollbackLauncher.launch(cachedApk.name)
+                } else {
+                    coroutineScope.launch {
+                        isDownloading = true
+                        checkError = null
+                        rollbackExportStatus = null
+                        downloadProgress = 0
+                        Updater.getPreviousRelease(
+                            channel = updateChannel,
+                            forceRefresh = true,
+                        ).onSuccess { previous ->
+                            Updater.downloadUpdate(context, previous) { progress ->
+                                coroutineScope.launch { downloadProgress = progress }
+                            }.onSuccess { apk ->
+                                pendingRollbackApk = apk
+                                isDownloading = false
+                                exportRollbackLauncher.launch("Metrofy-" + previous.tagName + ".apk")
+                            }.onFailure { error ->
+                                isDownloading = false
+                                checkError = error.message ?: "Previous version download failed"
+                            }
                         }.onFailure { error ->
                             isDownloading = false
-                            checkError = error.message ?: "Rollback download failed"
+                            checkError = error.message ?: "No previous compatible release available"
                         }
-                    }.onFailure { error ->
-                        isDownloading = false
-                        checkError = error.message ?: "No previous release available"
                     }
                 }
             },
@@ -460,10 +507,19 @@ fun UpdaterScreen(
         ) {
             Text(
                 if (isDownloading) {
-                    "Preparing package… $downloadProgress%"
+                    "Preparing previous APK… $downloadProgress%"
                 } else {
-                    "Rollback to previous release"
+                    "Export previous version APK"
                 },
+            )
+        }
+
+        rollbackExportStatus?.let { message ->
+            Spacer(Modifier.height(8.dp))
+            Text(
+                message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
