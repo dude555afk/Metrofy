@@ -152,6 +152,8 @@ import com.metrolist.music.constants.SimpMusicMigrationDoneKey
 import com.metrolist.music.constants.SlimNavBarHeight
 import com.metrolist.music.constants.SlimNavBarKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
+import com.metrolist.music.constants.SkippedUpdateVersionKey
+import com.metrolist.music.constants.UpdateChannelKey
 import com.metrolist.music.constants.UpdateNotificationsEnabledKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
 import com.metrolist.music.db.MusicDatabase
@@ -189,6 +191,7 @@ import com.metrolist.music.ui.theme.extractThemeColor
 import com.metrolist.music.ui.utils.appBarScrollBehavior
 import com.metrolist.music.ui.utils.resetHeightOffset
 import com.metrolist.music.utils.SyncUtils
+import com.metrolist.music.utils.UpdateChannel
 import com.metrolist.music.utils.Updater
 import com.metrolist.music.utils.dataStore
 import androidx.datastore.preferences.core.edit
@@ -434,9 +437,17 @@ class MainActivity : ComponentActivity() {
                     withContext(Dispatchers.IO) {
                         val updatesEnabled = dataStore.get(CheckForUpdatesKey, true)
                         val notifEnabled = dataStore.get(UpdateNotificationsEnabledKey, true)
+                        val channelName = dataStore.get(UpdateChannelKey, UpdateChannel.STABLE.name)
+                        val skippedVersion = dataStore.get(SkippedUpdateVersionKey, "")
+                        val channel =
+                            runCatching { UpdateChannel.valueOf(channelName) }
+                                .getOrDefault(UpdateChannel.STABLE)
                         if (!updatesEnabled) return@withContext
 
-                        Updater.checkForUpdate().onSuccess { (releaseInfo, hasUpdate) ->
+                        Updater.checkForUpdate(
+                            channel = channel,
+                            skippedVersion = skippedVersion.takeIf { it.isNotBlank() },
+                        ).onSuccess { (releaseInfo, hasUpdate) ->
                             if (releaseInfo != null) {
                                 onLatestVersionNameChange(releaseInfo.versionName)
                                 if (hasUpdate && notifEnabled) {
