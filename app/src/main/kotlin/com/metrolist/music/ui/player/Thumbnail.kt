@@ -209,6 +209,7 @@ fun Thumbnail(
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
     isListenTogetherGuest: Boolean = false,
+    onOpenPlaybackHealth: () -> Unit = {},
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -331,6 +332,7 @@ fun Thumbnail(
                     retry = playerConnection.player::prepare,
                     retryWithAnotherClient = playerConnection::retryWithAnotherStreamClient,
                     diagnostics = playerConnection.playbackDiagnostics(),
+                    onOpenPlaybackHealth = onOpenPlaybackHealth,
                 )
             }
         }
