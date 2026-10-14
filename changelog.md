@@ -1,3 +1,38 @@
+---v0.8.9.7
+# Player polish and faster playback troubleshooting
+
+## Player polish
+- Improved mini-player expansion and collapse with smoother, consistent spring animations.
+- Fixed swipe settling so drag releases snap to the correct anchor.
+- Made player corners transform continuously while opening and closing.
+- Cancelled gestures now settle safely instead of abruptly snapping or dismissing the player.
+
+## Playback Health
+- Added Playback Health to the player's three-dot menu.
+- Added a Playback Health & fixes shortcut to the playback-error screen.
+- Show the current track and active playback error alongside stream resolver diagnostics.
+- Kept Playback Health available from Settings for advanced troubleshooting.
+
+## Changelog
+- Restored an in-app version history so the what's-new sheet can show all bundled releases, not a single hardcoded message.
+- The changelog appears after updating and remains available from Settings.
+
+---v0.8.9.6
+# Core v2 reliability and usability
+
+- Improved the updater with stable/preview release channels and proper cache refreshes.
+- Added safer rollback handling: export older APKs instead of attempting unsupported Android downgrades.
+- Added Playback Health stream diagnostics and a resolver refresh action.
+- Added learned preferences for Spotify-to-YouTube version matching.
+- Added playback client-failure tracking and made health polling null-safe.
+
+---v0.8.9.5
+# Metrolist 13.7 backport and build validation
+
+- Backported the Metrolist 13.7 updates into Metrofy.
+- Refined the CI release process with three-variant validation before publishing.
+- Retained the Metrofy-specific Spotify, YouTube, playback, and update integrations.
+
 ---v0.8.9.4
 # Feature pack
 
