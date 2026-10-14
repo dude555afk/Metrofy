@@ -10,7 +10,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
@@ -96,7 +95,7 @@ fun BottomSheet(
                     },
                     onDragCancel = {
                         velocityTracker.resetTracking()
-                        state.snapTo(state.collapsedBound)
+                        state.settleToClosestAnchor()
                     },
                     onDragEnd = {
                         val velocity = -velocityTracker.calculateVelocity().y
@@ -106,7 +105,8 @@ fun BottomSheet(
                 )
             }
             .graphicsLayer {
-                val cornerRadius = if (!state.isExpanded) 16.dp.toPx() else 0f
+                // Follow the sheet's drag progress; do not pop to square corners on the last frame.
+                val cornerRadius = (16f * (1f - state.progress.coerceIn(0f, 1f))).dp.toPx()
                 shape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius)
                 clip = true
             }
@@ -174,7 +174,8 @@ class BottomSheetState(
     }
 
     val progress by derivedStateOf {
-        1f - (animatable.upperBound!! - animatable.value) / (animatable.upperBound!! - collapsedBound)
+        val travel = animatable.upperBound!! - collapsedBound
+        if (travel <= 0.dp) 1f else ((animatable.value - collapsedBound) / travel).coerceIn(0f, 1f)
     }
 
     fun collapse(animationSpec: AnimationSpec<Dp>) {
@@ -191,20 +192,23 @@ class BottomSheetState(
         }
     }
 
-    private fun collapse() {
-        collapse(SpringSpec())
-    }
+    private val settleSpring: AnimationSpec<Dp> =
+        spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
 
-    private fun expand() {
-        expand(SpringSpec())
-    }
+    private fun collapse() = collapse(settleSpring)
 
-    fun collapseSoft() {
-        collapse(spring(stiffness = Spring.StiffnessMediumLow))
-    }
+    private fun expand() = expand(settleSpring)
 
-    fun expandSoft() {
-        expand(spring(stiffness = Spring.StiffnessMediumLow))
+    fun collapseSoft() = collapse(settleSpring)
+
+    fun expandSoft() = expand(settleSpring)
+
+    /** Cancelled gestures should settle naturally, never silently dismiss the player. */
+    fun settleToClosestAnchor() {
+        when (calculateSheetSettlingAnchor(value, dismissedBound, collapsedBound, expandedBound, false)) {
+            expandedAnchor -> expand()
+            else -> collapse()
+        }
     }
 
     fun dismiss() {
@@ -236,24 +240,13 @@ class BottomSheetState(
                 collapse()
             }
         } else {
-            val l0 = dismissedBound
-            val l1 = (collapsedBound - dismissedBound) / 2
-            val l2 = (expandedBound - collapsedBound) / 2
-            val l3 = expandedBound
-
-            when (value) {
-                in l0..l1 -> {
-                    if (onDismiss != null) {
-                        dismiss()
-                        onDismiss.invoke()
-                    } else {
-                        collapse()
-                    }
+            when (calculateSheetSettlingAnchor(value, dismissedBound, collapsedBound, expandedBound, onDismiss != null)) {
+                dismissedAnchor -> {
+                    dismiss()
+                    onDismiss?.invoke()
                 }
-
-                in l1..l2 -> collapse()
-                in l2..l3 -> expand()
-                else -> Unit
+                collapsedAnchor -> collapse()
+                expandedAnchor -> expand()
             }
         }
     }
@@ -313,6 +306,21 @@ class BottomSheetState(
 const val expandedAnchor = 2
 const val collapsedAnchor = 1
 const val dismissedAnchor = 0
+
+/** Select the nearest anchor using absolute midpoints, not distances from zero. */
+internal fun calculateSheetSettlingAnchor(
+    value: Dp,
+    dismissedBound: Dp,
+    collapsedBound: Dp,
+    expandedBound: Dp,
+    canDismiss: Boolean,
+): Int {
+    val dismissMidpoint = dismissedBound + (collapsedBound - dismissedBound) / 2
+    if (canDismiss && dismissedBound < collapsedBound && value < dismissMidpoint) return dismissedAnchor
+
+    val expandMidpoint = collapsedBound + (expandedBound - collapsedBound) / 2
+    return if (value < expandMidpoint) collapsedAnchor else expandedAnchor
+}
 
 @Composable
 fun rememberBottomSheetState(
