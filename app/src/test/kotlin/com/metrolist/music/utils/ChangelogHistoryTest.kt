@@ -30,14 +30,14 @@ class ChangelogHistoryTest {
 
     @Test
     fun `keeps section markdown without swallowing next heading`() {
-        val entries = parseChangelogEntries("---v1.2.0\\n# Title\\n- Feature A\\n\\n---v1.1.0\\n- Fixed B")
-        assertEquals("# Title\\n- Feature A", entries[0].notes)
+        val entries = parseChangelogEntries("---v1.2.0\n# Title\n- Feature A\n\n---v1.1.0\n- Fixed B")
+        assertEquals("# Title\n- Feature A", entries[0].notes)
         assertEquals("- Fixed B", entries[1].notes)
     }
 
     @Test
     fun `does not show orphaned, duplicate-empty or missing release sections`() {
-        val entries = parseChangelogEntries("Orphan notes\\n---v1.0.0\\n  \\n---v0.9.0\\n- Actual changes")
+        val entries = parseChangelogEntries("Orphan notes\n---v1.0.0\n  \n---v0.9.0\n- Actual changes")
         assertEquals(1, entries.size)
         assertEquals("0.9.0", entries.single().version)
     }
