@@ -788,6 +788,27 @@ fun PlayerMenu(
                         }
 
 
+                        if (isQueueTrigger != true) {
+                            add(
+                                Material3MenuItemData(
+                                    title = { Text("Playback Health") },
+                                    description = { Text("Stream status and repair options") },
+                                    icon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.info),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(24.dp),
+                                        )
+                                    },
+                                    onClick = {
+                                        onDismiss()
+                                        playerBottomSheetState.collapseSoft()
+                                        navController.navigate("settings/playback_health")
+                                    },
+                                ),
+                            )
+                        }
+
                         add(
                             Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.details)) },
