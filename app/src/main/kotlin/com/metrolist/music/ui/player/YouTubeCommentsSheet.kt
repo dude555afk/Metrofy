@@ -131,6 +131,10 @@ fun YouTubeCommentsSheet(
                     replyContinuations = replyContinuations + (comment.id to page.continuation)
                     expandedReplyIds = expandedReplyIds + comment.id
                 }
+                .onFailure {
+                    // Preserve the retry affordance instead of leaving an empty expanded card.
+                    expandedReplyIds = expandedReplyIds - comment.id
+                }
             loadingReplyIds = loadingReplyIds - comment.id
         }
     }
