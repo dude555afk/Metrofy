@@ -59,6 +59,7 @@ import coil3.compose.AsyncImage
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeComment
 import com.metrolist.music.R
+import com.metrolist.music.ui.component.shimmer.ShimmerHost
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -118,6 +119,8 @@ fun YouTubeCommentsSheet(
         val token = if (append) replyContinuations[comment.id] else comment.replyContinuation
         if (token == null) return
         loadingReplyIds = loadingReplyIds + comment.id
+        // Show reply placeholders immediately instead of leaving the card looking idle.
+        expandedReplyIds = expandedReplyIds + comment.id
         scope.launch {
             withContext(Dispatchers.IO) { YouTube.commentReplies(token) }
                 .onSuccess { page ->
@@ -201,7 +204,10 @@ fun YouTubeCommentsSheet(
 
             Box(modifier = Modifier.weight(1f)) {
                 when {
-                    isInitialLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    isInitialLoading -> CommentsSkeleton(
+                        count = 4,
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 12.dp),
+                    )
                     errorMessage != null -> ErrorContent { scope.launch { loadInitial() } }
                     comments.isEmpty() -> Text(
                         text = stringResource(R.string.no_comments),
@@ -270,12 +276,10 @@ fun YouTubeCommentsSheet(
                         }
                         if (isLoadingMore) {
                             item(key = "comments-loading-more") {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                                }
+                                CommentsSkeleton(
+                                    count = 2,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                )
                             }
                         }
                     }
@@ -345,6 +349,100 @@ fun YouTubeCommentsSheet(
                     .align(Alignment.BottomCenter)
                     .padding(horizontal = 4.dp, vertical = 10.dp),
             )
+        }
+    }
+}
+
+/**
+ * Comment-shaped placeholders share one shimmer animation instead of allocating
+ * a separate animation for each row. Keep network fetch/error handling unchanged.
+ */
+@Composable
+private fun CommentsSkeleton(
+    count: Int,
+    modifier: Modifier = Modifier,
+) {
+    ShimmerHost(modifier = modifier, showGradient = false) {
+        repeat(count) {
+            CommentSkeletonCard()
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun SkeletonBar(
+    widthFraction: Float,
+    height: androidx.compose.ui.unit.Dp = 12.dp,
+) {
+    Spacer(
+        Modifier
+            .fillMaxWidth(widthFraction)
+            .height(height)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)),
+    )
+}
+
+@Composable
+private fun CommentSkeletonCard() {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(26.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)),
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    SkeletonBar(0.42f, 13.dp)
+                    Spacer(Modifier.height(8.dp))
+                    SkeletonBar(0.22f, 10.dp)
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            SkeletonBar(0.96f, 12.dp)
+            Spacer(Modifier.height(9.dp))
+            SkeletonBar(0.80f, 12.dp)
+            Spacer(Modifier.height(9.dp))
+            SkeletonBar(0.54f, 12.dp)
+            Spacer(Modifier.height(16.dp))
+            SkeletonBar(0.28f, 10.dp)
+        }
+    }
+}
+
+@Composable
+private fun ReplySkeleton() {
+    ShimmerHost(showGradient = false, modifier = Modifier.fillMaxWidth()) {
+        repeat(2) {
+            Spacer(Modifier.height(8.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                shape = RoundedCornerShape(22.dp),
+                modifier = Modifier.fillMaxWidth().padding(start = 20.dp),
+            ) {
+                Row(modifier = Modifier.padding(11.dp)) {
+                    Spacer(
+                        Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)),
+                    )
+                    Spacer(Modifier.width(9.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        SkeletonBar(0.42f, 12.dp)
+                        Spacer(Modifier.height(8.dp))
+                        SkeletonBar(0.72f, 12.dp)
+                    }
+                }
+            }
         }
     }
 }
@@ -582,18 +680,18 @@ private fun CommentCard(
                 }
                 Spacer(Modifier.weight(1f))
                 if (comment.replyContinuation != null) {
-                    TextButton(onClick = onToggleReplies, shape = RoundedCornerShape(50)) {
-                        if (isLoadingReplies) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        } else {
-                            Icon(
-                                painter = painterResource(
-                                    if (isExpanded) R.drawable.expand_less else R.drawable.expand_more,
-                                ),
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
+                    TextButton(
+                        onClick = onToggleReplies,
+                        enabled = !isLoadingReplies,
+                        shape = RoundedCornerShape(50),
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                if (isExpanded) R.drawable.expand_less else R.drawable.expand_more,
+                            ),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
                         Spacer(Modifier.width(4.dp))
                         Text(
                             if (isExpanded) {
@@ -607,6 +705,9 @@ private fun CommentCard(
             }
 
             if (isExpanded) {
+                if (isLoadingReplies) {
+                    ReplySkeleton()
+                }
                 replies.forEach { reply ->
                     Spacer(Modifier.height(8.dp))
                     ReplyRow(reply)
