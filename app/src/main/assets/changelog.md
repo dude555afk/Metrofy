@@ -1,3 +1,12 @@
+---v0.8.9.8
+# YouTube comments skeleton loading
+
+- Replaced the full-screen comments loading spinner with animated, comment-shaped shimmer placeholders.
+- Added inline skeletons when loading more YouTube comments, keeping the existing list visible.
+- Added reply-shaped shimmer placeholders while fetching replies.
+- Made failed reply loads safely retryable without leaving an empty expanded comment.
+- Kept the comment composer, posting progress, and existing YouTube requests unchanged.
+
 ---v0.8.9.7
 # Player polish and faster playback troubleshooting
 
