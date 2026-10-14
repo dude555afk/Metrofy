@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -32,6 +33,9 @@ import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.utils.ReleaseInfo
+import com.metrolist.music.utils.parseChangelogEntries
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val markdownLinkRegex = Regex("(@[a-zA-Z0-9_-]+)|(https?://[\\w-]+(\\.[\\w-]+)+[\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])")
 
@@ -40,7 +44,9 @@ private val markdownLinkRegex = Regex("(@[a-zA-Z0-9_-]+)|(https?://[\\w-]+(\\.[\
 fun ChangelogScreen(
     onDismiss: () -> Unit
 ) {
-    val releases = listOf(
+    val context = LocalContext.current
+    // Keep the dialog fully offline: notes must be available immediately after an APK update.
+    val fallback = listOf(
         ReleaseInfo(
             tagName = stringResource(R.string.metrofy_changelog_tag),
             versionName = BuildConfig.VERSION_NAME,
@@ -49,6 +55,24 @@ fun ChangelogScreen(
             assets = emptyList(),
         ),
     )
+    val history by produceState(initialValue = emptyList<ReleaseInfo>(), context) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                context.assets.open("changelog.md").bufferedReader().use { reader ->
+                    parseChangelogEntries(reader.readText()).map { entry ->
+                        ReleaseInfo(
+                            tagName = "v${entry.version}",
+                            versionName = entry.version,
+                            description = entry.notes,
+                            releaseDate = "",
+                            assets = emptyList(),
+                        )
+                    }
+                }
+            }.getOrDefault(emptyList())
+        }
+    }
+    val releases = history.ifEmpty { fallback }
 
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false
