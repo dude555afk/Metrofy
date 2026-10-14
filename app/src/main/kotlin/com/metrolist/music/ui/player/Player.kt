@@ -1938,6 +1938,10 @@ fun BottomSheetPlayer(
                                     isPlayerExpanded = isExpandedProvider,
                                     isLandscape = true,
                                     isListenTogetherGuest = isListenTogetherGuest,
+                                    onOpenPlaybackHealth = {
+                                        state.collapseSoft()
+                                        navController.navigate("settings/playback_health")
+                                    },
                                 )
                             }
                         }
@@ -2006,6 +2010,10 @@ fun BottomSheetPlayer(
                                     modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
                                     isPlayerExpanded = isExpandedProvider,
                                     isListenTogetherGuest = isListenTogetherGuest,
+                                    onOpenPlaybackHealth = {
+                                        state.collapseSoft()
+                                        navController.navigate("settings/playback_health")
+                                    },
                                 )
                             }
                         }

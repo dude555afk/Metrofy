@@ -50,6 +50,7 @@ fun PlaybackError(
     retry: () -> Unit,
     retryWithAnotherClient: (() -> Unit)? = null,
     diagnostics: InnerTubeXPlaybackResolver.PlaybackDiagnostics? = null,
+    onOpenPlaybackHealth: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val causes = remember(error) { error.causeChain() }
@@ -200,6 +201,16 @@ fun PlaybackError(
                 shape = RoundedCornerShape(20.dp),
             ) {
                 Text(text = stringResource(R.string.try_another_stream_client))
+            }
+        }
+
+        if (onOpenPlaybackHealth != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onOpenPlaybackHealth,
+                shape = RoundedCornerShape(20.dp),
+            ) {
+                Text("Playback Health & fixes")
             }
         }
     }
