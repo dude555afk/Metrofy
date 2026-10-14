@@ -12,6 +12,10 @@ val applicationIdOverride = System.getenv("METROLIST_APPLICATION_ID")?.takeIf { 
 val appNameOverride = System.getenv("METROLIST_APP_NAME")?.takeIf { it.isNotBlank() }
 // Preview builds have an independent Android package, version and update path.
 val isMetrofyPreview = System.getenv("METROFY_PREVIEW_BUILD") == "true"
+// Preserve the signed side-by-side prerelease while keeping a literal stable version
+// so release.yml can read it reliably.
+val previewVersionCode = 34
+val previewVersionName = "0.8.9.7-preview.1"
 val debugKeystorePathOverride = System.getenv("METROLIST_DEBUG_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
 val debugKeystorePassword = System.getenv("METROLIST_DEBUG_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
 val debugKeyAlias = System.getenv("METROLIST_DEBUG_KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "androiddebugkey"
@@ -35,8 +39,12 @@ android {
         applicationId = applicationIdOverride ?: "com.metrofy.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = if (isMetrofyPreview) 34 else 33
-        versionName = if (isMetrofyPreview) "0.8.9.7-preview.1" else "0.8.9.6"
+        versionCode = 34
+        versionName = "0.8.9.7"
+        if (isMetrofyPreview) {
+            versionCode = previewVersionCode
+            versionName = previewVersionName
+        }
         resValue("string", "app_name", appNameOverride ?: "Metrofy")
         manifestPlaceholders["applicationLabel"] = appNameOverride ?: "Metrofy"
 
