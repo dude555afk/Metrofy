@@ -48,6 +48,9 @@ fun PlaybackHealthScreen(
     navController: NavController,
 ) {
     val playerConnection = LocalPlayerConnection.current
+    // Keep track identity separate from resolver diagnostics, which can reflect a past request.
+    val activeTrack = playerConnection?.mediaMetadata?.collectAsState()?.value
+    val playbackError = playerConnection?.error?.collectAsState()?.value
     val scope = rememberCoroutineScope()
     var diagnostics by remember { mutableStateOf(playerConnection?.playbackDiagnostics()) }
     var repairStatus by remember { mutableStateOf<String?>(null) }
@@ -85,6 +88,34 @@ fun PlaybackHealthScreen(
         Spacer(Modifier.height(8.dp))
 
         val d = diagnostics
+        Material3SettingsGroup(
+            title = "Now playing",
+            items = listOf(
+                Material3SettingsItem(
+                    title = { Text("Track") },
+                    description = {
+                        Text(
+                            activeTrack?.let {
+                                it.title + " · " + it.artists.joinToString { artist -> artist.name }
+                            } ?: "Nothing playing",
+                        )
+                    },
+                ),
+                Material3SettingsItem(
+                    title = { Text("Playback status") },
+                    description = {
+                        Text(
+                            playbackError?.let {
+                                "Error ${it.errorCode}: ${it.message ?: "Playback failed"}"
+                            } ?: "No current playback error",
+                        )
+                    },
+                ),
+            ),
+        )
+
+        Spacer(Modifier.height(16.dp))
+
         Material3SettingsGroup(
             title = "Current stream",
             items =
