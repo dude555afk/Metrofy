@@ -10,6 +10,8 @@ if (localPropertiesFile.exists()) {
 val baseApplicationId = "com.metrolist.music"
 val applicationIdOverride = System.getenv("METROLIST_APPLICATION_ID")?.takeIf { it.isNotBlank() }
 val appNameOverride = System.getenv("METROLIST_APP_NAME")?.takeIf { it.isNotBlank() }
+// Preview builds have an independent Android package, version and update path.
+val isMetrofyPreview = System.getenv("METROFY_PREVIEW_BUILD") == "true"
 val debugKeystorePathOverride = System.getenv("METROLIST_DEBUG_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
 val debugKeystorePassword = System.getenv("METROLIST_DEBUG_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
 val debugKeyAlias = System.getenv("METROLIST_DEBUG_KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "androiddebugkey"
@@ -33,8 +35,8 @@ android {
         applicationId = applicationIdOverride ?: "com.metrofy.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 33
-        versionName = "0.8.9.6"
+        versionCode = if (isMetrofyPreview) 34 else 33
+        versionName = if (isMetrofyPreview) "0.8.9.7-preview.1" else "0.8.9.6"
         resValue("string", "app_name", appNameOverride ?: "Metrofy")
         manifestPlaceholders["applicationLabel"] = appNameOverride ?: "Metrofy"
 
@@ -67,14 +69,16 @@ android {
             dimension = "variant"
             isDefault = true
             buildConfigField("Boolean", "CAST_AVAILABLE", "false")
-            buildConfigField("Boolean", "UPDATER_AVAILABLE", "true")
+            // Never offer stable-package APKs as updates to the side-by-side preview app.
+            buildConfigField("Boolean", "UPDATER_AVAILABLE", (!isMetrofyPreview).toString())
         }
 
         // GMS variant - with Google Cast support (requires Google Play Services)
         create("gms") {
             dimension = "variant"
             buildConfigField("Boolean", "CAST_AVAILABLE", "true")
-            buildConfigField("Boolean", "UPDATER_AVAILABLE", "true")
+            // Never offer stable-package APKs as updates to the side-by-side preview app.
+            buildConfigField("Boolean", "UPDATER_AVAILABLE", (!isMetrofyPreview).toString())
         }
 
         // IzzyOnDroid variant - no Google Cast, no built-in updater (store handles updates)
