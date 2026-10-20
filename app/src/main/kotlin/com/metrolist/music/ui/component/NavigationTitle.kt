@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
+import com.metrolist.music.BuildConfig
 
 @Composable
 fun NavigationTitle(
@@ -53,7 +54,8 @@ fun NavigationTitle(
             .clickable(enabled = onClick != null) {
                 onClick?.invoke()
             }
-            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .padding(horizontal = if (BuildConfig.NOVA_PREVIEW) 18.dp else 12.dp,
+                     vertical = if (BuildConfig.NOVA_PREVIEW) 15.dp else 12.dp)
     ) {
         thumbnail?.invoke()
 
@@ -72,8 +74,8 @@ fun NavigationTitle(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+                fontWeight = if (BuildConfig.NOVA_PREVIEW) FontWeight.SemiBold else FontWeight.Bold,
+                color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
                 overflow = TextOverflow.Ellipsis,
                 maxLines = 1,
             )
