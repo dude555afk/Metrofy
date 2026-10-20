@@ -1,3 +1,20 @@
+---v0.8.9.9
+# Security and reliability hotfix
+
+## Privacy and crash handling
+- Removed GitHub crash-reporting credentials from Android build configuration and release workflows.
+- Disabled automatic crash uploads. Crash details stay on-device and can only be shared manually from the crash screen.
+- Sanitized crash text before display or manual sharing to reduce accidental disclosure.
+
+## YouTube comments
+- Fixed errors with empty messages showing "No comments" instead of a retry option.
+- Added a manual retry action when loading additional comments fails, without discarding existing comments.
+- Preserved already-loaded replies when a subsequent reply request fails.
+
+## Updater
+- Recognized the real capitalized Metrofy Preview APK filenames alongside legacy lowercase names.
+- Kept the stable and isolated preview package identities unchanged.
+
 ---v0.8.9.8
 # YouTube comments skeleton loading
 

@@ -45,6 +45,7 @@ import androidx.core.content.FileProvider
 import com.metrolist.music.R
 import com.metrolist.music.ui.theme.MetrolistTheme
 import com.metrolist.music.utils.CrashHandler
+import com.metrolist.music.utils.CrashReporter
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,7 +57,9 @@ class CrashActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
-        val crashLog = intent.getStringExtra(CrashHandler.EXTRA_CRASH_LOG) ?: getString(R.string.crash_no_log)
+        val crashLog = CrashReporter.sanitize(
+            intent.getStringExtra(CrashHandler.EXTRA_CRASH_LOG) ?: getString(R.string.crash_no_log)
+        )
         
         setContent {
             val darkTheme = isSystemInDarkTheme()
