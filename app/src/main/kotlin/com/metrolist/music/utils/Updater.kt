@@ -45,6 +45,24 @@ enum class UpdateChannel {
     PREVIEW,
 }
 
+/**
+ * GitHub assets are case-sensitive URLs. The published preview builds use
+ * "Metrofy-Preview" (capital P), while older releases used lowercase "preview".
+ * Keep this independent of Android state so it can be regression-tested.
+ */
+internal fun classifyMetrofyApk(name: String): Pair<String, String>? = when {
+    name == "Metrofy.apk" || name.equals("Metrofy-Preview.apk", ignoreCase = true) ->
+        "universal" to "foss"
+    name == "Metrofy-with-Google-Cast.apk" ||
+        name.equals("Metrofy-Preview-with-Google-Cast.apk", ignoreCase = true) ->
+        "universal" to "gms"
+    name.startsWith("app-") && name.endsWith("-release.apk") ->
+        name.removePrefix("app-").removeSuffix("-release.apk") to "foss"
+    name.startsWith("app-") && name.endsWith("-with-Google-Cast.apk") ->
+        name.removePrefix("app-").removeSuffix("-with-Google-Cast.apk") to "gms"
+    else -> null
+}
+
 object Updater {
     private val client = HttpClient()
     var lastCheckTime = -1L
@@ -135,26 +153,10 @@ object Updater {
             val downloadUrl = asset.getString("browser_download_url")
             val size = asset.getLong("size")
             
-            // Parse architecture and variant from filename
-            val (arch, variant) = when {
-                name == "Metrofy.apk" ||
-                    name.equals("Metrofy-Preview.apk", ignoreCase = true) -> "universal" to "foss"
-                name == "Metrofy-with-Google-Cast.apk" ||
-                    name.equals("Metrofy-Preview-with-Google-Cast.apk", ignoreCase = true) -> "universal" to "gms"
-                name.startsWith("app-") && name.endsWith("-release.apk") -> {
-                    val arch = name.removePrefix("app-").removeSuffix("-release.apk")
-                    arch to "foss"
-                }
-                name.startsWith("app-") && name.endsWith("-with-Google-Cast.apk") -> {
-                    val arch = name.removePrefix("app-").removeSuffix("-with-Google-Cast.apk")
-                    arch to "gms"
-                }
-                else -> null to null
-            }
+            // Parse architecture and variant from the actual release asset name.
+            val (arch, variant) = classifyMetrofyApk(name) ?: continue
             
-            if (arch != null && variant != null) {
-                assets.add(ReleaseAsset(name, downloadUrl, size, arch, variant))
-            }
+            assets.add(ReleaseAsset(name, downloadUrl, size, arch, variant))
         }
         
         return assets
