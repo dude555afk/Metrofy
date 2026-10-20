@@ -147,7 +147,7 @@ android {
             }
         }
         debug {
-            if (applicationIdOverride == null) {
+            if (applicationIdOverride == null && !isNovaPreview) {
                 applicationIdSuffix = ".debug"
             }
             isDebuggable = true
