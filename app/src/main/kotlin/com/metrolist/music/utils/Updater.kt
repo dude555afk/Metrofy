@@ -137,9 +137,10 @@ object Updater {
             
             // Parse architecture and variant from filename
             val (arch, variant) = when {
-                name == "Metrofy.apk" || name == "Metrofy-preview.apk" -> "universal" to "foss"
+                name == "Metrofy.apk" ||
+                    name.equals("Metrofy-Preview.apk", ignoreCase = true) -> "universal" to "foss"
                 name == "Metrofy-with-Google-Cast.apk" ||
-                    name == "Metrofy-preview-with-Google-Cast.apk" -> "universal" to "gms"
+                    name.equals("Metrofy-Preview-with-Google-Cast.apk", ignoreCase = true) -> "universal" to "gms"
                 name.startsWith("app-") && name.endsWith("-release.apk") -> {
                     val arch = name.removePrefix("app-").removeSuffix("-release.apk")
                     arch to "foss"
