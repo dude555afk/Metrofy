@@ -53,6 +53,8 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -956,11 +958,26 @@ class MainActivity : ComponentActivity() {
                                     TopAppBar(
                                         title = {
                                             Text(
-                                                text = currentTitleRes?.let { stringResource(it) } ?: "",
+                                                text = if (BuildConfig.NOVA_PREVIEW && currentRoute == Screens.Home.route) "Metrofy Nova"
+                                                else currentTitleRes?.let { stringResource(it) } ?: "",
                                                 style = MaterialTheme.typography.titleLarge,
                                             )
                                         },
                                         actions = {
+                                            if (BuildConfig.NOVA_PREVIEW && currentRoute == Screens.Home.route) {
+                                                OutlinedButton(
+                                                    onClick = { navController.navigate(Screens.Search.route) },
+                                                    shape = RoundedCornerShape(50),
+                                                ) {
+                                                    Icon(painterResource(R.drawable.search), contentDescription = null, modifier = Modifier.size(18.dp))
+                                                    Text(stringResource(R.string.search))
+                                                }
+                                                OutlinedIconButton(
+                                                    onClick = { navController.navigate("settings") },
+                                                ) {
+                                                    Icon(painterResource(R.drawable.settings), contentDescription = stringResource(R.string.settings))
+                                                }
+                                            } else {
                                             if (showHistoryButton) {
                                                 IconButton(onClick = { navController.navigate("history") }) {
                                                     Icon(
@@ -1006,6 +1023,7 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     }
                                                 }
+                                            }
                                             }
                                         },
                                         scrollBehavior = topAppBarScrollBehavior,
