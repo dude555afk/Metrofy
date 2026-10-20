@@ -51,6 +51,7 @@ android {
             versionCode = previewVersionCode
             versionName = previewVersionName
         }
+        buildConfigField("Boolean", "NOVA_PREVIEW", isNovaPreview.toString())
         val displayAppName = if (isNovaPreview) "Metrofy Nova" else appNameOverride ?: "Metrofy"
         resValue("string", "app_name", displayAppName)
         manifestPlaceholders["applicationLabel"] = displayAppName
