@@ -79,6 +79,7 @@ fun YouTubeCommentsSheet(
     var viewerThumbnailUrl by remember(videoId) { mutableStateOf<String?>(null) }
     var isInitialLoading by remember(videoId) { mutableStateOf(true) }
     var isLoadingMore by remember(videoId) { mutableStateOf(false) }
+    var paginationError by remember(videoId) { mutableStateOf(false) }
     var errorMessage by remember(videoId) { mutableStateOf<String?>(null) }
     var commentText by remember(videoId) { mutableStateOf("") }
     var replyTarget by remember(videoId) { mutableStateOf<YouTubeComment?>(null) }
@@ -101,6 +102,7 @@ fun YouTubeCommentsSheet(
     suspend fun loadInitial() {
         isInitialLoading = true
         errorMessage = null
+        paginationError = false
         withContext(Dispatchers.IO) { YouTube.comments(videoId) }
             .onSuccess { page ->
                 comments = page.comments
@@ -110,7 +112,7 @@ fun YouTubeCommentsSheet(
                 totalCount = page.totalCount
                 viewerThumbnailUrl = page.viewerThumbnailUrl
             }
-            .onFailure { errorMessage = it.message }
+             .onFailure { errorMessage = it.message?.takeIf(String::isNotBlank) ?: "Comments could not be loaded" }
         isInitialLoading = false
     }
 
@@ -132,8 +134,8 @@ fun YouTubeCommentsSheet(
                     expandedReplyIds = expandedReplyIds + comment.id
                 }
                 .onFailure {
-                    // Preserve the retry affordance instead of leaving an empty expanded card.
-                    expandedReplyIds = expandedReplyIds - comment.id
+                    // A failed "more replies" fetch must not hide replies already on screen.
+                    if (!append) expandedReplyIds = expandedReplyIds - comment.id
                 }
             loadingReplyIds = loadingReplyIds - comment.id
         }
@@ -147,7 +149,8 @@ fun YouTubeCommentsSheet(
             if (
                 comments.isNotEmpty() &&
                 lastVisible >= comments.lastIndex - 3 &&
-                !isLoadingMore
+                !isLoadingMore &&
+                !paginationError
             ) {
                 continuation?.takeUnless(consumedContinuations::contains)
             } else {
@@ -166,7 +169,7 @@ fun YouTubeCommentsSheet(
                             continuation = page.continuation
                                 ?.takeUnless { it == next || it in consumedContinuations }
                         }
-                        .onFailure { continuation = null }
+                        .onFailure { paginationError = true }
                 } finally {
                     isLoadingMore = false
                 }
@@ -277,6 +280,25 @@ fun YouTubeCommentsSheet(
                                     }
                                 },
                             )
+                        }
+                        if (paginationError) {
+                            item(key = "comments-retry-more") {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            continuation?.let {
+                                                consumedContinuations = consumedContinuations - it
+                                            }
+                                            paginationError = false
+                                        },
+                                    ) {
+                                        Text("Retry loading more comments")
+                                    }
+                                }
+                            }
                         }
                         if (isLoadingMore) {
                             item(key = "comments-loading-more") {
