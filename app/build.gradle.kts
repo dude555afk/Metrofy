@@ -12,6 +12,9 @@ val applicationIdOverride = System.getenv("METROLIST_APPLICATION_ID")?.takeIf { 
 val appNameOverride = System.getenv("METROLIST_APP_NAME")?.takeIf { it.isNotBlank() }
 // Preview builds have an independent Android package, version and update path.
 val isMetrofyPreview = System.getenv("METROFY_PREVIEW_BUILD") == "true"
+// Isolated SoundPod-inspired UI experiment: never reuse stable Metrofy identity.
+val isNovaPreview = System.getenv("METROFY_NOVA_PREVIEW") == "true"
+val isAnyPreview = isMetrofyPreview || isNovaPreview
 // Preserve the signed side-by-side prerelease while keeping a literal stable version
 // so release.yml can read it reliably.
 val previewVersionCode = 34
@@ -36,17 +39,21 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = applicationIdOverride ?: "com.metrofy.app"
+        applicationId = if (isNovaPreview) "com.metrofy.nova" else applicationIdOverride ?: "com.metrofy.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 35
         versionName = "0.8.9.8"
-        if (isMetrofyPreview) {
+        if (isNovaPreview) {
+            versionCode = 1
+            versionName = "0.1.0-nova.1"
+        } else if (isMetrofyPreview) {
             versionCode = previewVersionCode
             versionName = previewVersionName
         }
-        resValue("string", "app_name", appNameOverride ?: "Metrofy")
-        manifestPlaceholders["applicationLabel"] = appNameOverride ?: "Metrofy"
+        val displayAppName = if (isNovaPreview) "Metrofy Nova" else appNameOverride ?: "Metrofy"
+        resValue("string", "app_name", displayAppName)
+        manifestPlaceholders["applicationLabel"] = displayAppName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -78,7 +85,7 @@ android {
             isDefault = true
             buildConfigField("Boolean", "CAST_AVAILABLE", "false")
             // Never offer stable-package APKs as updates to the side-by-side preview app.
-            buildConfigField("Boolean", "UPDATER_AVAILABLE", (!isMetrofyPreview).toString())
+            buildConfigField("Boolean", "UPDATER_AVAILABLE", (!isAnyPreview).toString())
         }
 
         // GMS variant - with Google Cast support (requires Google Play Services)
@@ -86,7 +93,7 @@ android {
             dimension = "variant"
             buildConfigField("Boolean", "CAST_AVAILABLE", "true")
             // Never offer stable-package APKs as updates to the side-by-side preview app.
-            buildConfigField("Boolean", "UPDATER_AVAILABLE", (!isMetrofyPreview).toString())
+            buildConfigField("Boolean", "UPDATER_AVAILABLE", (!isAnyPreview).toString())
         }
 
         // IzzyOnDroid variant - no Google Cast, no built-in updater (store handles updates)
@@ -143,7 +150,7 @@ android {
                 applicationIdSuffix = ".debug"
             }
             isDebuggable = true
-            if (appNameOverride == null) {
+            if (appNameOverride == null && !isNovaPreview) {
                 resValue("string", "app_name", "Metrofy Debug")
             }
             signingConfig =
