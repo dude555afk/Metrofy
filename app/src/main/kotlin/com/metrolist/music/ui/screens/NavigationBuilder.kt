@@ -23,6 +23,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.navArgument
+import com.metrolist.music.BuildConfig
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.PureBlackKey
 import com.metrolist.music.ui.screens.artist.ArtistAlbumsScreen
@@ -83,7 +84,11 @@ fun NavGraphBuilder.navigationBuilder(
     snackbarHostState: SnackbarHostState,
 ) {
     composable(Screens.Home.route) {
-        HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
+        if (BuildConfig.NOVA_PREVIEW) {
+            NovaHomeScreen(navController = navController, snackbarHostState = snackbarHostState)
+        } else {
+            HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
+        }
     }
 
     composable(Screens.Search.route) { backStackEntry ->

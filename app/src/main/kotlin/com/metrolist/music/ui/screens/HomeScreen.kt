@@ -1212,15 +1212,8 @@ fun HomeScreen(
                 state = lazylistState,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
-                item {
-                    if (BuildConfig.NOVA_PREVIEW) {
-                        NovaFilterTabs(
-                            chips = homePage?.chips?.map { it to it.title } ?: emptyList(),
-                            currentValue = selectedChip,
-                            onValueUpdate = viewModel::toggleChip,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-                        )
-                    } else {
+                if (!BuildConfig.NOVA_PREVIEW) {
+                    item {
                         ChipsRow(
                             chips = homePage?.chips?.map { it to it.title } ?: emptyList(),
                             currentValue = selectedChip,
