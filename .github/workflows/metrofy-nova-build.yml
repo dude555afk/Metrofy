@@ -15,63 +15,95 @@ concurrency:
 
 jobs:
   build:
-    name: Build isolated Nova APK
+    name: Build SoundPod-based Nova preview
     runs-on: ubuntu-latest
-    env:
-      METROFY_NOVA_PREVIEW: "true"
-      PULL_REQUEST: "false"
-      GITHUB_EVENT_NAME: ${{ github.event_name }}
-      LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
-      LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+    timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v6
-      - name: Initialize protobuf submodule
-        run: git submodule update --init metroproto
+      - name: Checkout Metrofy Nova build scripts
+        uses: actions/checkout@v6
+        with:
+          path: metrofy
 
-      - uses: actions/setup-java@v5
+      - name: Checkout pinned SoundPod source
+        uses: actions/checkout@v6
+        with:
+          repository: arunnechully/SoundPod
+          ref: 03dcb75b0158eb5c8dccbd82a131e8bce09a876d
+          path: nova-source
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
-      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
         with:
           cache-disabled: true
-      - uses: ./.github/actions/setup-protobuf
 
-      - name: Build Nova release APK
-        run: |
-          chmod +x gradlew
-          ./gradlew --no-configuration-cache --console=plain assembleFossRelease :app:lintFossRelease --warning-mode summary
-
-      - name: Sign Nova APK
-        uses: ilharp/sign-android-release@v2.0.0
-        with:
-          releaseDir: app/build/outputs/apk/foss/release/
-          signingKey: ${{ secrets.KEYSTORE }}
-          keyAlias: ${{ secrets.KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-          buildToolsVersion: 35.0.0
-
-      - name: Verify separate Nova identity
+      - name: Install Android 37 SDK platform
         shell: bash
         run: |
           set -euo pipefail
-          dir="app/build/outputs/apk/foss/release"
-          apk="$(find "$dir" -maxdepth 1 -name '*-signed.apk' -print -quit)"
+          sdkmanager="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [[ -x "$sdkmanager" ]]; then
+            yes | "$sdkmanager" --licenses >/dev/null
+            yes | "$sdkmanager" "platforms;android-37" "platform-tools"
+          else
+            echo "Android sdkmanager was not found at the expected runner path." >&2
+            exit 1
+          fi
+
+      - name: Rebrand the pinned source for Metrofy Nova
+        run: python3 metrofy/scripts/prepare-metrofy-nova.py nova-source
+
+      - name: Build Nova release APK
+        working-directory: nova-source
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-configuration-cache --console=plain assembleFdroidRelease --warning-mode summary
+
+      - name: Verify APK identity and package source
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk_dir="nova-source/app/build/outputs/apk/fdroid/release"
+          apk="$(find "$apk_dir" -maxdepth 1 -type f -name '*universal*.apk' -print -quit)"
+          if [[ -z "$apk" ]]; then
+            apk="$(find "$apk_dir" -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          fi
           test -n "$apk"
+
           aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
           apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$aapt"
+          test -n "$apksigner"
           "$apksigner" verify "$apk"
-          "$aapt" dump badging "$apk" | head -n 1 | tee /tmp/nova-identity.txt
-          grep -F "name='com.metrofy.nova'" /tmp/nova-identity.txt
-          grep -F "versionName='0.1.0-nova.1'" /tmp/nova-identity.txt
-          mkdir -p nova-output
-          cp "$apk" nova-output/Metrofy-Nova-Preview.apk
 
-      - name: Upload Nova APK
+          "$aapt" dump badging "$apk" > /tmp/nova-badging.txt
+          head -n 1 /tmp/nova-badging.txt
+          grep -F "name='com.metrofy.nova'" /tmp/nova-badging.txt
+          grep -F "versionName='0.1.0-nova.1'" /tmp/nova-badging.txt
+          grep -F "application-label:'Metrofy Nova'" /tmp/nova-badging.txt
+
+          mkdir -p metrofy/nova-output
+          cp "$apk" metrofy/nova-output/Metrofy-Nova-Preview.apk
+
+          cp metrofy/nova/SOUNDPOD_BASE.md nova-source/METROFY_NOVA_SOURCE_NOTES.md
+          cp metrofy/scripts/prepare-metrofy-nova.py nova-source/prepare-metrofy-nova.py
+          cd nova-source
+          zip -qr ../metrofy/nova-output/Metrofy-Nova-Source.zip . \
+            -x "./.git/*" "*/.git/*" "./.gradle/*" "*/.gradle/*" \
+               "*/build/*" "./local.properties" "*/local.properties"
+
+      - name: Upload APK and reproducible source
         uses: actions/upload-artifact@v6
         with:
           name: Metrofy-Nova-Preview
-          path: nova-output/Metrofy-Nova-Preview.apk
+          path: |
+            metrofy/nova-output/Metrofy-Nova-Preview.apk
+            metrofy/nova-output/Metrofy-Nova-Source.zip
           if-no-files-found: error
+          retention-days: 90
