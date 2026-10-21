@@ -149,6 +149,7 @@ import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.menu.SpotifyPlaylistMenu
 import com.metrolist.music.ui.component.NavigationTitle
+import com.metrolist.music.ui.component.NovaFilterTabs
 import com.metrolist.music.ui.component.RandomizeGridItem
 import com.metrolist.music.ui.component.SpotifyAlbumSectionRow
 import com.metrolist.music.ui.component.SpotifyArtistSectionRow
@@ -1212,21 +1213,13 @@ fun HomeScreen(
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 item {
-                    // SoundPod-inspired rounded content surface, exclusive to the Nova test build.
                     if (BuildConfig.NOVA_PREVIEW) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                            shape = RoundedCornerShape(26.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            ),
-                        ) {
-                            ChipsRow(
-                                chips = homePage?.chips?.map { it to it.title } ?: emptyList(),
-                                currentValue = selectedChip,
-                                onValueUpdate = viewModel::toggleChip,
-                            )
-                        }
+                        NovaFilterTabs(
+                            chips = homePage?.chips?.map { it to it.title } ?: emptyList(),
+                            currentValue = selectedChip,
+                            onValueUpdate = viewModel::toggleChip,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                        )
                     } else {
                         ChipsRow(
                             chips = homePage?.chips?.map { it to it.title } ?: emptyList(),

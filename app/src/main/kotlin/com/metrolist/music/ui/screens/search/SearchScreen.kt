@@ -5,9 +5,11 @@
 
 package com.metrolist.music.ui.screens.search
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -35,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -47,6 +50,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -54,6 +58,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.NavController
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.utils.YouTubeUrlParser
+import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalIsPlayerExpanded
 import com.metrolist.music.LocalPlayerAwareWindowInsets
@@ -190,6 +195,16 @@ fun SearchScreen(
                             modifier =
                                 Modifier
                                     .weight(1f)
+                                    .then(
+                                        if (BuildConfig.NOVA_PREVIEW) {
+                                            Modifier
+                                                .clip(RoundedCornerShape(24.dp))
+                                                .background(MaterialTheme.colorScheme.surfaceContainer)
+                                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
                                     .focusRequester(focusRequester),
                             textStyle =
                                 TextStyle(
