@@ -49,8 +49,13 @@ jobs:
           set -euo pipefail
           sdkmanager="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
           if [[ -x "$sdkmanager" ]]; then
+            # sdkmanager stops reading after all licenses are accepted; avoid
+            # treating yes(1)'s resulting SIGPIPE as a workflow failure.
+            set +o pipefail
             yes | "$sdkmanager" --licenses >/dev/null
             yes | "$sdkmanager" "platforms;android-37" "platform-tools"
+            set -o pipefail
+            "$sdkmanager" --list | grep -F "platforms;android-37"
           else
             echo "Android sdkmanager was not found at the expected runner path." >&2
             exit 1
