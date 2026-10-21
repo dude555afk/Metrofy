@@ -53,9 +53,9 @@ jobs:
             # treating yes(1)'s resulting SIGPIPE as a workflow failure.
             set +o pipefail
             yes | "$sdkmanager" --licenses >/dev/null
-            yes | "$sdkmanager" "platforms;android-37" "platform-tools"
+            yes | "$sdkmanager" --channel=3 "platforms;android-37" "platform-tools"
             set -o pipefail
-            "$sdkmanager" --list | grep -F "platforms;android-37"
+            "$sdkmanager" --channel=3 --list | grep -F "platforms;android-37"
           else
             echo "Android sdkmanager was not found at the expected runner path." >&2
             exit 1
