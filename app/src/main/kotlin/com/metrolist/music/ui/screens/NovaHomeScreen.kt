@@ -153,6 +153,11 @@ private fun NovaFavoritesTab(navController: NavController) {
             subtitle = "Your synced Spotify favorites",
             onClick = { navController.navigate("spotify_liked_songs") },
         )
+        NovaFavoriteAction(
+            title = "Listen together",
+            subtitle = "Share a listening room with friends",
+            onClick = { navController.navigate("listen_together") },
+        )
     }
 }
 

@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.metrolist.music.BuildConfig
 import com.metrolist.music.R
 import com.metrolist.music.ui.screens.OptionStats
 
@@ -63,6 +64,16 @@ fun <E> ChipsRow(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
 ) {
+    if (BuildConfig.NOVA_PREVIEW) {
+        NovaFilterTabs(
+            chips = chips,
+            currentValue = currentValue,
+            onValueUpdate = onValueUpdate,
+            modifier = modifier,
+        )
+        return
+    }
+
     Row(
         modifier =
         modifier

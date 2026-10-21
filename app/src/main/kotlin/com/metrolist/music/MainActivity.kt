@@ -1114,14 +1114,15 @@ class MainActivity : ComponentActivity() {
                                         pureBlack = pureBlack,
                                     )
 
-                                    AppNavigationBar(
-                                        navigationItems = navigationItems,
-                                        currentRoute = currentRoute,
-                                        onItemClick = onNavItemClick,
-                                        pureBlack = pureBlack,
-                                        slimNav = slimNav,
-                                        onSearchLongClick = onSearchLongClick,
-                                        modifier =
+                                    if (!BuildConfig.NOVA_PREVIEW) {
+                                        AppNavigationBar(
+                                            navigationItems = navigationItems,
+                                            currentRoute = currentRoute,
+                                            onItemClick = onNavItemClick,
+                                            pureBlack = pureBlack,
+                                            slimNav = slimNav,
+                                            onSearchLongClick = onSearchLongClick,
+                                            modifier =
                                             Modifier
                                                 .align(Alignment.BottomCenter)
                                                 .height(bottomInset + navPadding)
@@ -1143,7 +1144,8 @@ class MainActivity : ComponentActivity() {
                                                             slideOffset + hideOffset
                                                         }
                                                 },
-                                    )
+                                        )
+                                    }
 
                                     Box(
                                         modifier =
