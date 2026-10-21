@@ -1200,6 +1200,8 @@ private fun NovaMiniPlayer(
         effectivelyPlaying -> R.drawable.pause
         else -> R.drawable.play
     }
+    val progressColor = MaterialTheme.colorScheme.primary
+    val progressTrackColor = MaterialTheme.colorScheme.surfaceVariant
 
     Surface(
         modifier = modifier
@@ -1280,13 +1282,13 @@ private fun NovaMiniPlayer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(progressTrackColor)
                     .drawWithContent {
                         drawContent()
                         val progress = progressState.progress
                         if (progress > 0f) {
                             drawRoundRect(
-                                color = MaterialTheme.colorScheme.primary,
+                                color = progressColor,
                                 topLeft = Offset.Zero,
                                 size = Size(size.width * progress, size.height),
                                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2f),

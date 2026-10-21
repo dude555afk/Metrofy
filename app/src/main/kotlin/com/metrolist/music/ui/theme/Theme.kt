@@ -62,7 +62,6 @@ fun MetrolistTheme(
         surfaceVariant = Color(0xFF1B2536), onSurfaceVariant = Color(0xFFB6C0D0),
         surfaceContainer = Color(0xFF121B2B), surfaceContainerLow = Color(0xFF151F30),
     )
-    val useSystemDynamicColor = (themeColor == DefaultThemeColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
     val baseColorScheme = when {
         BuildConfig.NOVA_PREVIEW -> if (darkTheme) soundPodDarkScheme else soundPodLightScheme
         useSystemDynamicColor -> if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)

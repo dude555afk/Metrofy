@@ -1222,7 +1222,7 @@ fun HomeScreen(
                     }
                 }
 
-                if (isLoading && homePage?.chips.isNullOrEmpty()) {
+                if (!BuildConfig.NOVA_PREVIEW && isLoading && homePage?.chips.isNullOrEmpty()) {
                     item(key = "chips_shimmer") {
                         ShimmerHost(showGradient = false) {
                             LazyRow(
