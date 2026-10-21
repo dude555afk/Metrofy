@@ -41,7 +41,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -1277,15 +1276,23 @@ private fun NovaMiniPlayer(
                     )
                 }
             }
-            LinearProgressIndicator(
-                progress = { progressState.progress },
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(2.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                gapSize = 0.dp,
-                drawStopIndicator = {},
+                    .height(2.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .drawWithContent {
+                        drawContent()
+                        val progress = progressState.progress
+                        if (progress > 0f) {
+                            drawRoundRect(
+                                color = MaterialTheme.colorScheme.primary,
+                                topLeft = Offset.Zero,
+                                size = Size(size.width * progress, size.height),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2f),
+                            )
+                        }
+                    }
             )
         }
     }
