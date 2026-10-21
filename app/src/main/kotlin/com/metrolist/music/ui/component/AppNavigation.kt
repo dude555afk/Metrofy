@@ -12,6 +12,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
@@ -30,6 +31,7 @@ import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import com.metrolist.music.BuildConfig
 import com.metrolist.music.ui.screens.Screens
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -143,7 +145,7 @@ fun AppNavigationBar(
     slimNav: Boolean = false,
     onSearchLongClick: (() -> Unit)? = null
 ) {
-    val containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+    val containerColor = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.surface else if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
     val contentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
     val haptics = LocalHapticFeedback.current
     val viewConfiguration = LocalViewConfiguration.current
@@ -214,7 +216,18 @@ fun AppNavigationBar(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                } else null
+                } else null,
+                colors = if (BuildConfig.NOVA_PREVIEW) {
+                    NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                        indicatorColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    NavigationBarItemDefaults.colors()
+                }
             )
         }
     }

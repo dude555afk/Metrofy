@@ -10,6 +10,8 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -25,6 +27,7 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import com.materialkolor.score.Score
+import com.metrolist.music.BuildConfig
 
 val DefaultThemeColor = Color(0xFFED5564)
 
@@ -40,16 +43,34 @@ fun MetrolistTheme(
     val useSystemDynamicColor = (themeColor == DefaultThemeColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
 
     // Select the appropriate color scheme generation method
-    val baseColorScheme = if (useSystemDynamicColor) {
-        // Use standard Material 3 dynamic color functions for system wallpaper colors
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    } else {
-        // Use materialKolor only when a specific seed color is provided
-        rememberDynamicColorScheme(
-            seedColor = themeColor, // themeColor is guaranteed non-default here
+    // Nova adopts SoundPod's restrained neutral palette; stable Metrofy keeps its existing theme.
+    val soundPodLightScheme = lightColorScheme(
+        primary = Color(0xFF111827), onPrimary = Color.White,
+        primaryContainer = Color(0xFFE8ECF3), onPrimaryContainer = Color(0xFF182131),
+        secondary = Color(0xFF536174), onSecondary = Color.White,
+        background = Color(0xFFF6F6F8), onBackground = Color(0xFF101828),
+        surface = Color.White, onSurface = Color(0xFF101828),
+        surfaceVariant = Color(0xFFE8ECF2), onSurfaceVariant = Color(0xFF626D7E),
+        surfaceContainer = Color(0xFFF0F2F6), surfaceContainerLow = Color.White,
+    )
+    val soundPodDarkScheme = darkColorScheme(
+        primary = Color(0xFFF4F6FB), onPrimary = Color(0xFF0D1422),
+        primaryContainer = Color(0xFF2A3548), onPrimaryContainer = Color(0xFFE8EDF6),
+        secondary = Color(0xFFBAC4D4), onSecondary = Color(0xFF172033),
+        background = Color(0xFF090E19), onBackground = Color(0xFFF4F6FB),
+        surface = Color(0xFF0D1320), onSurface = Color(0xFFF4F6FB),
+        surfaceVariant = Color(0xFF1B2536), onSurfaceVariant = Color(0xFFB6C0D0),
+        surfaceContainer = Color(0xFF121B2B), surfaceContainerLow = Color(0xFF151F30),
+    )
+    val useSystemDynamicColor = (themeColor == DefaultThemeColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+    val baseColorScheme = when {
+        BuildConfig.NOVA_PREVIEW -> if (darkTheme) soundPodDarkScheme else soundPodLightScheme
+        useSystemDynamicColor -> if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        else -> rememberDynamicColorScheme(
+            seedColor = themeColor,
             isDark = darkTheme,
             specVersion = ColorSpec.SpecVersion.SPEC_2025,
-            style = PaletteStyle.TonalSpot // Keep existing style
+            style = PaletteStyle.TonalSpot
         )
     }
 
