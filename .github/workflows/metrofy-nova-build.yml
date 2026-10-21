@@ -43,24 +43,6 @@ jobs:
         with:
           cache-disabled: true
 
-      - name: Install Android 37 SDK platform
-        shell: bash
-        run: |
-          set -euo pipefail
-          sdkmanager="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
-          if [[ -x "$sdkmanager" ]]; then
-            # sdkmanager stops reading after all licenses are accepted; avoid
-            # treating yes(1)'s resulting SIGPIPE as a workflow failure.
-            set +o pipefail
-            yes | "$sdkmanager" --licenses >/dev/null
-            yes | "$sdkmanager" --channel=3 "platforms;android-37" "platform-tools"
-            set -o pipefail
-            "$sdkmanager" --channel=3 --list | grep -F "platforms;android-37"
-          else
-            echo "Android sdkmanager was not found at the expected runner path." >&2
-            exit 1
-          fi
-
       - name: Rebrand the pinned source for Metrofy Nova
         run: python3 metrofy/scripts/prepare-metrofy-nova.py nova-source
 
