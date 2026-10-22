@@ -102,6 +102,7 @@ fun LibrarySongsScreen(
     navController: NavController,
     onDeselect: () -> Unit,
     viewModel: LibrarySongsViewModel = hiltViewModel(),
+    showDeselectChip: Boolean = true,
 ) {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -342,7 +343,8 @@ fun LibrarySongsScreen(
                 contentType = CONTENT_TYPE_HEADER,
             ) {
                 Row {
-                    Spacer(Modifier.width(12.dp))
+                    if (showDeselectChip) {
+Spacer(Modifier.width(12.dp))
                     FilterChip(
                         label = { Text(stringResource(R.string.songs)) },
                         selected = true,
@@ -356,7 +358,8 @@ fun LibrarySongsScreen(
                             )
                         },
                     )
-                    ChipsRow(
+                    }
+            ChipsRow(
                         chips =
                             listOf(
                                 SongFilter.LIKED to stringResource(R.string.filter_liked),
