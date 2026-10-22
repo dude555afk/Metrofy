@@ -344,7 +344,7 @@ fun LibrarySongsScreen(
             ) {
                 Row {
                     if (showDeselectChip) {
-Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(12.dp))
                     FilterChip(
                         label = { Text(stringResource(R.string.songs)) },
                         selected = true,
