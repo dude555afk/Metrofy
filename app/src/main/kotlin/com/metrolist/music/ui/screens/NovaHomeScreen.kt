@@ -109,9 +109,9 @@ fun NovaHomeScreen(
                         snackbarHostState = snackbarHostState,
                     )
                     "favorites" -> NovaFavoritesTab(navController)
-                    "songs" -> LibrarySongsScreen(navController = navController, onDeselect = {})
-                    "artists" -> LibraryArtistsScreen(navController = navController, onDeselect = {})
-                    "albums" -> LibraryAlbumsScreen(navController = navController, onDeselect = {})
+                    "songs" -> LibrarySongsScreen(navController = navController, onDeselect = {}, showDeselectChip = false)
+                    "artists" -> LibraryArtistsScreen(navController = navController, onDeselect = {}, showDeselectChip = false)
+                    "albums" -> LibraryAlbumsScreen(navController = navController, onDeselect = {}, showDeselectChip = false)
                     "playlists" -> LibraryPlaylistsScreen(navController = navController, filterContent = {})
                     "folders" -> LocalFilesScreen(navController = navController, filterContent = {})
                 }
