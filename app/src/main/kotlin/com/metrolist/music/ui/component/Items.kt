@@ -93,6 +93,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
+import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerConnection
@@ -147,32 +148,46 @@ inline fun ListItem(
     isActive: Boolean = false,
     isAvailable: Boolean = true,
 ) {
+    val novaStyle = BuildConfig.NOVA_PREVIEW
+    val rowHeight = if (novaStyle) 68.dp else ListItemHeight
+    val horizontalInset = if (novaStyle) 4.dp else 8.dp
+    val rowShape = if (novaStyle) RoundedCornerShape(12.dp) else RoundedCornerShape(8.dp)
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = if (isActive) {
-            modifier // playing highlight
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
+            modifier
+                .height(rowHeight)
+                .padding(horizontal = horizontalInset)
+                .clip(rowShape)
                 .background(
-                    color = // selected active
-                        if (isSelected == true) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                        else MaterialTheme.colorScheme.secondaryContainer
+                    color = when {
+                        novaStyle && isSelected == true -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        novaStyle -> MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
+                        isSelected == true -> MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                        else -> MaterialTheme.colorScheme.secondaryContainer
+                    }
                 )
         } else if (isSelected == true) {
-            modifier // inactive selected
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(color = MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.4f))
+            modifier
+                .height(rowHeight)
+                .padding(horizontal = horizontalInset)
+                .clip(rowShape)
+                .background(
+                    color = if (novaStyle) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f)
+                    } else {
+                        MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.4f)
+                    }
+                )
         } else {
-            modifier // default
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
+            modifier
+                .height(rowHeight)
+                .padding(horizontal = horizontalInset)
         }
     ) {
         Box(
-            modifier = Modifier.padding(6.dp),
+            modifier = Modifier.padding(if (novaStyle) 4.dp else 6.dp),
             contentAlignment = Alignment.Center
         ) {
             thumbnailContent()
@@ -183,7 +198,7 @@ inline fun ListItem(
                         .align(Alignment.Center)
                         .background(
                             Color.Black.copy(alpha = 0.25f),
-                            RoundedCornerShape(ThumbnailCornerRadius)
+                            RoundedCornerShape(if (novaStyle) 8.dp else ThumbnailCornerRadius)
                         )
                 ) {
                     Icon(
@@ -201,14 +216,15 @@ inline fun ListItem(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 6.dp)
+                .padding(horizontal = if (novaStyle) 8.dp else 6.dp)
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                style = if (novaStyle) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
+                fontWeight = if (novaStyle) FontWeight.Medium else FontWeight.Bold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             if (subtitle != null) {
@@ -240,7 +256,7 @@ fun ListItem(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -272,7 +288,7 @@ fun ListItem(
         if (!subtitle.isNullOrEmpty()) {
             Text(
                 text = subtitle,
-                color = MaterialTheme.colorScheme.secondary,
+                color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
