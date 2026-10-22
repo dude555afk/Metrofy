@@ -1202,8 +1202,8 @@ private fun NovaMiniPlayer(
         effectivelyPlaying -> R.drawable.pause
         else -> R.drawable.play
     }
-    val progressColor = MaterialTheme.colorScheme.primary
-    val progressTrackColor = MaterialTheme.colorScheme.surfaceVariant
+    val progressColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f)
+    val progressTrackColor = Color.Transparent
 
     Surface(
         modifier = modifier
