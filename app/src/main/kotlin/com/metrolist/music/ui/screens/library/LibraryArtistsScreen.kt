@@ -101,18 +101,18 @@ fun LibraryArtistsScreen(
 
     val filterContent = @Composable {
         Row {
-            if (showDeselectChip) {
-                        Spacer(Modifier.width(12.dp))
-                        FilterChip(
-                            label = { Text(stringResource(R.string.artists)) },
-                            selected = true,
-                            colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                            onClick = onDeselect,
-                            shape = RoundedCornerShape(16.dp),
-                            leadingIcon = {
-                                Icon(painter = painterResource(R.drawable.close), contentDescription = "")
-                },
-            )
+                        if (showDeselectChip) {
+                Spacer(Modifier.width(12.dp))
+                FilterChip(
+                    label = { Text(stringResource(R.string.artists)) },
+                    selected = true,
+                    colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
+                    onClick = onDeselect,
+                    shape = RoundedCornerShape(16.dp),
+                    leadingIcon = {
+                        Icon(painter = painterResource(R.drawable.close), contentDescription = "")
+                    },
+                )
             }
             ChipsRow(
                 chips =
