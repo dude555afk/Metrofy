@@ -36,6 +36,7 @@ import com.metrolist.music.ui.screens.library.LibraryAlbumsScreen
 import com.metrolist.music.ui.screens.library.LibraryArtistsScreen
 import com.metrolist.music.ui.screens.library.LibraryPlaylistsScreen
 import com.metrolist.music.ui.screens.library.LibrarySongsScreen
+import com.metrolist.music.ui.screens.library.local.LocalFilesScreen
 import kotlinx.coroutines.launch
 
 private data class NovaHomeTab(
@@ -45,12 +46,12 @@ private data class NovaHomeTab(
 
 private val novaHomeTabs = listOf(
     NovaHomeTab("home", "Home"),
-    NovaHomeTab("favorites", "Favorites"),
-    NovaHomeTab("following", "Following"),
-    NovaHomeTab("songs", "Songs"),
-    NovaHomeTab("artists", "Artists"),
+    NovaHomeTab("songs", "Tracks"),
     NovaHomeTab("albums", "Albums"),
+    NovaHomeTab("artists", "Artists"),
     NovaHomeTab("playlists", "Playlists"),
+    NovaHomeTab("folders", "Folders"),
+    NovaHomeTab("favorites", "Favorites"),
 )
 
 /**
@@ -89,10 +90,9 @@ fun NovaHomeScreen(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                .weight(1f),
+            shape = RoundedCornerShape(0.dp),
+            color = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp,
         ) {
             HorizontalPager(
@@ -107,11 +107,11 @@ fun NovaHomeScreen(
                         snackbarHostState = snackbarHostState,
                     )
                     "favorites" -> NovaFavoritesTab(navController)
-                    "following" -> LibraryArtistsScreen(navController = navController, onDeselect = {})
                     "songs" -> LibrarySongsScreen(navController = navController, onDeselect = {})
                     "artists" -> LibraryArtistsScreen(navController = navController, onDeselect = {})
                     "albums" -> LibraryAlbumsScreen(navController = navController, onDeselect = {})
                     "playlists" -> LibraryPlaylistsScreen(navController = navController, filterContent = {})
+                    "folders" -> LocalFilesScreen(navController = navController, filterContent = {})
                 }
             }
         }
