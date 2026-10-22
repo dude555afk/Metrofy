@@ -1210,31 +1210,44 @@ private fun NovaMiniPlayer(
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
             .height(MiniPlayerHeight),
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(28.dp),
+        color = Color.Transparent,
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)
         ),
         tonalElevation = 0.dp,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
+        Box(modifier = Modifier.fillMaxSize()) {
+            // SoundPod-style artwork wash behind the compact player row.
+            AsyncImage(
+                model = mediaMetadata?.thumbnailUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().blur(16.dp),
+            )
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(start = 9.dp, end = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AsyncImage(
-                    model = mediaMetadata?.thumbnailUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.78f))
+            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
                     modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                )
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(start = 9.dp, end = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AsyncImage(
+                        model = mediaMetadata?.thumbnailUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    )
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -1243,8 +1256,8 @@ private fun NovaMiniPlayer(
                 ) {
                     Text(
                         text = mediaMetadata?.title?.takeIf { it.isNotBlank() } ?: "Nothing playing",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -1328,6 +1341,7 @@ private fun NovaMiniPlayer(
                         }
                     }
             )
+            }
         }
     }
 }
