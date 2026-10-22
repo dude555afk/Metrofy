@@ -114,15 +114,15 @@ fun LibraryAlbumsScreen(
     val filterContent = @Composable {
         Row {
             if (showDeselectChip) {
-Spacer(Modifier.width(12.dp))
-            FilterChip(
-                label = { Text(stringResource(R.string.albums)) },
-                selected = true,
-                colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                onClick = onDeselect,
-                shape = RoundedCornerShape(16.dp),
-                leadingIcon = {
-                    Icon(painter = painterResource(R.drawable.close), contentDescription = "")
+                        Spacer(Modifier.width(12.dp))
+                        FilterChip(
+                            label = { Text(stringResource(R.string.albums)) },
+                            selected = true,
+                            colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
+                            onClick = onDeselect,
+                            shape = RoundedCornerShape(16.dp),
+                            leadingIcon = {
+                                Icon(painter = painterResource(R.drawable.close), contentDescription = "")
                 },
             )
             }
