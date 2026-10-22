@@ -73,6 +73,7 @@ import coil3.compose.SubcomposeAsyncImageContent
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.size.Size
+import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
@@ -233,7 +234,7 @@ fun Thumbnail(
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
     val swipeThumbnail = swipeThumbnailPref && !isListenTogetherGuest
     val hidePlayerThumbnail by rememberPreference(HidePlayerThumbnailKey, false)
-    val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val cropAlbumArt by rememberPreference(CropAlbumArtKey, BuildConfig.NOVA_PREVIEW)
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT
@@ -374,6 +375,8 @@ fun Thumbnail(
                         calculateThumbnailDimensions(
                             containerWidth = maxWidth,
                             containerHeight = maxHeight,
+                            horizontalPadding = if (BuildConfig.NOVA_PREVIEW && !isLandscape) maxWidth * 0.075f else PlayerHorizontalPadding,
+                            cornerRadius = if (BuildConfig.NOVA_PREVIEW) 10.dp else ThumbnailCornerRadius,
                             isLandscape = isLandscape
                         )
                     }
