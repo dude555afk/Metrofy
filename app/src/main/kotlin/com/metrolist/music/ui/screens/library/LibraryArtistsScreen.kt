@@ -82,6 +82,7 @@ fun LibraryArtistsScreen(
     navController: NavController,
     onDeselect: () -> Unit,
     viewModel: LibraryArtistsViewModel = hiltViewModel(),
+    showDeselectChip: Boolean = true,
 ) {
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
@@ -100,7 +101,8 @@ fun LibraryArtistsScreen(
 
     val filterContent = @Composable {
         Row {
-            Spacer(Modifier.width(12.dp))
+            if (showDeselectChip) {
+Spacer(Modifier.width(12.dp))
             FilterChip(
                 label = { Text(stringResource(R.string.artists)) },
                 selected = true,
@@ -111,6 +113,7 @@ fun LibraryArtistsScreen(
                     Icon(painter = painterResource(R.drawable.close), contentDescription = "")
                 },
             )
+            }
             ChipsRow(
                 chips =
                 listOf(
