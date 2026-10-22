@@ -25,6 +25,9 @@ jobs:
       - name: Checkout Metrofy
         uses: actions/checkout@v6
 
+      - name: Init metroproto submodule
+        run: git submodule update --init metroproto
+
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
@@ -33,6 +36,9 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
+
+      - name: Setup and Generate Protobuf
+        uses: ./.github/actions/setup-protobuf
 
       - name: Create Android debug signing key
         run: |
