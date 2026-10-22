@@ -958,19 +958,20 @@ class MainActivity : ComponentActivity() {
                                     TopAppBar(
                                         title = {
                                             Text(
-                                                text = if (BuildConfig.NOVA_PREVIEW && currentRoute == Screens.Home.route) "Metrofy Nova"
+                                                text = if (BuildConfig.NOVA_PREVIEW && currentRoute == Screens.Home.route) "Music"
                                                 else currentTitleRes?.let { stringResource(it) } ?: "",
                                                 style = MaterialTheme.typography.titleLarge,
                                             )
                                         },
                                         actions = {
                                             if (BuildConfig.NOVA_PREVIEW && currentRoute == Screens.Home.route) {
-                                                OutlinedButton(
+                                                IconButton(
                                                     onClick = { navController.navigate(Screens.Search.route) },
-                                                    shape = RoundedCornerShape(50),
                                                 ) {
-                                                    Icon(painterResource(R.drawable.search), contentDescription = null, modifier = Modifier.size(18.dp))
-                                                    Text(stringResource(R.string.search))
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.search),
+                                                        contentDescription = stringResource(R.string.search),
+                                                    )
                                                 }
                                                 OutlinedIconButton(
                                                     onClick = { navController.navigate("settings") },
