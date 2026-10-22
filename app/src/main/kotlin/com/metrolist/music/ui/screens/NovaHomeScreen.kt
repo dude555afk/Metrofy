@@ -45,13 +45,15 @@ private data class NovaHomeTab(
 )
 
 private val novaHomeTabs = listOf(
-    NovaHomeTab("home", "Home"),
+    // Make the local music library the landing surface, like Samsung Music.
+    // Keep Metrofy discovery and account features available in the same tab strip.
     NovaHomeTab("songs", "Tracks"),
     NovaHomeTab("albums", "Albums"),
     NovaHomeTab("artists", "Artists"),
-    NovaHomeTab("playlists", "Playlists"),
     NovaHomeTab("folders", "Folders"),
+    NovaHomeTab("playlists", "Playlists"),
     NovaHomeTab("favorites", "Favorites"),
+    NovaHomeTab("home", "Home"),
 )
 
 /**
