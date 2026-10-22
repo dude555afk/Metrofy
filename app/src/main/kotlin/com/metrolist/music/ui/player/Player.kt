@@ -5,6 +5,8 @@
 
 package com.metrolist.music.ui.player
 
+import com.metrolist.music.BuildConfig
+
 import androidx.activity.compose.BackHandler
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -1127,12 +1129,12 @@ fun BottomSheetPlayer(
                                     text = annotatedString,
                                     style = MaterialTheme.typography.titleMedium.copy(color = TextBackgroundColor),
                                     textAlign = if (BuildConfig.NOVA_PREVIEW) TextAlign.Center else TextAlign.Start,
-                                    modifier = if (BuildConfig.NOVA_PREVIEW) Modifier.fillMaxWidth() else Modifier,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     onTextLayout = { layoutResult = it },
                                     modifier =
                                         Modifier
+                                            .then(if (BuildConfig.NOVA_PREVIEW) Modifier.fillMaxWidth() else Modifier)
                                             .pointerInput(Unit) {
                                                 awaitPointerEventScope {
                                                     while (true) {
