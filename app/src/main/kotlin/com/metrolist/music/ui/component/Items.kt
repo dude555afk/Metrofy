@@ -363,7 +363,7 @@ fun GridItem(
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            fontWeight = if (BuildConfig.NOVA_PREVIEW) FontWeight.Medium else FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
@@ -374,7 +374,7 @@ fun GridItem(
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -432,7 +432,7 @@ fun SongListItem(
                     isSelected = isSelected,
                     isActive = isActive,
                     isPlaying = isPlaying,
-                    shape = RoundedCornerShape(ThumbnailCornerRadius),
+                    shape = RoundedCornerShape(if (BuildConfig.NOVA_PREVIEW) 8.dp else ThumbnailCornerRadius),
                     modifier = Modifier.size(ListThumbnailSize)
                 )
             },
@@ -482,7 +482,7 @@ fun SongGridItem(
         Text(
             text = song.song.title,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            fontWeight = if (BuildConfig.NOVA_PREVIEW) FontWeight.Medium else FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee().fillMaxWidth()
@@ -495,7 +495,7 @@ fun SongGridItem(
                 makeTimeString(song.song.duration * 1000L)
             ),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -507,7 +507,7 @@ fun SongGridItem(
             thumbnailUrl = song.song.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = RoundedCornerShape(if (BuildConfig.NOVA_PREVIEW) 8.dp else ThumbnailCornerRadius),
             modifier = Modifier.size(gridHeight)
         )
         if (!isActive) {
@@ -647,7 +647,7 @@ fun AlbumListItem(
             thumbnailUrl = album.album.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = RoundedCornerShape(if (BuildConfig.NOVA_PREVIEW) 8.dp else ThumbnailCornerRadius),
             modifier = Modifier.size(ListThumbnailSize)
         )
     },
@@ -702,7 +702,7 @@ fun AlbumGridItem(
         Text(
             text = album.album.title,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            fontWeight = if (BuildConfig.NOVA_PREVIEW) FontWeight.Medium else FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee().fillMaxWidth()
@@ -712,7 +712,7 @@ fun AlbumGridItem(
         Text(
             text = album.artists.joinToString { it.name },
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -727,7 +727,7 @@ fun AlbumGridItem(
             thumbnailUrl = album.album.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = RoundedCornerShape(if (BuildConfig.NOVA_PREVIEW) 8.dp else ThumbnailCornerRadius),
         )
 
         AlbumPlayButton(
@@ -827,7 +827,7 @@ fun PlaylistListItem(
                     modifier = Modifier.size(ListThumbnailSize / 2)
                 )
             },
-            shape = RoundedCornerShape(ThumbnailCornerRadius)
+            shape = RoundedCornerShape(if (BuildConfig.NOVA_PREVIEW) 8.dp else ThumbnailCornerRadius)
         )
     },
     trailingContent = trailingContent,
@@ -873,7 +873,7 @@ fun PlaylistGridItem(
         Text(
             text = playlist.playlist.name,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            fontWeight = if (BuildConfig.NOVA_PREVIEW) FontWeight.Medium else FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee().fillMaxWidth()
@@ -900,7 +900,7 @@ fun PlaylistGridItem(
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -936,7 +936,7 @@ fun PlaylistGridItem(
                     )
                 }
             },
-            shape = RoundedCornerShape(ThumbnailCornerRadius)
+            shape = RoundedCornerShape(if (BuildConfig.NOVA_PREVIEW) 8.dp else ThumbnailCornerRadius)
         )
     },
     fillMaxWidth = fillMaxWidth,
@@ -960,7 +960,7 @@ fun MediaMetadataListItem(
                 append(" • ")
                 append(makeTimeString(mediaMetadata.duration * 1000L))
                 append(" • ")
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                withStyle(SpanStyle(fontWeight = if (BuildConfig.NOVA_PREVIEW) FontWeight.Medium else FontWeight.Bold)) {
                     append(mediaMetadata.suggestedBy)
                 }
             }
@@ -980,7 +980,7 @@ fun MediaMetadataListItem(
                 isSelected = isSelected,
                 isActive = isActive,
                 isPlaying = isPlaying,
-                shape = RoundedCornerShape(ThumbnailCornerRadius),
+                shape = RoundedCornerShape(if (BuildConfig.NOVA_PREVIEW) 8.dp else ThumbnailCornerRadius),
                 modifier = Modifier.size(ListThumbnailSize)
             )
         },
@@ -1107,7 +1107,7 @@ fun YouTubeGridItem(
         Text(
             text = item.title,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            fontWeight = if (BuildConfig.NOVA_PREVIEW) FontWeight.Medium else FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
@@ -1127,7 +1127,7 @@ fun YouTubeGridItem(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -1189,12 +1189,12 @@ fun LocalSongsGrid(
     fillMaxWidth: Boolean = false,
     modifier: Modifier = Modifier
 ) = GridItem(
-    title = { Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+    title = { Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = if (BuildConfig.NOVA_PREVIEW) FontWeight.Medium else FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
     subtitle = {
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee(
@@ -1210,7 +1210,7 @@ fun LocalSongsGrid(
             thumbnailUrl = thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = RoundedCornerShape(if (BuildConfig.NOVA_PREVIEW) 8.dp else ThumbnailCornerRadius),
             modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier,
             showCenterPlay = true,
             playButtonVisible = false
@@ -1231,12 +1231,12 @@ fun LocalArtistsGrid(
     fillMaxWidth: Boolean = false,
     modifier: Modifier = Modifier
 ) = GridItem(
-    title = { Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+    title = { Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = if (BuildConfig.NOVA_PREVIEW) FontWeight.Medium else FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
     subtitle = {
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee(
@@ -1273,12 +1273,12 @@ fun LocalAlbumsGrid(
     fillMaxWidth: Boolean = false,
     modifier: Modifier = Modifier
 ) = GridItem(
-    title = { Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+    title = { Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = if (BuildConfig.NOVA_PREVIEW) FontWeight.Medium else FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
     subtitle = {
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            color = if (BuildConfig.NOVA_PREVIEW) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.secondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee(
@@ -1294,7 +1294,7 @@ fun LocalAlbumsGrid(
             thumbnailUrl = thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = RoundedCornerShape(if (BuildConfig.NOVA_PREVIEW) 8.dp else ThumbnailCornerRadius),
             modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier,
             showCenterPlay = false,
             playButtonVisible = true
