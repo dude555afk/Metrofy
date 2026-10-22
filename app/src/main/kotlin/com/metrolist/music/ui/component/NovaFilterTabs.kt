@@ -1,6 +1,6 @@
 /**
- * SoundPod-inspired horizontal text tabs for the isolated Metrofy Nova preview.
- * Metrofy continues to own the filter state and data-loading behaviour.
+ * SoundPod-style compact pill tabs for the isolated Metrofy Nova preview.
+ * Metrofy continues to own page state, data loading, and playback behaviour.
  */
 package com.metrolist.music.ui.component
 
@@ -8,12 +8,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,17 +34,23 @@ fun <T> NovaFilterTabs(
 ) {
     LazyRow(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 18.dp),
-        horizontalArrangement = Arrangement.spacedBy(22.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         items(items = chips, key = { it.second }) { option ->
             val selected = option.first == currentValue
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+            Box(
                 modifier = Modifier
+                    .height(36.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(
+                        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                        else Color.Transparent,
+                    )
                     .clickable { onValueUpdate(option.first) }
-                    .padding(top = 8.dp, bottom = 6.dp),
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = option.second,
@@ -56,14 +60,6 @@ fun <T> NovaFilterTabs(
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     softWrap = false,
-                )
-                Box(
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .width(if (selected) 22.dp else 8.dp)
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent),
                 )
             }
         }
