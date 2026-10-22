@@ -64,6 +64,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
@@ -326,6 +327,7 @@ fun BottomSheetPlayer(
     val playerOrientation = LocalConfiguration.current.orientation
     val automix by playerConnection.service.automixItems.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
+    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val isMuted by playerConnection.isMuted.collectAsState()
@@ -1585,7 +1587,110 @@ fun BottomSheetPlayer(
                 exit = shrinkVertically(shrinkTowards = Alignment.Top) + slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             ) {
                 Column {
-                    if (useNewPlayerDesign) {
+                    if (BuildConfig.NOVA_PREVIEW) {
+                        // SoundPod's player transport: shuffle, previous, play/pause, next, repeat.
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp),
+                        ) {
+                            IconButton(
+                                enabled = !isListenTogetherGuest,
+                                onClick = {
+                                    playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled
+                                },
+                                modifier = Modifier.size(42.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.shuffle),
+                                    contentDescription = "Shuffle",
+                                    tint = if (shuffleModeEnabled) MaterialTheme.colorScheme.primary
+                                        else TextBackgroundColor.copy(alpha = 0.55f),
+                                    modifier = Modifier.size(23.dp),
+                                )
+                            }
+
+                            IconButton(
+                                enabled = canSkipPrevious && !isListenTogetherGuest,
+                                onClick = playerConnection::seekToPrevious,
+                                modifier = Modifier.size(42.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.skip_previous),
+                                    contentDescription = "Previous track",
+                                    tint = if (canSkipPrevious && !isListenTogetherGuest) TextBackgroundColor
+                                        else TextBackgroundColor.copy(alpha = 0.35f),
+                                    modifier = Modifier.size(23.dp),
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(textButtonColor)
+                                    .clickable {
+                                        if (isListenTogetherGuest) {
+                                            playerConnection.toggleMute()
+                                        } else if (isCasting) {
+                                            if (castIsPlaying) castHandler?.pause() else castHandler?.play()
+                                        } else if (playbackState == STATE_ENDED) {
+                                            playerConnection.player.seekTo(0, 0)
+                                            playerConnection.player.playWhenReady = true
+                                        } else {
+                                            playerConnection.togglePlayPause()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(
+                                        when {
+                                            isListenTogetherGuest -> if (isMuted) R.drawable.volume_off else R.drawable.volume_up
+                                            playbackState == STATE_ENDED -> R.drawable.replay
+                                            effectiveIsPlaying -> R.drawable.pause
+                                            else -> R.drawable.play
+                                        },
+                                    ),
+                                    contentDescription = if (effectiveIsPlaying) "Pause" else "Play",
+                                    tint = iconButtonColor,
+                                    modifier = Modifier.size(34.dp),
+                                )
+                            }
+
+                            IconButton(
+                                enabled = canSkipNext && !isListenTogetherGuest,
+                                onClick = playerConnection::seekToNext,
+                                modifier = Modifier.size(42.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.skip_next),
+                                    contentDescription = "Next track",
+                                    tint = if (canSkipNext && !isListenTogetherGuest) TextBackgroundColor
+                                        else TextBackgroundColor.copy(alpha = 0.35f),
+                                    modifier = Modifier.size(23.dp),
+                                )
+                            }
+
+                            IconButton(
+                                enabled = !isListenTogetherGuest,
+                                onClick = { playerConnection.player.toggleRepeatMode() },
+                                modifier = Modifier.size(42.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(
+                                        if (repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat,
+                                    ),
+                                    contentDescription = "Repeat",
+                                    tint = if (repeatMode == Player.REPEAT_MODE_OFF) TextBackgroundColor.copy(alpha = 0.48f)
+                                        else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+                        }
+                    } else if (useNewPlayerDesign) {
                         Row(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,
