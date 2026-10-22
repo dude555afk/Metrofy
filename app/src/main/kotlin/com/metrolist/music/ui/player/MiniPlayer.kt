@@ -1181,6 +1181,8 @@ private fun NovaMiniPlayer(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val playbackState by playerConnection.playbackState.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
+    val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
+    val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val castHandler = remember(playerConnection) {
         try {
             playerConnection.service.castConnectionHandler
@@ -1257,6 +1259,19 @@ private fun NovaMiniPlayer(
                     )
                 }
                 IconButton(
+                    enabled = canSkipPrevious && !isListenTogetherGuest,
+                    onClick = { playerConnection.player.seekToPreviousMediaItem() },
+                    modifier = Modifier.size(34.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.skip_previous),
+                        contentDescription = "Previous track",
+                        tint = if (canSkipPrevious && !isListenTogetherGuest) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                        modifier = Modifier.size(19.dp),
+                    )
+                }
+                IconButton(
                     onClick = {
                         if (isListenTogetherGuest) {
                             playerConnection.toggleMute()
@@ -1269,12 +1284,29 @@ private fun NovaMiniPlayer(
                             playerConnection.togglePlayPause()
                         }
                     },
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                 ) {
                     Icon(
                         painter = painterResource(playIcon),
                         contentDescription = if (effectivelyPlaying) "Pause" else "Play",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(23.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(21.dp),
+                    )
+                }
+                IconButton(
+                    enabled = canSkipNext && !isListenTogetherGuest,
+                    onClick = { playerConnection.player.seekToNext() },
+                    modifier = Modifier.size(34.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.skip_next),
+                        contentDescription = "Next track",
+                        tint = if (canSkipNext && !isListenTogetherGuest) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                        modifier = Modifier.size(19.dp),
                     )
                 }
             }
