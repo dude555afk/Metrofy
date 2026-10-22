@@ -88,6 +88,7 @@ fun LibraryAlbumsScreen(
     navController: NavController,
     onDeselect: () -> Unit,
     viewModel: LibraryAlbumsViewModel = hiltViewModel(),
+    showDeselectChip: Boolean = true,
 ) {
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
@@ -112,7 +113,8 @@ fun LibraryAlbumsScreen(
 
     val filterContent = @Composable {
         Row {
-            Spacer(Modifier.width(12.dp))
+            if (showDeselectChip) {
+Spacer(Modifier.width(12.dp))
             FilterChip(
                 label = { Text(stringResource(R.string.albums)) },
                 selected = true,
@@ -123,6 +125,7 @@ fun LibraryAlbumsScreen(
                     Icon(painter = painterResource(R.drawable.close), contentDescription = "")
                 },
             )
+            }
             ChipsRow(
                 chips =
                     listOf(
