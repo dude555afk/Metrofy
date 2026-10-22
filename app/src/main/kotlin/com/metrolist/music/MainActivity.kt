@@ -958,25 +958,38 @@ class MainActivity : ComponentActivity() {
                                     TopAppBar(
                                         title = {
                                             Text(
-                                                text = if (BuildConfig.NOVA_PREVIEW && currentRoute == Screens.Home.route) "Music"
+                                                text = if (BuildConfig.NOVA_PREVIEW && currentRoute == Screens.Home.route) "Metrofy"
                                                 else currentTitleRes?.let { stringResource(it) } ?: "",
                                                 style = MaterialTheme.typography.titleLarge,
                                             )
                                         },
                                         actions = {
                                             if (BuildConfig.NOVA_PREVIEW && currentRoute == Screens.Home.route) {
-                                                IconButton(
+                                                OutlinedButton(
                                                     onClick = { navController.navigate(Screens.Search.route) },
+                                                    shape = RoundedCornerShape(60),
+                                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                                    modifier = Modifier.height(36.dp),
                                                 ) {
                                                     Icon(
                                                         painter = painterResource(R.drawable.search),
                                                         contentDescription = stringResource(R.string.search),
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                                    Text(
+                                                        text = stringResource(R.string.search),
+                                                        style = MaterialTheme.typography.bodyMedium,
                                                     )
                                                 }
                                                 OutlinedIconButton(
                                                     onClick = { navController.navigate("settings") },
+                                                    modifier = Modifier.padding(start = 4.dp),
                                                 ) {
-                                                    Icon(painterResource(R.drawable.settings), contentDescription = stringResource(R.string.settings))
+                                                    Icon(
+                                                        painterResource(R.drawable.settings),
+                                                        contentDescription = stringResource(R.string.settings),
+                                                        modifier = Modifier.size(20.dp),
+                                                    )
                                                 }
                                             } else {
                                             if (showHistoryButton) {
