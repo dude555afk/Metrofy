@@ -1,6 +1,9 @@
 name: Metrofy Nova Preview APK
 
 on:
+  pull_request:
+    branches:
+      - feature/soundpod-ui-nova
   push:
     branches:
       - feature/soundpod-ui-nova
