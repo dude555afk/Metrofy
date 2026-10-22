@@ -52,10 +52,10 @@ private data class NovaHomeTab(
 private val novaHomeTabs = listOf(
     NovaHomeTab("home", "Home"),
     NovaHomeTab("favorites", "Favorites"),
-    NovaHomeTab("playlists", "Playlists"),
     NovaHomeTab("songs", "Tracks"),
-    NovaHomeTab("albums", "Albums"),
     NovaHomeTab("artists", "Artists"),
+    NovaHomeTab("albums", "Albums"),
+    NovaHomeTab("playlists", "Playlists"),
     NovaHomeTab("folders", "Folders"),
 )
 
