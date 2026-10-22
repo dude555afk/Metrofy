@@ -5,7 +5,6 @@ package com.metrolist.music.ui.screens
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +16,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.compose.material3.SnackbarHostState
 import com.metrolist.music.ui.component.NovaFilterTabs
 import com.metrolist.music.ui.screens.library.LibraryAlbumsScreen
 import com.metrolist.music.ui.screens.library.LibraryArtistsScreen
@@ -44,22 +43,21 @@ private data class NovaHomeTab(
     val title: String,
 )
 
+/**
+ * Nova borrows SoundPod's home hierarchy: Home first, a compact pill tab strip,
+ * and one rounded content surface. Every page still calls Metrofy's own screens,
+ * so this is a presentation-only layer over the existing data and playback stack.
+ */
 private val novaHomeTabs = listOf(
-    // Make the local music library the landing surface, like Samsung Music.
-    // Keep Metrofy discovery and account features available in the same tab strip.
+    NovaHomeTab("home", "Home"),
+    NovaHomeTab("favorites", "Favorites"),
+    NovaHomeTab("playlists", "Playlists"),
     NovaHomeTab("songs", "Tracks"),
     NovaHomeTab("albums", "Albums"),
     NovaHomeTab("artists", "Artists"),
     NovaHomeTab("folders", "Folders"),
-    NovaHomeTab("playlists", "Playlists"),
-    NovaHomeTab("favorites", "Favorites"),
-    NovaHomeTab("home", "Home"),
 )
 
-/**
- * SoundPod-style top-level library tabs over Metrofy's existing music/feed/playback stack.
- * This is only installed by the separate Metrofy Nova preview flavor.
- */
 @Composable
 fun NovaHomeScreen(
     navController: NavController,
@@ -76,7 +74,7 @@ fun NovaHomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 2.dp),
+            .padding(top = 2.dp, bottom = 6.dp),
     ) {
         NovaFilterTabs(
             chips = novaHomeTabs.map { it.id to it.title },
@@ -86,16 +84,17 @@ fun NovaHomeScreen(
                 val index = novaHomeTabs.indexOfFirst { it.id == tabId }.coerceAtLeast(0)
                 scope.launch { pagerState.animateScrollToPage(index) }
             },
-            modifier = Modifier.padding(bottom = 4.dp),
+            modifier = Modifier.padding(bottom = 6.dp),
         )
 
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
-            shape = RoundedCornerShape(0.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp,
+                .weight(1f)
+                .padding(horizontal = 10.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            tonalElevation = 1.dp,
         ) {
             HorizontalPager(
                 state = pagerState,
@@ -122,73 +121,55 @@ fun NovaHomeScreen(
 
 @Composable
 private fun NovaFavoritesTab(navController: NavController) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 18.dp, vertical = 16.dp),
+    val actions = listOf(
+        Triple("Liked songs", "All tracks you've liked", "auto_playlist/liked"),
+        Triple("Downloads", "Music saved for offline listening", "auto_playlist/downloaded"),
+        Triple("Spotify favorites", "Your synced Spotify favorites", "spotify_liked_songs"),
+        Triple("Listen together", "Share a listening room with friends", "listen_together"),
+    )
+
+    androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+        columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = "Your favorites",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = "The music you have saved, all in one place.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(2.dp))
-        NovaFavoriteAction(
-            title = "Liked songs",
-            subtitle = "All tracks you've liked",
-            onClick = { navController.navigate("auto_playlist/liked") },
-        )
-        NovaFavoriteAction(
-            title = "Offline music",
-            subtitle = "Tracks saved for listening offline",
-            onClick = { navController.navigate("auto_playlist/downloaded") },
-        )
-        NovaFavoriteAction(
-            title = "Spotify liked songs",
-            subtitle = "Your synced Spotify favorites",
-            onClick = { navController.navigate("spotify_liked_songs") },
-        )
-        NovaFavoriteAction(
-            title = "Listen together",
-            subtitle = "Share a listening room with friends",
-            onClick = { navController.navigate("listen_together") },
-        )
-    }
-}
-
-@Composable
-private fun NovaFavoriteAction(
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        items(actions.size) { index ->
+            val (title, subtitle, route) = actions[index]
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(142.dp)
+                    .clickable { navController.navigate(route) },
+                shape = RoundedCornerShape(22.dp),
+                color = when (index) {
+                    0 -> MaterialTheme.colorScheme.primaryContainer
+                    1 -> MaterialTheme.colorScheme.secondaryContainer
+                    2 -> MaterialTheme.colorScheme.tertiaryContainer
+                    else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                },
+                tonalElevation = 0.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.Bottom,
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                    )
+                }
+            }
         }
     }
 }
