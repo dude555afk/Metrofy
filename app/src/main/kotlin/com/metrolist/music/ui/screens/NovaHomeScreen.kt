@@ -138,18 +138,19 @@ private fun NovaFavoritesTab(navController: NavController) {
     ) {
         items(actions.size) { index ->
             val (title, subtitle, route) = actions[index]
+            val (tileColor, tileContentColor) = when (index) {
+                0 -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+                1 -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+                2 -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+                else -> MaterialTheme.colorScheme.surfaceContainerHighest to MaterialTheme.colorScheme.onSurface
+            }
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(142.dp)
                     .clickable { navController.navigate(route) },
                 shape = RoundedCornerShape(22.dp),
-                color = when (index) {
-                    0 -> MaterialTheme.colorScheme.primaryContainer
-                    1 -> MaterialTheme.colorScheme.secondaryContainer
-                    2 -> MaterialTheme.colorScheme.tertiaryContainer
-                    else -> MaterialTheme.colorScheme.surfaceContainerHighest
-                },
+                color = tileColor,
                 tonalElevation = 0.dp,
             ) {
                 Column(
@@ -160,13 +161,13 @@ private fun NovaFavoritesTab(navController: NavController) {
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = tileContentColor,
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = tileContentColor.copy(alpha = 0.78f),
                         maxLines = 2,
                     )
                 }
