@@ -1047,11 +1047,14 @@ fun BottomSheetPlayer(
                             Spacer(modifier = Modifier.width(12.dp))
                         }
                     } else {
-                        Spacer(modifier = Modifier.width(0.dp))
+                        // Balance the right-side actions so Nova can center title/artist
+                        // beneath the large album artwork, like SoundPod's player.
+                        Spacer(modifier = Modifier.width(if (BuildConfig.NOVA_PREVIEW) 102.dp else 0.dp))
                     }
                 }
                 Column(
                     modifier = Modifier.weight(1f),
+                    horizontalAlignment = if (BuildConfig.NOVA_PREVIEW) Alignment.CenterHorizontally else Alignment.Start,
                 ) {
                     AnimatedContent(
                         targetState = mediaMetadata.title,
@@ -1065,8 +1068,10 @@ fun BottomSheetPlayer(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             color = TextBackgroundColor,
+                            textAlign = if (BuildConfig.NOVA_PREVIEW) TextAlign.Center else TextAlign.Start,
                             modifier =
                                 Modifier
+                                    .then(if (BuildConfig.NOVA_PREVIEW) Modifier.fillMaxWidth() else Modifier)
                                     .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
                                     .combinedClickable(
                                         enabled = true,
@@ -1121,6 +1126,8 @@ fun BottomSheetPlayer(
                                 Text(
                                     text = annotatedString,
                                     style = MaterialTheme.typography.titleMedium.copy(color = TextBackgroundColor),
+                                    textAlign = if (BuildConfig.NOVA_PREVIEW) TextAlign.Center else TextAlign.Start,
+                                    modifier = if (BuildConfig.NOVA_PREVIEW) Modifier.fillMaxWidth() else Modifier,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     onTextLayout = { layoutResult = it },
