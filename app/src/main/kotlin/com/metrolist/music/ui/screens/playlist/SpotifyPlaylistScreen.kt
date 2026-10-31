@@ -128,6 +128,8 @@ fun SpotifyPlaylistScreen(
     val menuState = LocalMenuState.current
 
     val playlist by viewModel.playlist.collectAsState()
+    val isInLibrary by viewModel.isInLibrary.collectAsState()
+    val isUpdatingLibrary by viewModel.isUpdatingLibrary.collectAsState()
     val tracks by viewModel.tracks.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -638,6 +640,26 @@ fun SpotifyPlaylistScreen(
                             expanded = showOverflowMenu,
                             onDismissRequest = { showOverflowMenu = false },
                         ) {
+                            if (isInLibrary != null) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            stringResource(
+                                                if (isInLibrary == true) {
+                                                    R.string.spotify_remove_from_library
+                                                } else {
+                                                    R.string.spotify_add_to_library
+                                                },
+                                            ),
+                                        )
+                                    },
+                                    enabled = !isUpdatingLibrary,
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        viewModel.toggleLibrary()
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.spotify_rename_playlist)) },
                                 leadingIcon = {
