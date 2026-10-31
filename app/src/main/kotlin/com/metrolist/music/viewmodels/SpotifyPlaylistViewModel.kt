@@ -115,6 +115,8 @@ constructor(
             } while (offset < total)
 
             _isInLibrary.value = false
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Timber.w(e, "Failed to check whether Spotify playlist is saved")
             _isInLibrary.value = null
@@ -193,22 +195,24 @@ constructor(
         _isUpdatingLibrary.value = true
 
         viewModelScope.launch(Dispatchers.IO) {
-            val uri = "spotify:playlist:$playlistId"
-            val result = if (wasInLibrary) {
-                Spotify.removeFromLibrary(listOf(uri))
-            } else {
-                Spotify.addToLibrary(listOf(uri))
-            }
+            try {
+                val uri = "spotify:playlist:$playlistId"
+                val result = if (wasInLibrary) {
+                    Spotify.removeFromLibrary(listOf(uri))
+                } else {
+                    Spotify.addToLibrary(listOf(uri))
+                }
 
-            result.onSuccess {
-                Timber.d("toggleLibrary: playlist $playlistId updated in Spotify library")
-            }.onFailure { e ->
-                Timber.e(e, "toggleLibrary: failed for $playlistId, rolling back")
-                _isInLibrary.value = wasInLibrary
-                _mutationError.value = e.message ?: "Failed to update Spotify library"
+                result.onSuccess {
+                    Timber.d("toggleLibrary: playlist $playlistId updated in Spotify library")
+                }.onFailure { e ->
+                    Timber.e(e, "toggleLibrary: failed for $playlistId, rolling back")
+                    _isInLibrary.value = wasInLibrary
+                    _mutationError.value = e.message ?: "Failed to update Spotify library"
+                }
+            } finally {
+                _isUpdatingLibrary.value = false
             }
-
-            _isUpdatingLibrary.value = false
         }
     }
 
