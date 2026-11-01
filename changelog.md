@@ -1,3 +1,11 @@
+---v0.8.10.0
+# Spotify playlist library controls
+
+- Added **Add to Spotify Library** and **Remove from Spotify Library** directly to the Spotify playlist menu.
+- Automatically detects whether the opened playlist is already saved in your Spotify library.
+- Added instant UI updates with rollback and error feedback if Spotify rejects a library change.
+- Kept unfollowing separate from owner-only global playlist deletion.
+
 ---v0.8.9.9
 # Security and reliability hotfix
 
