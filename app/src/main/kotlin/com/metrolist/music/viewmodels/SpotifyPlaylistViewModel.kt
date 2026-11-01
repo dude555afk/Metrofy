@@ -42,6 +42,12 @@ constructor(
     private val _playlist = MutableStateFlow<SpotifyPlaylist?>(null)
     val playlist = _playlist.asStateFlow()
 
+    private val _isInLibrary = MutableStateFlow<Boolean?>(null)
+    val isInLibrary = _isInLibrary.asStateFlow()
+
+    private val _isUpdatingLibrary = MutableStateFlow(false)
+    val isUpdatingLibrary = _isUpdatingLibrary.asStateFlow()
+
     private val _tracks = MutableStateFlow<List<SpotifyTrack>>(emptyList())
     val tracks = _tracks.asStateFlow()
 
@@ -72,6 +78,7 @@ constructor(
     fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {
             _isRefreshing.value = true
+            launch { refreshLibraryState() }
             loadPlaylistInternal()
             _isRefreshing.value = false
         }
@@ -80,7 +87,39 @@ constructor(
     private fun loadPlaylist() {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
+            launch { refreshLibraryState() }
             loadPlaylistInternal()
+        }
+    }
+
+    /**
+     * Determines whether this playlist is saved in the current user's Spotify
+     * library. The library endpoint is paginated, so keep checking until the
+     * playlist is found or the final page is reached.
+     */
+    private suspend fun refreshLibraryState() {
+        try {
+            var offset = 0
+            var total = Int.MAX_VALUE
+
+            do {
+                val page = Spotify.myPlaylists(limit = LIBRARY_PAGE_SIZE, offset = offset).getOrThrow()
+                if (page.items.any { it.id == playlistId }) {
+                    _isInLibrary.value = true
+                    return
+                }
+
+                if (page.items.isEmpty()) break
+                offset += page.items.size
+                total = page.total
+            } while (offset < total)
+
+            _isInLibrary.value = false
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to check whether Spotify playlist is saved")
+            _isInLibrary.value = null
         }
     }
 
@@ -143,6 +182,39 @@ constructor(
     fun retry() = loadPlaylist()
 
     // ── Playlist Mutations ───────────────────────────────────────────────
+
+    /**
+     * Toggles this playlist in the user's Spotify library. The UI updates
+     * immediately and rolls back if Spotify rejects the mutation.
+     */
+    fun toggleLibrary() {
+        val wasInLibrary = _isInLibrary.value ?: return
+        if (_isUpdatingLibrary.value) return
+
+        _isInLibrary.value = !wasInLibrary
+        _isUpdatingLibrary.value = true
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val uri = "spotify:playlist:$playlistId"
+                val result = if (wasInLibrary) {
+                    Spotify.removeFromLibrary(listOf(uri))
+                } else {
+                    Spotify.addToLibrary(listOf(uri))
+                }
+
+                result.onSuccess {
+                    Timber.d("toggleLibrary: playlist $playlistId updated in Spotify library")
+                }.onFailure { e ->
+                    Timber.e(e, "toggleLibrary: failed for $playlistId, rolling back")
+                    _isInLibrary.value = wasInLibrary
+                    _mutationError.value = e.message ?: "Failed to update Spotify library"
+                }
+            } finally {
+                _isUpdatingLibrary.value = false
+            }
+        }
+    }
 
     /**
      * Removes a track from the playlist using optimistic update:
@@ -275,6 +347,7 @@ constructor(
 
     companion object {
         private const val PAGE_SIZE = 100
+        private const val LIBRARY_PAGE_SIZE = 50
         private const val PARALLEL_GROUP_SIZE = 5
     }
 }
