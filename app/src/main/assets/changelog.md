@@ -1,4 +1,4 @@
----v0.8.10.0
+---v0.8.10.1
 # Spotify playlist library controls
 
 - Added **Add to Spotify Library** and **Remove from Spotify Library** directly to the Spotify playlist menu.
