@@ -481,10 +481,12 @@ class ListenTogetherManager
                                         Timber.tag(TAG).e(e, "Failed to add player listener on role change")
                                     }
                                 }
-                                syncHostTrackIfReady(connection.player)
                             }
                         } else if (newRole != RoomRole.HOST && wasHost) {
                             Timber.tag(TAG).d("Role changed from HOST, stopping sync services")
+                            pendingTrackSyncJob?.cancel()
+                            pendingTrackSyncJob = null
+                            pendingTrackSyncId = null
                             stopQueueSyncObservation()
                             stopHeartbeat()
                             stopVolumeSyncObservation()
@@ -752,26 +754,11 @@ class ListenTogetherManager
                         startQueueSyncObservation()
                         startVolumeSyncObservation()
 
-                        // Send current player state to guests
-                        val metadata = player?.currentMetadata
-                        if (metadata != null) {
-                            Timber.tag(TAG).d("New host sending current track: ${metadata.title}")
-                            sendTrackChangeInternal(metadata)
-
-                            // If currently playing, send play state (after delay)
-                            if (player.playWhenReady) {
-                                val position = player.currentPosition
-                                val trackId = metadata.id
-                                Timber.tag(TAG).d("New host is playing, sending PLAY at $position (with delay)")
-                                // CRITICAL: Add delay to let server process track change first
-                                scope.launch {
-                                    delay(150) // 150ms delay for server processing
-                                    if (isHost && isInRoom) {
-                                        client.sendPlaybackAction(PlaybackActions.PLAY, trackId = trackId, position = position)
-                                    }
-                                }
-                            }
-                        }
+                        // Reconcile against the server's current track before publishing. The
+                        // metadata-ready path retries if this player's current item is not ready yet.
+                        lastSyncedIsPlaying = false
+                        lastSyncedTrackId = roomState.value?.currentTrack?.id
+                        player?.let { syncHostTrackIfReady(it) }
                     }
                 }
 
