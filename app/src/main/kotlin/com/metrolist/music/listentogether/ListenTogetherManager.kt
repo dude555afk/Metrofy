@@ -642,38 +642,36 @@ class ListenTogetherManager
 
                         // Sync state based on role
                         if (event.isHost) {
-                            // Host: only send sync if necessary
-                            lastSyncedIsPlaying = player?.playWhenReady
-                            lastSyncedTrackId = player?.currentMediaItem?.mediaId
+                            val serverTrackId = event.state.currentTrack?.id
+                            val localTrackId = player?.currentMediaItem?.mediaId
 
-                            val currentMetadata = player?.currentMetadata
-                            if (currentMetadata != null) {
-                                // Check if server already has the right track (from event.state)
-                                val serverTrackId = event.state.currentTrack?.id
-                                if (serverTrackId != currentMetadata.id) {
-                                    Timber
-                                        .tag(
-                                            TAG,
-                                        ).d(
-                                            "Reconnected as host, server track ($serverTrackId) differs from local (${currentMetadata.id}), syncing",
-                                        )
-                                    sendTrackChangeInternal(currentMetadata)
-                                } else {
-                                    Timber.tag(TAG).d("Reconnected as host, server already has current track $serverTrackId")
-                                }
+                            // Compare against the server snapshot, not the local item. If the host
+                            // changed tracks while disconnected, the regular metadata-ready path
+                            // must publish that difference rather than pre-marking it as synced.
+                            lastSyncedIsPlaying = false
+                            lastSyncedTrackId = serverTrackId
 
-                                // Small delay before sending play state to let connection stabilize
+                            if (player != null && localTrackId != null && localTrackId != serverTrackId) {
+                                syncHostTrackIfReady(player)
+                            } else if (player != null && localTrackId != null) {
+                                lastSyncedTrackId = localTrackId
+                                Timber.tag(TAG).d("Reconnected as host; server already has current track $localTrackId")
+
+                                // The room already knows this track; restore its live play position.
                                 scope.launch {
                                     delay(500)
                                     try {
                                         val currentPlayer = playerConnection?.player
-                                        if (currentPlayer?.playWhenReady == true) {
+                                        if (currentPlayer?.playWhenReady == true &&
+                                            currentPlayer.currentMediaItem?.mediaId == localTrackId
+                                        ) {
                                             val pos = currentPlayer.currentPosition
-                                            val trackId = currentPlayer.currentMediaItem?.mediaId
-                                            Timber
-                                                .tag(TAG)
-                                                .d("Reconnected host is playing, sending PLAY at $pos (track: $trackId)")
-                                            client.sendPlaybackAction(PlaybackActions.PLAY, trackId = trackId, position = pos)
+                                            Timber.tag(TAG).d("Reconnected host is playing, sending PLAY at $pos (track: $localTrackId)")
+                                            client.sendPlaybackAction(
+                                                PlaybackActions.PLAY,
+                                                trackId = localTrackId,
+                                                position = pos,
+                                            )
                                         }
                                     } catch (e: Exception) {
                                         Timber.tag(TAG).e(e, "Error sending play state after reconnect")
