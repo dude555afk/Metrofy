@@ -1,3 +1,11 @@
+---v0.8.10.2
+# Listen Together synchronization repair
+
+- Fixed host track changes being dropped when media metadata arrives after a track transition.
+- Improved guest recovery when the host and guest are on different tracks, including playback controls and reconnects.
+- Preserved WebSocket playback event ordering and valid zero-valued position and volume state.
+- Added regression tests for track-transition broadcasts, guest reconciliation, and protocol state decoding.
+
 ---v0.8.10.1
 # Spotify playlist library controls
 
