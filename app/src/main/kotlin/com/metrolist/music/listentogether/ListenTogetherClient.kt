@@ -915,8 +915,8 @@ class ListenTogetherClient
                     "Attempt $reconnectAttempts/$MAX_RECONNECT_ATTEMPTS, waiting ${delaySeconds}s, reason: ${t.message}",
                 )
 
+                emitEvent(ListenTogetherEvent.Reconnecting(reconnectAttempts, MAX_RECONNECT_ATTEMPTS))
                 scope.launch {
-                    emitEvent(ListenTogetherEvent.Reconnecting(reconnectAttempts, MAX_RECONNECT_ATTEMPTS))
                     delay(delayMs)
 
                     // Check if we're still supposed to be reconnecting
@@ -935,13 +935,11 @@ class ListenTogetherClient
                         "Reconnection failed",
                         "Max attempts reached, but session preserved for manual reconnect",
                     )
-                    scope.launch {
-                        emitEvent(
-                            ListenTogetherEvent.ConnectionError(
-                                "Connection failed after $MAX_RECONNECT_ATTEMPTS attempts. ${t.message ?: "Unknown error"}",
-                            ),
-                        )
-                    }
+                    emitEvent(
+                        ListenTogetherEvent.ConnectionError(
+                            "Connection failed after $MAX_RECONNECT_ATTEMPTS attempts. ${t.message ?: "Unknown error"}",
+                        ),
+                    )
                 } else {
                     // No session, so clear everything
                     sessionToken = null
@@ -951,9 +949,7 @@ class ListenTogetherClient
                     _role.value = RoomRole.NONE
                     clearPersistedSession()
 
-                    scope.launch {
-                        emitEvent(ListenTogetherEvent.ConnectionError(t.message ?: "Unknown error"))
-                    }
+                    emitEvent(ListenTogetherEvent.ConnectionError(t.message ?: "Unknown error"))
                 }
             }
         }
@@ -1342,11 +1338,9 @@ class ListenTogetherClient
                             "Successfully reconnected to room",
                             "Code: ${payload.roomCode}, isHost: ${payload.isHost}, attempt was $reconnectAttempts",
                         )
-                        scope.launch {
-                            emitEvent(
-                                ListenTogetherEvent.Reconnected(payload.roomCode, payload.userId, payload.state, payload.isHost),
-                            )
-                        }
+                        emitEvent(
+                            ListenTogetherEvent.Reconnected(payload.roomCode, payload.userId, payload.state, payload.isHost),
+                        )
                     }
 
                     MessageTypes.USER_RECONNECTED -> {
