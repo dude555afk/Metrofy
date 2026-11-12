@@ -2787,73 +2787,176 @@ fun HomeScreen(
             }
 
             HideOnScrollFAB(
-                visible = allLocalItems.isNotEmpty() || allYtItems.isNotEmpty(),
+                visible = allLocalItems.isNotEmpty() ||
+                    allYtItems.isNotEmpty() ||
+                    !spotifyHomeSections.isNullOrEmpty(),
                 lazyListState = lazylistState,
                 icon = R.drawable.shuffle,
                 onClick = {
                     if (!isListenTogetherGuest) {
-                        val local =
-                            when {
-                                allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5
-                                allLocalItems.isNotEmpty() -> true
-                                else -> false
-                            }
                         scope.launch(Dispatchers.Main) {
-                            if (local) {
-                                when (val luckyItem = allLocalItems.random()) {
-                                    is Song -> {
-                                        playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
+                            if (allLocalItems.isNotEmpty() || allYtItems.isNotEmpty()) {
+                                val local =
+                                    when {
+                                        allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5
+                                        allLocalItems.isNotEmpty() -> true
+                                        else -> false
                                     }
 
-                                    is Album -> {
-                                        val albumWithSongs =
-                                            withContext(Dispatchers.IO) {
-                                                database.albumWithSongs(luckyItem.id).first()
+                                if (local) {
+                                    when (val luckyItem = allLocalItems.random()) {
+                                        is Song -> {
+                                            playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
+                                        }
+
+                                        is Album -> {
+                                            val albumWithSongs =
+                                                withContext(Dispatchers.IO) {
+                                                    database.albumWithSongs(luckyItem.id).first()
+                                                }
+                                            albumWithSongs?.let {
+                                                playerConnection.playQueue(LocalAlbumRadio(it))
                                             }
-                                        albumWithSongs?.let {
-                                            playerConnection.playQueue(LocalAlbumRadio(it))
+                                        }
+
+                                        is Artist -> {}
+                                        is Playlist -> {}
+                                    }
+                                } else {
+                                    when (val luckyItem = allYtItems.random()) {
+                                        is SongItem -> {
+                                            playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
+                                        }
+
+                                        is AlbumItem -> {
+                                            playerConnection.playQueue(YouTubeAlbumRadio(luckyItem.playlistId))
+                                        }
+
+                                        is ArtistItem -> {
+                                            luckyItem.radioEndpoint?.let {
+                                                playerConnection.playQueue(YouTubeQueue(it))
+                                            }
+                                        }
+
+                                        is PlaylistItem -> {
+                                            luckyItem.playEndpoint?.let {
+                                                playerConnection.playQueue(YouTubeQueue(it))
+                                            }
+                                        }
+
+                                        is PodcastItem -> {
+                                            luckyItem.playEndpoint?.let {
+                                                playerConnection.playQueue(YouTubeQueue(it))
+                                            }
+                                        }
+
+                                        is EpisodeItem -> {
+                                            playerConnection.playQueue(
+                                                ListQueue(
+                                                    title = luckyItem.title,
+                                                    items = listOf(luckyItem.toMediaMetadata().toMediaItem()),
+                                                ),
+                                            )
                                         }
                                     }
-
-                                    is Artist -> {}
-
-                                    is Playlist -> {}
                                 }
                             } else {
-                                when (val luckyItem = allYtItems.random()) {
-                                    is SongItem -> {
-                                        playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
+                                val playableSpotifySections =
+                                    spotifyHomeSections.orEmpty().filter { section ->
+                                        when (section.type) {
+                                            SectionType.TRACKS -> section.tracks.any { !it.isLocal && it.id.isNotEmpty() }
+                                            SectionType.ARTISTS -> section.artists.isNotEmpty()
+                                            SectionType.ALBUMS -> section.albums.isNotEmpty()
+                                            SectionType.PLAYLISTS -> section.playlists.isNotEmpty()
+                                        }
+                                    }
+                                val section = playableSpotifySections.randomOrNull() ?: return@launch
+
+                                when (section.type) {
+                                    SectionType.TRACKS -> {
+                                        section.tracks
+                                            .filter { !it.isLocal && it.id.isNotEmpty() }
+                                            .randomOrNull()
+                                            ?.let { track ->
+                                                playerConnection.playQueue(
+                                                    SpotifyQueue(
+                                                        initialTrack = track,
+                                                        mapper = spotifyMapper,
+                                                        context = viewModel.context,
+                                                        database = database,
+                                                    ),
+                                                )
+                                            }
                                     }
 
-                                    is AlbumItem -> {
-                                        playerConnection.playQueue(YouTubeAlbumRadio(luckyItem.playlistId))
-                                    }
-
-                                    is ArtistItem -> {
-                                        luckyItem.radioEndpoint?.let {
-                                            playerConnection.playQueue(YouTubeQueue(it))
+                                    SectionType.ARTISTS -> {
+                                        val artist = section.artists.randomOrNull() ?: return@launch
+                                        val track =
+                                            withContext(Dispatchers.IO) {
+                                                Spotify.artistTopTracks(artist.id)
+                                                    .getOrNull()
+                                                    ?.tracks
+                                                    ?.filter { !it.isLocal && it.id.isNotEmpty() }
+                                                    ?.randomOrNull()
+                                            }
+                                        track?.let {
+                                            playerConnection.playQueue(
+                                                SpotifyQueue(
+                                                    initialTrack = it,
+                                                    mapper = spotifyMapper,
+                                                    context = viewModel.context,
+                                                    database = database,
+                                                ),
+                                            )
                                         }
                                     }
 
-                                    is PlaylistItem -> {
-                                        luckyItem.playEndpoint?.let {
-                                            playerConnection.playQueue(YouTubeQueue(it))
+                                    SectionType.ALBUMS -> {
+                                        val album = section.albums.randomOrNull() ?: return@launch
+                                        val tracks =
+                                            withContext(Dispatchers.IO) {
+                                                Spotify.album(album.id)
+                                                    .getOrNull()
+                                                    ?.tracks
+                                                    ?.items
+                                                    ?.filter { !it.isLocal && it.id.isNotEmpty() }
+                                                    ?.shuffled()
+                                                    .orEmpty()
+                                            }
+                                        if (tracks.isNotEmpty()) {
+                                            playerConnection.playQueue(
+                                                SpotifyPlaylistQueue(
+                                                    playlistId = "album_${album.id}",
+                                                    initialTracks = tracks,
+                                                    startIndex = 0,
+                                                    mapper = spotifyMapper,
+                                                ),
+                                            )
                                         }
                                     }
 
-                                    is PodcastItem -> {
-                                        luckyItem.playEndpoint?.let {
-                                            playerConnection.playQueue(YouTubeQueue(it))
+                                    SectionType.PLAYLISTS -> {
+                                        val playlist = section.playlists.randomOrNull() ?: return@launch
+                                        val tracks =
+                                            withContext(Dispatchers.IO) {
+                                                Spotify.playlistTracks(playlist.id, limit = 100)
+                                                    .getOrNull()
+                                                    ?.items
+                                                    ?.mapNotNull { it.track }
+                                                    ?.filter { !it.isLocal && it.id.isNotEmpty() }
+                                                    ?.shuffled()
+                                                    .orEmpty()
+                                            }
+                                        if (tracks.isNotEmpty()) {
+                                            playerConnection.playQueue(
+                                                SpotifyPlaylistQueue(
+                                                    playlistId = playlist.id,
+                                                    initialTracks = tracks,
+                                                    startIndex = 0,
+                                                    mapper = spotifyMapper,
+                                                ),
+                                            )
                                         }
-                                    }
-
-                                    is EpisodeItem -> {
-                                        playerConnection.playQueue(
-                                            ListQueue(
-                                                title = luckyItem.title,
-                                                items = listOf(luckyItem.toMediaMetadata().toMediaItem()),
-                                            ),
-                                        )
                                     }
                                 }
                             }
