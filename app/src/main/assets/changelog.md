@@ -1,3 +1,10 @@
+---v0.8.10.3
+# Spotify Home Play Random fix
+
+- Restored the Home screen Play Random button when Spotify Home-only mode is active.
+- Added random playback from Spotify Home track, artist, album, and playlist sections.
+- Preserved existing local-library and YouTube Home random playback.
+
 ---v0.8.10.2
 # Listen Together synchronization repair
 
