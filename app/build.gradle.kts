@@ -39,8 +39,8 @@ android {
         applicationId = applicationIdOverride ?: "com.metrofy.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 39
-        versionName = "0.8.10.2"
+        versionCode = 40
+        versionName = "0.8.10.3"
         if (isMetrofyPreview) {
             versionCode = previewVersionCode
             versionName = previewVersionName
