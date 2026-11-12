@@ -55,6 +55,7 @@ What it does well:
 ### 🎧 Playback
 - Background playback
 - Search, queue, library, playlists
+- Floating Play Random button, including Spotify Home-only feeds
 - Download/cache for offline
 - Audio normalization, tempo/pitch control
 - Sleep timer, widgets, Discord Rich Presence
@@ -156,7 +157,8 @@ app/build/outputs/apk/foss/debug/app-foss-debug.apk
 
 See [`changelog.md`](changelog.md) for full release notes.
 
-Recent updates (v0.8.10.2):
+Recent updates (v0.8.10.3):
+- Fixed the Play Random button disappearing in Spotify Home-only mode; random playback now supports Spotify tracks, artists, albums, and playlists.
 - **Listen Together** host-to-guest track synchronization repair
 - Guest recovery when playback state or track IDs drift out of sync
 - Reconnection and playback event-ordering improvements
