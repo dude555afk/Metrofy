@@ -32,7 +32,7 @@ What it does well:
 - **Spotify-powered home & search** — your top tracks, playlists, and recommendations
 - **YouTube Music playback** — full YT Music catalog, including rare and live tracks
 - **Simple Spotify login** — no extra dashboards or developer setup
-- **Listen Together** — real-time shared sessions, recently improved for reconnects
+- **Listen Together** — real-time shared sessions with improved host track-change sync, guest recovery, and reconnect handling
 - **Optional lossless audio** — Qobuz FLAC/Hi-Res if you want it, with automatic YouTube fallback
 
 ---
@@ -61,8 +61,9 @@ What it does well:
 
 ### 🤝 Listen Together
 - Real-time shared listening
-- Better reconnection and rejoin behavior
-- Host heartbeat and clean disconnect
+- Host track changes now sync after metadata is ready
+- Guests recover when their track differs from the host, including after reconnects
+- Ordered playback events, heartbeat track state, and cleaner disconnect handling
 
 ### 🎚️ Lossless (Experimental)
 - FLAC / Hi-Res via Qobuz
@@ -155,8 +156,10 @@ app/build/outputs/apk/foss/debug/app-foss-debug.apk
 
 See [`changelog.md`](changelog.md) for full release notes.
 
-Recent updates:
-- **Listen Together** reconnection and rejoin fixes
+Recent updates (v0.8.10.2):
+- **Listen Together** host-to-guest track synchronization repair
+- Guest recovery when playback state or track IDs drift out of sync
+- Reconnection and playback event-ordering improvements
 - **Spotify Canvas** and **Spotify Lyrics** support
 - **DownloadUtil** crash fixes for malformed streams
 
