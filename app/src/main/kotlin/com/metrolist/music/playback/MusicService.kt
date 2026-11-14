@@ -198,6 +198,7 @@ import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.alarm.MusicAlarmScheduler
 import com.metrolist.music.playback.alarm.MusicAlarmStore
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
+import com.metrolist.music.playback.audio.calculateNormalizationGainMb
 import com.metrolist.music.playback.audio.VolumeNormalizationAudioProcessor
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
