@@ -1181,4 +1181,8 @@
     <string name="eq_autoeq_importing">Downloading and importing profile…</string>
     <string name="eq_autoeq_choose_measurement">Choose a measurement</string>
     <string name="eq_autoeq_all_models">All headphone models</string>
+
+    <string name="settings_search_placeholder">Search settings and features</string>
+    <string name="settings_search_results">Search results (%1$d)</string>
+    <string name="settings_search_no_results">No matching settings found</string>
 </resources>
