@@ -27,7 +27,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -46,6 +45,7 @@ import com.metrolist.music.utils.UpdateChannel
 import com.metrolist.music.utils.Updater
 import com.metrolist.music.utils.rememberPreference
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,9 +53,8 @@ fun SettingsScreen(
     navController: NavController,
     latestVersionName: String,
 ) {
-    val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     val showChangelog = com.metrolist.music.LocalChangelogState.current
     val updateChannelName by rememberPreference(UpdateChannelKey, UpdateChannel.STABLE.name)
     val updateChannel =
