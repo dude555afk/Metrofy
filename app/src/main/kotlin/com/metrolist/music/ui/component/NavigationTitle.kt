@@ -83,7 +83,7 @@ fun NavigationTitle(
                 } else {
                     MaterialTheme.typography.titleLarge
                 },
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.primary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
