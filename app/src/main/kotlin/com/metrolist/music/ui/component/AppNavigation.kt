@@ -29,13 +29,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.ripple
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -60,12 +58,6 @@ import kotlinx.coroutines.flow.collectLatest
 
 private val FloatingBarHeight = 64.dp
 private val FloatingItemHeight = 48.dp
-
-@Immutable
-private data class NavItemState(
-    val isSelected: Boolean,
-    val iconRes: Int,
-)
 
 @Stable
 private fun isRouteSelected(currentRoute: String?, screenRoute: String, navigationItems: List<Screens>): Boolean {
@@ -253,8 +245,7 @@ fun AppNavigationBar(
                                     selected = selected,
                                     onClick = { onItemClick(screen, currentSelected) },
                                     role = Role.Tab,
-                                    interactionSource = interactionSource,
-                                    indication = ripple(),
+                                    interactionSource = interactionSource
                                 )
                                 .padding(horizontal = if (selected) 16.dp else 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -327,8 +318,7 @@ fun AppNavigationBar(
                                     }
                                 },
                                 role = Role.Tab,
-                                interactionSource = searchInteractionSource,
-                                indication = ripple(),
+                                interactionSource = searchInteractionSource
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
