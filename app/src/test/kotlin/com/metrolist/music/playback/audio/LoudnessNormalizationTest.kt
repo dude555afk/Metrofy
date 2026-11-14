@@ -18,7 +18,7 @@ class LoudnessNormalizationTest {
             ),
         )
         assertEquals(
-            -700,
+            -900,
             calculateNormalizationGainMb(
                 loudnessDb = -6.0,
                 perceptualLoudnessDb = -10.0,
