@@ -251,29 +251,31 @@ fun AppNavigationBar(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center,
                         ) {
-                            AnimatedVisibility(
-                                visible = selected,
-                                enter = fadeIn() + expandHorizontally(spring(dampingRatio = 0.9f, stiffness = 700f)),
-                                exit = fadeOut() + shrinkHorizontally(spring(dampingRatio = 0.9f, stiffness = 700f)),
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        painter = painterResource(screen.iconIdActive),
-                                        contentDescription = null,
-                                        tint = contentColor,
-                                    )
-                                    Spacer(Modifier.width(8.dp))
+                            Icon(
+                                painter = painterResource(if (selected) screen.iconIdActive else screen.iconIdInactive),
+                                contentDescription = if (slimNav) stringResource(screen.titleId) else null,
+                                tint = contentColor,
+                            )
+
+                            if (!slimNav) {
+                                AnimatedVisibility(
+                                    visible = selected,
+                                    enter = fadeIn() + expandHorizontally(spring(dampingRatio = 0.9f, stiffness = 700f)),
+                                    exit = fadeOut() + shrinkHorizontally(spring(dampingRatio = 0.9f, stiffness = 700f)),
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(screen.titleId),
+                                            color = contentColor,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
                                 }
                             }
-
-                            Text(
-                                text = stringResource(screen.titleId),
-                                color = contentColor,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
                         }
                     }
                 }
