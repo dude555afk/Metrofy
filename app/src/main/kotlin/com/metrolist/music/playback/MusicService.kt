@@ -934,7 +934,7 @@ class MusicService :
                 .map { it[AudioNormalizationKey] ?: true }
                 .distinctUntilChanged(),
             dataStore.data
-                .map { it[LoudnessLevelKey] ?: LoudnessLevel.BALANCED.name }
+                .map { it[LoudnessLevelKey] ?: LoudnessLevel.AGGRESSIVE.name }
                 .distinctUntilChanged(),
         ) { format, normalizeAudio, loudnessLevel ->
             Triple(format, normalizeAudio, loudnessLevel)
@@ -2190,8 +2190,8 @@ class MusicService :
                     withContext(Dispatchers.IO) {
                         dataStore.data.map { preferences ->
                             val level = runCatching {
-                                LoudnessLevel.valueOf(preferences[LoudnessLevelKey] ?: LoudnessLevel.BALANCED.name)
-                            }.getOrDefault(LoudnessLevel.BALANCED)
+                                LoudnessLevel.valueOf(preferences[LoudnessLevelKey] ?: LoudnessLevel.AGGRESSIVE.name)
+                            }.getOrDefault(LoudnessLevel.AGGRESSIVE)
                             (preferences[AudioNormalizationKey] ?: true) to level
                         }.first()
                     }
