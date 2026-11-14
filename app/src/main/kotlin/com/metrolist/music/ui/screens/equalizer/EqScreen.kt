@@ -23,18 +23,23 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,7 +55,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.eq.data.AutoEqCatalog
+import com.metrolist.music.eq.data.AutoEqEntry
+import com.metrolist.music.eq.data.AutoEqModel
 import com.metrolist.music.eq.data.SavedEQProfile
+import com.metrolist.music.eq.data.searchAutoEqModels
 import timber.log.Timber
 
 /**
@@ -67,6 +76,8 @@ fun EqScreen(
     val playerConnection = LocalPlayerConnection.current
 
     var showError by remember { mutableStateOf<String?>(null) }
+    var showAutoEqBrowser by remember { mutableStateOf(false) }
+    var autoEqImporting by remember { mutableStateOf(false) }
 
     // Activity result launcher for system equalizer
     val activityResultLauncher = rememberLauncherForActivityResult(
@@ -121,6 +132,7 @@ fun EqScreen(
         profiles = state.profiles,
         activeProfileId = state.activeProfileId,
         onProfileSelected = { viewModel.selectProfile(it) },
+        onBrowseAutoEq = { showAutoEqBrowser = true },
         onImportCustomEQ = {
             // Launch file picker for .txt files
             filePickerLauncher.launch("text/plain")
@@ -148,6 +160,27 @@ fun EqScreen(
         },
         onDeleteProfile = { viewModel.deleteProfile(it) }
     )
+
+    if (showAutoEqBrowser) {
+        AutoEqBrowserSheet(
+            isImporting = autoEqImporting,
+            onDismiss = { showAutoEqBrowser = false },
+            onImport = { entry ->
+                autoEqImporting = true
+                viewModel.importAutoEqProfile(
+                    entry = entry,
+                    onSuccess = {
+                        autoEqImporting = false
+                        showAutoEqBrowser = false
+                    },
+                    onError = { error ->
+                        autoEqImporting = false
+                        showError = context.getString(R.string.import_error_title) + ": " + error.message
+                    },
+                )
+            },
+        )
+    }
 
     // Error dialog
     if (showError != null) {
@@ -192,6 +225,7 @@ private fun EqScreenContent(
     profiles: List<SavedEQProfile>,
     activeProfileId: String?,
     onProfileSelected: (String?) -> Unit,
+    onBrowseAutoEq: () -> Unit,
     onImportCustomEQ: () -> Unit,
     onOpenSystemEqualizer: () -> Unit,
     onDeleteProfile: (String) -> Unit
@@ -230,6 +264,12 @@ private fun EqScreenContent(
                     )
                 }
                 Row {
+                    IconButton(onClick = onBrowseAutoEq) {
+                        Icon(
+                            painter = painterResource(R.drawable.search),
+                            contentDescription = stringResource(R.string.eq_browse_autoeq),
+                        )
+                    }
                     IconButton(onClick = onImportCustomEQ) {
                         Icon(
                             painter = painterResource(R.drawable.add),
@@ -299,6 +339,10 @@ private fun EqScreenContent(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Button(onClick = onImportCustomEQ) {
                                     Text(stringResource(R.string.import_profile))
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedButton(onClick = onBrowseAutoEq) {
+                                    Text(stringResource(R.string.eq_browse_autoeq))
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 OutlinedButton(onClick = onOpenSystemEqualizer) {
@@ -410,5 +454,208 @@ private fun EQProfileItem(
                 }
             }
         )
+    }
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AutoEqBrowserSheet(
+    isImporting: Boolean,
+    onDismiss: () -> Unit,
+    onImport: (AutoEqEntry) -> Unit,
+) {
+    var reloadToken by remember { mutableIntStateOf(0) }
+    var models by remember { mutableStateOf<List<AutoEqModel>?>(null) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var query by remember { mutableStateOf("") }
+    var selectedModel by remember { mutableStateOf<AutoEqModel?>(null) }
+
+    LaunchedEffect(reloadToken) {
+        models = null
+        loadError = null
+        try {
+            models = AutoEqCatalog.models()
+        } catch (error: Exception) {
+            loadError = error.message
+        }
+    }
+
+    val filteredModels = remember(models, query) {
+        models?.let { searchAutoEqModels(it, query) }.orEmpty()
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 680.dp)
+                .padding(horizontal = 20.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.eq_autoeq_title),
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    Text(
+                        text = stringResource(R.string.eq_autoeq_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (selectedModel != null) {
+                    TextButton(onClick = { selectedModel = null }) {
+                        Text(stringResource(R.string.eq_autoeq_all_models))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.eq_search_headphones)) },
+                leadingIcon = {
+                    Icon(
+                        painter = painterResource(R.drawable.search),
+                        contentDescription = null,
+                    )
+                },
+                trailingIcon = if (query.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { query = "" }) {
+                            Icon(
+                                painter = painterResource(R.drawable.close),
+                                contentDescription = stringResource(R.string.clear),
+                            )
+                        }
+                    }
+                } else {
+                    null
+                },
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (isImporting) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 20.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.size(12.dp))
+                    Text(stringResource(R.string.eq_autoeq_importing))
+                }
+            } else if (models == null && loadError == null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.size(12.dp))
+                    Text(stringResource(R.string.eq_autoeq_loading))
+                }
+            } else if (loadError != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = stringResource(R.string.eq_autoeq_load_failed),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(onClick = { reloadToken++ }) {
+                        Text(stringResource(R.string.retry))
+                    }
+                }
+            } else if (selectedModel != null) {
+                Text(
+                    text = stringResource(R.string.eq_autoeq_choose_measurement),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 28.dp),
+                ) {
+                    items(
+                        items = selectedModel!!.entries,
+                        key = { "${it.path}:${it.source}:${it.rig.orEmpty()}" },
+                    ) { entry ->
+                        val details = listOfNotNull(entry.form, entry.source, entry.rig)
+                            .filter { it.isNotBlank() }
+                            .joinToString(" · ")
+                        ListItem(
+                            headlineContent = { Text(entry.name) },
+                            supportingContent = { Text(details) },
+                            trailingContent = {
+                                TextButton(onClick = { onImport(entry) }) {
+                                    Text(stringResource(R.string.eq_autoeq_import))
+                                }
+                            },
+                            modifier = Modifier.clickable { onImport(entry) },
+                        )
+                    }
+                }
+            } else if (filteredModels.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.eq_autoeq_no_results),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 28.dp),
+                ) {
+                    items(
+                        items = filteredModels,
+                        key = { it.name },
+                    ) { model ->
+                        ListItem(
+                            headlineContent = { Text(model.name) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(
+                                        R.string.eq_autoeq_measurement_count,
+                                        model.entries.size,
+                                    ),
+                                )
+                            },
+                            trailingContent = {
+                                Icon(
+                                    painter = painterResource(R.drawable.arrow_forward),
+                                    contentDescription = null,
+                                )
+                            },
+                            modifier = Modifier.clickable { selectedModel = model },
+                        )
+                    }
+                }
+            }
+        }
     }
 }
