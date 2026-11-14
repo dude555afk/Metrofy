@@ -40,6 +40,8 @@ import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.AudioFocusEnabledKey
 import com.metrolist.music.constants.AudioNormalizationKey
+import com.metrolist.music.constants.LoudnessLevel
+import com.metrolist.music.constants.LoudnessLevelKey
 import com.metrolist.music.constants.AudioOffload
 import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.constants.AudioQualityKey
@@ -123,6 +125,10 @@ fun PlayerSettings(
     val (audioNormalization, onAudioNormalizationChange) = rememberPreference(
         AudioNormalizationKey,
         defaultValue = true
+    )
+    val (loudnessLevel, onLoudnessLevelChange) = rememberEnumPreference(
+        LoudnessLevelKey,
+        defaultValue = LoudnessLevel.BALANCED,
     )
     val (audioFocusEnabled, onAudioFocusEnabledChange) = rememberPreference(
         AudioFocusEnabledKey,
@@ -208,6 +214,31 @@ fun PlayerSettings(
 
     var showAudioQualityDialog by remember {
         mutableStateOf(false)
+    }
+
+    var showLoudnessLevelDialog by remember {
+        mutableStateOf(false)
+    }
+
+    if (showLoudnessLevelDialog) {
+        EnumDialog(
+            onDismiss = { showLoudnessLevelDialog = false },
+            onSelect = {
+                onLoudnessLevelChange(it)
+                showLoudnessLevelDialog = false
+            },
+            title = stringResource(R.string.loudness_level),
+            current = loudnessLevel,
+            values = LoudnessLevel.values().toList(),
+            valueText = {
+                when (it) {
+                    LoudnessLevel.AGGRESSIVE -> stringResource(R.string.loudness_level_aggressive)
+                    LoudnessLevel.LOUD -> stringResource(R.string.loudness_level_loud)
+                    LoudnessLevel.BALANCED -> stringResource(R.string.loudness_level_balanced)
+                    LoudnessLevel.QUIET -> stringResource(R.string.loudness_level_quiet)
+                }
+            },
+        )
     }
 
     if (showAudioQualityDialog) {
@@ -435,6 +466,25 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onAudioNormalizationChange(!audioNormalization) }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.equalizer),
+                    title = { Text(stringResource(R.string.loudness_level)) },
+                    description = {
+                        Text(
+                            stringResource(
+                                R.string.loudness_level_selected,
+                                when (loudnessLevel) {
+                                    LoudnessLevel.AGGRESSIVE -> stringResource(R.string.loudness_level_aggressive)
+                                    LoudnessLevel.LOUD -> stringResource(R.string.loudness_level_loud)
+                                    LoudnessLevel.BALANCED -> stringResource(R.string.loudness_level_balanced)
+                                    LoudnessLevel.QUIET -> stringResource(R.string.loudness_level_quiet)
+                                },
+                            ),
+                        )
+                    },
+                    enabled = audioNormalization,
+                    onClick = { if (audioNormalization) showLoudnessLevelDialog = true },
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.music_note),
