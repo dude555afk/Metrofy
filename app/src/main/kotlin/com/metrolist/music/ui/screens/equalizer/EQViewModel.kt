@@ -3,6 +3,8 @@ package com.metrolist.music.ui.screens.equalizer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.music.eq.EqualizerService
+import com.metrolist.music.eq.data.AutoEqCatalog
+import com.metrolist.music.eq.data.AutoEqEntry
 import com.metrolist.music.eq.data.EQProfileRepository
 import com.metrolist.music.eq.data.ParametricEQParser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -93,6 +95,37 @@ class EQViewModel @Inject constructor(
     fun deleteProfile(profileId: String) {
         viewModelScope.launch {
             eqProfileRepository.deleteProfile(profileId)
+        }
+    }
+
+    /**
+     * Download and save an AutoEQ catalogue profile using the existing profile store.
+     */
+    fun importAutoEqProfile(
+        entry: AutoEqEntry,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit,
+    ) {
+        viewModelScope.launch {
+            try {
+                val parametricEQ = AutoEqCatalog.load(entry)
+                val validationErrors = ParametricEQParser.validate(parametricEQ)
+                if (validationErrors.isNotEmpty()) {
+                    onError(IllegalArgumentException(validationErrors.first()))
+                    return@launch
+                }
+
+                val profileName = listOf(entry.name, entry.form, entry.source)
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .joinToString(" • ")
+
+                eqProfileRepository.importCustomProfile(profileName, parametricEQ)
+                _state.update { it.copy(importStatus = "Successfully imported $profileName") }
+                onSuccess()
+            } catch (e: Exception) {
+                onError(Exception("Failed to download AutoEQ profile: ${e.message}", e))
+            }
         }
     }
 
