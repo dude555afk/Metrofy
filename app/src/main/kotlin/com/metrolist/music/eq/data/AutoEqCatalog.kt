@@ -44,7 +44,7 @@ object AutoEqCatalog {
 
     suspend fun load(entry: AutoEqEntry): ParametricEQ = withContext(Dispatchers.IO) {
         val fileName = entry.path.substringAfterLast('/') + "%20ParametricEQ.txt"
-        val text = fetch("$RESULTS_URL/\${entry.path}/$fileName")
+        val text = fetch("$RESULTS_URL/" + entry.path + "/$fileName")
         val profile = ParametricEQParser.parseText(text)
         val errors = ParametricEQParser.validate(profile)
         require(errors.isEmpty()) {
@@ -87,7 +87,7 @@ fun parseAutoEqIndex(markdown: String): List<AutoEqEntry> =
                 name = name,
                 source = source,
                 rig = rig.ifBlank { null },
-                form = form.substringAfterLast("%20"),
+                form = form,
                 path = path,
             )
         }
