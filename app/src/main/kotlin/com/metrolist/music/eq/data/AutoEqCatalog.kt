@@ -78,7 +78,8 @@ fun parseAutoEqIndex(markdown: String): List<AutoEqEntry> =
     markdown.lineSequence().mapNotNull { line ->
         val match = autoEqIndexLine.matchEntire(line.trim()) ?: return@mapNotNull null
         val (name, path, source, rig) = match.destructured
-        val form = path.split('/').getOrNull(0).orEmpty()
+        val formDirectory = path.split('/').getOrNull(1) ?: path.split('/').firstOrNull().orEmpty()
+        val form = formDirectory.substringAfterLast("%20")
         if (name.isBlank() || path.isBlank() || source.isBlank()) {
             null
         } else {
