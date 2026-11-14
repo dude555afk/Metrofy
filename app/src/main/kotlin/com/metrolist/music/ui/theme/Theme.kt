@@ -1,6 +1,6 @@
 /**
- * Metrolist Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
+ * Metrofy UI modernization
+ * Retains Metrofy's dynamic color and pure-black theme behavior.
  */
 
 package com.metrolist.music.ui.theme
@@ -9,7 +9,9 @@ import android.graphics.Bitmap
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -28,6 +30,7 @@ import com.materialkolor.score.Score
 
 val DefaultThemeColor = Color(0xFFED5564)
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MetrolistTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -36,37 +39,30 @@ fun MetrolistTheme(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    // Determine if system dynamic colors should be used (Android S+ and default theme color)
     val useSystemDynamicColor = (themeColor == DefaultThemeColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
 
-    // Select the appropriate color scheme generation method
     val baseColorScheme = if (useSystemDynamicColor) {
-        // Use standard Material 3 dynamic color functions for system wallpaper colors
         if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     } else {
-        // Use materialKolor only when a specific seed color is provided
         rememberDynamicColorScheme(
-            seedColor = themeColor, // themeColor is guaranteed non-default here
+            seedColor = themeColor,
             isDark = darkTheme,
             specVersion = ColorSpec.SpecVersion.SPEC_2025,
-            style = PaletteStyle.TonalSpot // Keep existing style
+            style = PaletteStyle.TonalSpot,
         )
     }
 
-    // Apply pureBlack modification if needed, similar to original logic
     val colorScheme = remember(baseColorScheme, pureBlack, darkTheme) {
-        if (darkTheme && pureBlack) {
-            baseColorScheme.pureBlack(true)
-        } else {
-            baseColorScheme
-        }
+        if (darkTheme && pureBlack) baseColorScheme.pureBlack(true) else baseColorScheme
     }
+    val motionScheme = remember { MotionScheme.expressive() }
 
-    // Use standard MaterialTheme instead of MaterialExpressiveTheme
-    MaterialTheme(
+    MaterialExpressiveTheme(
         colorScheme = colorScheme,
-        typography = AppTypography, // Use the defined AppTypography
-        content = content
+        typography = AppTypography,
+        shapes = MetrolistShapes,
+        motionScheme = motionScheme,
+        content = content,
     )
 }
 
@@ -81,25 +77,26 @@ fun Bitmap.extractThemeColor(): Color {
 }
 
 fun Bitmap.extractGradientColors(): List<Color> {
-    val extractedColors = Palette.from(this)
+    val colorsToPopulation = Palette.from(this)
         .maximumColorCount(64)
         .generate()
         .swatches
         .associate { it.rgb to it.population }
 
-    val orderedColors = Score.score(extractedColors, 2, 0xff4285f4.toInt(), true)
+    val orderedColors = Score.score(colorsToPopulation, 2, 0xff4285f4.toInt(), true)
         .sortedByDescending { Color(it).luminance() }
 
-    return if (orderedColors.size >= 2)
+    return if (orderedColors.size >= 2) {
         listOf(Color(orderedColors[0]), Color(orderedColors[1]))
-    else
+    } else {
         listOf(Color(0xFF595959), Color(0xFF0D0D0D))
+    }
 }
 
 fun ColorScheme.pureBlack(apply: Boolean) =
     if (apply) copy(
         surface = Color.Black,
-        background = Color.Black
+        background = Color.Black,
     ) else this
 
 val ColorSaver = object : Saver<Color, Int> {
