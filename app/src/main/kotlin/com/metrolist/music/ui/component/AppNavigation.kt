@@ -189,8 +189,8 @@ fun AppNavigationBar(
         }
     }
 
-    val navHeight = if (slimNav) 56.dp else FloatingBarHeight
-    val itemHeight = if (slimNav) 44.dp else FloatingItemHeight
+    val navHeight = if (slimNav) 48.dp else FloatingBarHeight
+    val itemHeight = if (slimNav) 40.dp else FloatingItemHeight
     val baseContainer = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
 
     Box(modifier = modifier.fillMaxWidth()) {
