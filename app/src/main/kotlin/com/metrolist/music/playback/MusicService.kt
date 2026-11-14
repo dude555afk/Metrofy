@@ -86,6 +86,8 @@ import com.metrolist.music.R
 import com.metrolist.music.constants.AndroidAutoTargetPlaylistKey
 import com.metrolist.music.constants.AudioFocusEnabledKey
 import com.metrolist.music.constants.AudioNormalizationKey
+import com.metrolist.music.constants.LoudnessLevel
+import com.metrolist.music.constants.LoudnessLevelKey
 import com.metrolist.music.constants.AudioOffload
 import com.metrolist.music.constants.AudioQualityKey
 import com.metrolist.music.constants.EnableQobuzKey
@@ -930,9 +932,12 @@ class MusicService :
             dataStore.data
                 .map { it[AudioNormalizationKey] ?: true }
                 .distinctUntilChanged(),
-        ) { format, normalizeAudio ->
-            format to normalizeAudio
-        }.collectLatest(scope) { (format, normalizeAudio) -> setupAudioNormalization() }
+            dataStore.data
+                .map { it[LoudnessLevelKey] ?: LoudnessLevel.BALANCED.name }
+                .distinctUntilChanged(),
+        ) { format, normalizeAudio, loudnessLevel ->
+            Triple(format, normalizeAudio, loudnessLevel)
+        }.collectLatest(scope) { setupAudioNormalization() }
 
         combine(
             dataStore.data.map { it[AudioOffload] ?: false },
@@ -2180,9 +2185,14 @@ class MusicService :
                         player.currentMediaItem?.mediaId
                     }
 
-                val normalizeAudio =
+                val (normalizeAudio, loudnessLevel) =
                     withContext(Dispatchers.IO) {
-                        dataStore.data.map { it[AudioNormalizationKey] ?: true }.first()
+                        dataStore.data.map { preferences ->
+                            val level = runCatching {
+                                LoudnessLevel.valueOf(preferences[LoudnessLevelKey] ?: LoudnessLevel.BALANCED.name)
+                            }.getOrDefault(LoudnessLevel.BALANCED)
+                            (preferences[AudioNormalizationKey] ?: true) to level
+                        }.first()
                     }
 
                 if (normalizeAudio && currentMediaId != null) {
@@ -2191,18 +2201,23 @@ class MusicService :
                             database.format(currentMediaId).first()
                         }
 
-                    val loudness = format?.loudnessDb ?: format?.perceptualLoudnessDb
+                    val gainMb = format?.let {
+                        calculateNormalizationGainMb(
+                            loudnessDb = it.loudnessDb,
+                            perceptualLoudnessDb = it.perceptualLoudnessDb,
+                            level = loudnessLevel,
+                        )
+                    }
                     withContext(Dispatchers.Main) {
-                        if (loudness != null) {
-                            val targetGain = (-loudness.toFloat() * 100).toInt()
-                            val clampedGain = targetGain.coerceIn(MIN_GAIN_MB, MAX_GAIN_MB)
+                        if (gainMb != null) {
+                            val clampedGain = gainMb.coerceIn(MIN_GAIN_MB, MAX_GAIN_MB)
                             applyAudioNormalization(enabled = true, gainMb = clampedGain)
                             Timber.tag(TAG).d(
-                                "PCM normalization gain applied: $clampedGain mB (from loudness: $loudness)",
+                                "PCM normalization gain applied: $clampedGain mB (level=$loudnessLevel)",
                             )
                         } else {
                             applyAudioNormalization(enabled = false, gainMb = null)
-                            Timber.tag(TAG).d("No loudness data available; normalization disabled for this track")
+                            Timber.tag(TAG).d("No valid loudness data available; normalization disabled for this track")
                         }
                     }
                 } else {
