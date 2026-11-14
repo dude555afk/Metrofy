@@ -1168,4 +1168,17 @@
     <string name="playlist_position_beginning_desc">Newly added songs appear before existing songs</string>
     <string name="playlist_position_end">End of playlist</string>
     <string name="playlist_position_end_desc">Newly added songs appear after existing songs</string>
+
+    <string name="eq_browse_autoeq">Browse AutoEQ</string>
+    <string name="eq_autoeq_title">AutoEQ catalogue</string>
+    <string name="eq_autoeq_description">Find a measured equalizer profile for your headphones.</string>
+    <string name="eq_search_headphones">Search headphone models</string>
+    <string name="eq_autoeq_measurement_count">%1$d measurements</string>
+    <string name="eq_autoeq_import">Import profile</string>
+    <string name="eq_autoeq_no_results">No matching headphone profiles</string>
+    <string name="eq_autoeq_load_failed">Couldn't load the AutoEQ catalogue. Check your connection and retry.</string>
+    <string name="eq_autoeq_loading">Loading headphone profiles…</string>
+    <string name="eq_autoeq_importing">Downloading and importing profile…</string>
+    <string name="eq_autoeq_choose_measurement">Choose a measurement</string>
+    <string name="eq_autoeq_all_models">All headphone models</string>
 </resources>
