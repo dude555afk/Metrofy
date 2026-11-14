@@ -128,7 +128,7 @@ fun PlayerSettings(
     )
     val (loudnessLevel, onLoudnessLevelChange) = rememberEnumPreference(
         LoudnessLevelKey,
-        defaultValue = LoudnessLevel.BALANCED,
+        defaultValue = LoudnessLevel.AGGRESSIVE,
     )
     val (audioFocusEnabled, onAudioFocusEnabledChange) = rememberPreference(
         AudioFocusEnabledKey,
