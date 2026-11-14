@@ -3,6 +3,15 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+/**
+ * This file uses the same carousel and interaction APIs as Metrofy's Home shelves.
+ */
+@file:OptIn(
+    androidx.compose.foundation.ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
+)
+
 package com.metrolist.music.ui.component
 
 import androidx.compose.foundation.ExperimentalFoundationApi
