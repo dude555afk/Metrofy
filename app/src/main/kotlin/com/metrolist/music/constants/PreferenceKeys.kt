@@ -131,6 +131,17 @@ val ShuffleModeKey = booleanPreferencesKey("shuffleMode")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val SkipSilenceInstantKey = booleanPreferencesKey("skipSilenceInstant")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
+val LoudnessLevelKey = stringPreferencesKey("loudnessLevel")
+
+enum class LoudnessLevel(
+    val targetLufs: Float,
+) {
+    AGGRESSIVE(-7f),
+    LOUD(-11f),
+    BALANCED(-14f),
+    QUIET(-19f),
+}
+
 val AudioFocusEnabledKey = booleanPreferencesKey("audioFocusEnabled")
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val DisableLoadMoreWhenRepeatAllKey = booleanPreferencesKey("disableLoadMoreWhenRepeatAll")
