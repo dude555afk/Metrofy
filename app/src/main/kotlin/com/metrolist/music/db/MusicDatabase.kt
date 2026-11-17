@@ -119,7 +119,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 39,
+    version = 40,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -159,6 +159,7 @@ class MusicDatabase(
         AutoMigration(from = 36, to = 37),
         AutoMigration(from = 37, to = 38),
         AutoMigration(from = 38, to = 39),
+        AutoMigration(from = 39, to = 40, spec = Migration39To40::class),
     ],
 )
 @TypeConverters(Converters::class)
@@ -733,3 +734,11 @@ class Migration29To30 : AutoMigrationSpec {
     }
 }
 
+
+
+class Migration39To40 : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        // Old automatic mappings may point at music videos; keep user-selected overrides.
+        db.execSQL("DELETE FROM spotify_match WHERE isManualOverride = 0")
+    }
+}
