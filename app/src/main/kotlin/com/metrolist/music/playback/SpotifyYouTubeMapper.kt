@@ -44,6 +44,8 @@ class SpotifyYouTubeMapper(
      * Resolution order: in-memory cache → Room DB → YouTube search.
      */
     suspend fun mapToYouTube(track: SpotifyTrack): MediaMetadata? = withContext(Dispatchers.IO) {
+        invalidateLegacyAutomaticMatches()
+
         // 1. In-memory LRU cache (zero I/O)
         memoryCache[track.id]?.let { mem ->
             Timber.d("Spotify match memory hit: ${track.name} -> ${mem.youtubeId}")
@@ -154,6 +156,17 @@ class SpotifyYouTubeMapper(
         return metadata.toMediaItem()
     }
 
+    private fun invalidateLegacyAutomaticMatches() {
+        if (legacyAutomaticMatchesInvalidated) return
+        synchronized(memoryCache) {
+            if (legacyAutomaticMatchesInvalidated) return
+            database.clearOldSpotifyMatches(AUDIO_ONLY_MATCH_CUTOFF)
+            memoryCache.evictAll()
+            legacyAutomaticMatchesInvalidated = true
+            Timber.i("Cleared legacy automatic Spotify matches; manual overrides preserved")
+        }
+    }
+
     private fun findBestMatch(
         spotifyTrack: SpotifyTrack,
         searchResult: SearchSummaryPage,
@@ -167,7 +180,11 @@ class SpotifyYouTubeMapper(
             durationMs = spotifyTrack.durationMs,
         )
 
-        val songs = searchResult.summaries
+        // Spotify playback and time-synchronised lyrics require the audio-only
+        // catalogue entry. Never let a music-video result enter automatic matching.
+        val songs = searchResult
+            .filterVideoSongs(disableVideos = true)
+            .summaries
             .flatMap { it.items }
             .filterIsInstance<SongItem>()
 
@@ -377,5 +394,12 @@ class SpotifyYouTubeMapper(
          * Bounded to 512 entries (~30 KB).
          */
         private val memoryCache = LruCache<String, CachedMatch>(MEM_CACHE_MAX_SIZE)
+
+        // Remove automatic matches created before the audio-only matcher shipped.
+        // The DAO cleanup preserves rows explicitly selected by the user.
+        private const val AUDIO_ONLY_MATCH_CUTOFF = 1794873600000L
+
+        @Volatile
+        private var legacyAutomaticMatchesInvalidated = false
     }
 }
