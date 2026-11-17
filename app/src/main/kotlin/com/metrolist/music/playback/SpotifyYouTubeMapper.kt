@@ -44,7 +44,6 @@ class SpotifyYouTubeMapper(
      * Resolution order: in-memory cache → Room DB → YouTube search.
      */
     suspend fun mapToYouTube(track: SpotifyTrack): MediaMetadata? = withContext(Dispatchers.IO) {
-        invalidateLegacyAutomaticMatches()
 
         // 1. In-memory LRU cache (zero I/O)
         memoryCache[track.id]?.let { mem ->
@@ -154,17 +153,6 @@ class SpotifyYouTubeMapper(
         Timber.d("SpotifyMapper: resolved '${track.name}' -> YouTube ID: ${metadata.id}")
         SpotifyMetadataRegistry.register(metadata.id, track)
         return metadata.toMediaItem()
-    }
-
-    private fun invalidateLegacyAutomaticMatches() {
-        if (legacyAutomaticMatchesInvalidated) return
-        synchronized(memoryCache) {
-            if (legacyAutomaticMatchesInvalidated) return
-            database.clearOldSpotifyMatches(AUDIO_ONLY_MATCH_CUTOFF)
-            memoryCache.evictAll()
-            legacyAutomaticMatchesInvalidated = true
-            Timber.i("Cleared legacy automatic Spotify matches; manual overrides preserved")
-        }
     }
 
     private fun findBestMatch(
@@ -395,11 +383,5 @@ class SpotifyYouTubeMapper(
          */
         private val memoryCache = LruCache<String, CachedMatch>(MEM_CACHE_MAX_SIZE)
 
-        // Remove automatic matches created before the audio-only matcher shipped.
-        // The DAO cleanup preserves rows explicitly selected by the user.
-        private const val AUDIO_ONLY_MATCH_CUTOFF = 1794873600000L
-
-        @Volatile
-        private var legacyAutomaticMatchesInvalidated = false
     }
 }
