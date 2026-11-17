@@ -44,6 +44,7 @@ class SpotifyYouTubeMapper(
      * Resolution order: in-memory cache → Room DB → YouTube search.
      */
     suspend fun mapToYouTube(track: SpotifyTrack): MediaMetadata? = withContext(Dispatchers.IO) {
+
         // 1. In-memory LRU cache (zero I/O)
         memoryCache[track.id]?.let { mem ->
             Timber.d("Spotify match memory hit: ${track.name} -> ${mem.youtubeId}")
@@ -167,7 +168,11 @@ class SpotifyYouTubeMapper(
             durationMs = spotifyTrack.durationMs,
         )
 
-        val songs = searchResult.summaries
+        // Spotify playback and time-synchronised lyrics require the audio-only
+        // catalogue entry. Never let a music-video result enter automatic matching.
+        val songs = searchResult
+            .filterVideoSongs(disableVideos = true)
+            .summaries
             .flatMap { it.items }
             .filterIsInstance<SongItem>()
 
@@ -377,5 +382,6 @@ class SpotifyYouTubeMapper(
          * Bounded to 512 entries (~30 KB).
          */
         private val memoryCache = LruCache<String, CachedMatch>(MEM_CACHE_MAX_SIZE)
+
     }
 }

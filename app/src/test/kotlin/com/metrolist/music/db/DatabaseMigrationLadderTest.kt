@@ -110,6 +110,13 @@ class DatabaseMigrationLadderTest {
         )
     }
 
+    @Test
+    fun `Spotify cache upgrade clears automatic matches but preserves manual overrides`() {
+        val source = databaseSource.readText()
+        assertTrue(source.contains("class Migration39To40 : AutoMigrationSpec"))
+        assertTrue(source.contains("DELETE FROM spotify_match WHERE isManualOverride = 0"))
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────
 
     private fun committedSchemaVersions(): List<Int> =
