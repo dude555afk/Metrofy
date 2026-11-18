@@ -76,6 +76,7 @@ class LyricsWidgetManager @Inject constructor(
         )
         latest = snapshot
         if (loadedMediaId != mediaMetadata.id) {
+            LockScreenLyrics.publish(null)
             loadedMediaId = mediaMetadata.id
             entries = emptyList()
             plainLines = emptyList()
