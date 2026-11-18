@@ -155,6 +155,7 @@ import com.metrolist.music.constants.ScrobbleDelayPercentKey
 import com.metrolist.music.constants.ScrobbleDelaySecondsKey
 import com.metrolist.music.constants.ScrobbleMinSongDurationKey
 import com.metrolist.music.constants.ShowLyricsKey
+import com.metrolist.music.constants.LockScreenLyricsKey
 import com.metrolist.music.constants.ShuffleModeKey
 import com.metrolist.music.constants.ShufflePlaylistFirstKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
