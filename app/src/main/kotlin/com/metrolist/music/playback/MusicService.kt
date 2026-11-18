@@ -1973,24 +1973,25 @@ class MusicService :
         // queue. addMediaItems() appends, so existing indices stay valid afterwards.
         val playedBefore =
             if (player.shuffleModeEnabled) playedShuffleIndices(player.currentMediaItemIndex) else emptyList()
+        val shuffleEnabled = player.shuffleModeEnabled
 
         player.addMediaItems(items)
-        if (player.shuffleModeEnabled) {
+        player.prepare()
+        if (shuffleEnabled) {
             val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
-            if (playedBefore.isEmpty()) {
-                applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
-            } else {
-                // Reshuffling the whole queue here would drop the listening history and put
-                // already-played tracks back in front of the user (issue #232). Keep the
-                // played prefix intact and randomise only what's still ahead.
-                applyShuffleOrderKeepingHistory(
-                    playedBefore,
-                    player.currentMediaItemIndex,
-                    player.mediaItemCount,
-                )
+            scope.launch(SilentHandler) {
+                if (playedBefore.isEmpty()) {
+                    applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
+                } else {
+                    // Preserve the played prefix; smart-shuffle only the remaining tracks.
+                    applyShuffleOrderKeepingHistory(
+                        playedBefore,
+                        player.currentMediaItemIndex,
+                        player.mediaItemCount,
+                    )
+                }
             }
         }
-        player.prepare()
     }
 
     /**
@@ -2016,25 +2017,24 @@ class MusicService :
         return played.distinct()
     }
 
-    private fun applyShuffleOrderKeepingHistory(
+    private suspend fun applyShuffleOrderKeepingHistory(
         playedIndices: List<Int>,
         currentIndex: Int,
         totalCount: Int,
     ) {
-        if (totalCount == 0) return
+        if (totalCount == 0 || currentIndex !in 0 until totalCount) return
 
         val played = playedIndices.filter { it in 0 until totalCount && it != currentIndex }
         val playedSet = played.toSet()
-        val remaining = (0 until totalCount)
-            .filter { it != currentIndex && it !in playedSet }
-            .toMutableList()
-        remaining.shuffle()
+        val remaining = (0 until totalCount).filter { it != currentIndex && it !in playedSet }
+        val currentArtist = primaryShuffleArtist(player.getMediaItemAt(currentIndex))
+        val mixedRemaining = smartShuffleIndices(remaining, listOf(currentArtist))
 
         val order = IntArray(totalCount)
         var pos = 0
         played.forEach { order[pos++] = it }
         order[pos++] = currentIndex
-        remaining.forEach { order[pos++] = it }
+        mixedRemaining.forEach { order[pos++] = it }
 
         player.setShuffleOrder(DefaultShuffleOrder(order, System.currentTimeMillis()))
     }
@@ -2622,45 +2622,117 @@ class MusicService :
      * Applies a new shuffle order to the player, maintaining the current item's position.
      * If `shufflePlaylistFirst` is true, it attempts to shuffle original items separately from added items.
      */
-    private fun applyShuffleOrder(
+    /**
+     * Pear-inspired artist-aware shuffle, weighted by Metrofy's own taste data.
+     * The current track remains first and the existing playlist-first grouping is kept.
+     */
+    private suspend fun applyShuffleOrder(
         currentIndex: Int,
         totalCount: Int,
         shufflePlaylistFirst: Boolean,
     ) {
-        if (totalCount == 0) return
+        if (totalCount == 0 || currentIndex !in 0 until totalCount) return
+        val currentArtist = primaryShuffleArtist(player.getMediaItemAt(currentIndex))
 
-        if (shufflePlaylistFirst && originalQueueSize > 0 && originalQueueSize < totalCount) {
-            // Shuffle original items and added items separately
-            val originalIndices = (0 until originalQueueSize).filter { it != currentIndex }.toMutableList()
-            val addedIndices = (originalQueueSize until totalCount).filter { it != currentIndex }.toMutableList()
+        val order = if (shufflePlaylistFirst && originalQueueSize > 0 && originalQueueSize < totalCount) {
+            val originalIndices = (0 until originalQueueSize).filter { it != currentIndex }
+            val addedIndices = (originalQueueSize until totalCount).filter { it != currentIndex }
+            val firstGroup = smartShuffleIndices(originalIndices, listOf(currentArtist))
+            val nextArtist = firstGroup.lastOrNull()
+                ?.let { primaryShuffleArtist(player.getMediaItemAt(it)) }
+                ?: currentArtist
+            val secondGroup = smartShuffleIndices(addedIndices, listOf(nextArtist))
 
-            originalIndices.shuffle()
-            addedIndices.shuffle()
-
-            val shuffledIndices = IntArray(totalCount)
-            var pos = 0
-            shuffledIndices[pos++] = currentIndex
-
-            if (currentIndex < originalQueueSize) {
-                originalIndices.forEach { shuffledIndices[pos++] = it }
-                addedIndices.forEach { shuffledIndices[pos++] = it }
-            } else {
-                (0 until originalQueueSize).shuffled().forEach { shuffledIndices[pos++] = it }
-                addedIndices.forEach { shuffledIndices[pos++] = it }
+            buildList(totalCount) {
+                add(currentIndex)
+                addAll(firstGroup)
+                addAll(secondGroup)
             }
-            player.setShuffleOrder(DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis()))
         } else {
-            val shuffledIndices = IntArray(totalCount) { it }
-            shuffledIndices.shuffle()
-            // Ensure current item is first in the shuffle order
-            val currentItemIndexInShuffled = shuffledIndices.indexOf(currentIndex)
-            if (currentItemIndexInShuffled != -1) { // Should always be true if totalCount > 0
-                val temp = shuffledIndices[0]
-                shuffledIndices[0] = shuffledIndices[currentItemIndexInShuffled]
-                shuffledIndices[currentItemIndexInShuffled] = temp
+            buildList(totalCount) {
+                add(currentIndex)
+                addAll(smartShuffleIndices((0 until totalCount).filter { it != currentIndex }, listOf(currentArtist)))
             }
-            player.setShuffleOrder(DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis()))
         }
+
+        if (order.size == totalCount && order.toSet().size == totalCount) {
+            player.setShuffleOrder(DefaultShuffleOrder(order.toIntArray(), System.currentTimeMillis()))
+        }
+    }
+
+    /**
+     * Spreads artists like Pear's shuffle, but uses Metrofy's locally stored likes and
+     * total listening time for gentle taste weighting. If a queue is dominated by one
+     * artist, the spacing window relaxes to the best feasible option.
+     */
+    private suspend fun smartShuffleIndices(
+        indices: List<Int>,
+        lastArtists: List<String>,
+    ): List<Int> {
+        if (indices.size < 2) return indices
+
+        val ids = indices.map { player.getMediaItemAt(it).mediaId }.distinct()
+        val songStats = withContext(Dispatchers.IO) {
+            runCatching { database.getSongsByIds(ids).associateBy { it.song.id } }
+                .getOrDefault(emptyMap())
+        }
+
+        val artistByIndex = indices.associateWith { index ->
+            primaryShuffleArtist(player.getMediaItemAt(index))
+        }
+        val remainingByArtist = HashMap<String, Int>()
+        artistByIndex.values.forEach { artist ->
+            remainingByArtist[artist] = (remainingByArtist[artist] ?: 0) + 1
+        }
+
+        val largestShare = (remainingByArtist.values.maxOrNull() ?: 0).toFloat() / indices.size
+        val spacingWindow = if (largestShare > 0.34f) 1 else 2
+        val recentArtists = ArrayDeque(lastArtists.takeLast(spacingWindow))
+        val pool = indices.toMutableList()
+        val result = ArrayList<Int>(indices.size)
+
+        while (pool.isNotEmpty()) {
+            val candidates = pool.filter { artistByIndex[it] !in recentArtists }.ifEmpty { pool }
+            val weights = candidates.map { index ->
+                val artist = artistByIndex[index] ?: "unknown:$index"
+                val mediaId = player.getMediaItemAt(index).mediaId
+                val song = songStats[mediaId]?.song
+                val tasteWeight = 1.0 +
+                    (if (song?.liked == true) 1.5 else 0.0) +
+                    kotlin.math.ln(1.0 + ((song?.totalPlayTime ?: 0L).coerceAtLeast(0L) / 60_000.0)) * 0.5
+                tasteWeight * Math.pow((remainingByArtist[artist] ?: 1).toDouble(), 1.5)
+            }
+
+            var randomWeight = kotlin.random.Random.nextDouble() * weights.sum()
+            var selected = candidates.last()
+            for (candidateIndex in candidates.indices) {
+                randomWeight -= weights[candidateIndex]
+                if (randomWeight <= 0.0) {
+                    selected = candidates[candidateIndex]
+                    break
+                }
+            }
+
+            result += selected
+            pool.remove(selected)
+            val selectedArtist = artistByIndex[selected] ?: "unknown:$selected"
+            remainingByArtist[selectedArtist] =
+                ((remainingByArtist[selectedArtist] ?: 1) - 1).coerceAtLeast(0)
+            recentArtists.addLast(selectedArtist)
+            while (recentArtists.size > spacingWindow) recentArtists.removeFirst()
+        }
+        return result
+    }
+
+    private fun primaryShuffleArtist(item: MediaItem): String {
+        val artist = item.mediaMetadata.artist?.toString().orEmpty()
+        val primary = artist
+            .split(" & ", ", ", " feat", " ft.", " x ", " X ", " and ")
+            .firstOrNull()
+            ?.trim()
+            ?.lowercase()
+            .orEmpty()
+        return primary.ifBlank { "unknown:" + item.mediaId }
     }
 
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
@@ -4896,7 +4968,7 @@ class MusicService :
         return current.albumTitle != null && current.albumTitle == next.albumTitle
     }
 
-    private fun startCrossfade() {
+    private suspend fun startCrossfade() {
         if (isCrossfading) return
 
         // Preserve the live player state. DataStore can lag behind an in-flight UI change.
