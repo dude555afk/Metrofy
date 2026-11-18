@@ -4648,7 +4648,7 @@ class MusicService :
      * queueing. Previously each tick did a fire-and-forget `scope.launch` on
      * Dispatchers.Main, which piled up without bound and saturated the main looper.
      */
-    private fun updateWidgetUI(isPlaying: Boolean) {
+    private fun updateLyricsWidget(isPlaying: Boolean) {
         val songData = currentSong.value
         val song = songData?.song
         lyricsWidgetManager.update(
@@ -4660,6 +4660,12 @@ class MusicService :
             isPlaying = isPlaying,
             showLockScreenLyrics = dataStore.get(LockScreenLyricsKey, false),
         )
+    }
+
+    private fun updateWidgetUI(isPlaying: Boolean) {
+        val songData = currentSong.value
+        val song = songData?.song
+        updateLyricsWidget(isPlaying)
         widgetRenderRequests.trySend(
             WidgetUiState(
                 title = song?.title ?: getString(R.string.no_song_playing),
@@ -4696,6 +4702,7 @@ class MusicService :
     }
 
     private var widgetUpdateJob: Job? = null
+    private var lyricsWidgetUpdateJob: Job? = null
 
     private fun startWidgetUpdates() {
         widgetUpdateJob?.cancel()
@@ -4708,11 +4715,20 @@ class MusicService :
                     delay(WIDGET_REFRESH_MS)
                 }
             }
+        lyricsWidgetUpdateJob?.cancel()
+        lyricsWidgetUpdateJob = scope.launch {
+            while (isActive) {
+                if (player.isPlaying) updateLyricsWidget(true)
+                delay(LYRICS_WIDGET_REFRESH_MS)
+            }
+        }
     }
 
     private fun stopWidgetUpdates() {
         widgetUpdateJob?.cancel()
         widgetUpdateJob = null
+        lyricsWidgetUpdateJob?.cancel()
+        lyricsWidgetUpdateJob = null
     }
 
     /**
