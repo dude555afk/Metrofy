@@ -13,6 +13,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.widget.RemoteViews
 import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
@@ -56,9 +57,7 @@ object LyricsWidgetState {
 
     private fun loader(context: Context): ImageLoader =
         imageLoader ?: synchronized(this) {
-            imageLoader ?: ImageLoader.Builder(context.applicationContext)
-                .crossfade(false)
-                .build()
+            imageLoader ?: SingletonImageLoader.get(context.applicationContext)
                 .also { imageLoader = it }
         }
 
