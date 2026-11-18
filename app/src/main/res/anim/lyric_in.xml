@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The next lyric glides up into place (home screen widget). -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@android:interpolator/decelerate_cubic">
+    <translate android:fromYDelta="38%" android:toYDelta="0%" android:duration="420" />
+    <alpha android:fromAlpha="0" android:toAlpha="1" android:duration="360" />
+</set>
