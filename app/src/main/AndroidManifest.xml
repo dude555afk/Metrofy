@@ -330,6 +330,19 @@
                 android:resource="@xml/music_widget_info" />
         </receiver>
 
+        <!-- Adapted live lyrics widget from Pear Music (GPL-3.0). -->
+        <receiver
+            android:name=".widget.LyricsWidgetProvider"
+            android:exported="false"
+            android:label="@string/lyrics_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_lyrics_info" />
+        </receiver>
+
         <!-- Turntable Widget -->
         <receiver
             android:name=".widget.TurntableWidgetReceiver"
