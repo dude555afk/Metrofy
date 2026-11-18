@@ -62,7 +62,7 @@
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:text="Pear Music"
+                    android:text="Metrofy"
                     android:textColor="#B3FFFFFF"
                     android:textSize="12sp" />
             </LinearLayout>
