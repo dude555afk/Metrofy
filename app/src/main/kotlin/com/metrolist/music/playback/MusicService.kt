@@ -409,6 +409,7 @@ class MusicService :
     private var crossfadeJob: Job? = null
 
     private lateinit var mediaSession: MediaLibrarySession
+    private var lyricsSessionPlayer: LyricsMetadataPlayer? = null
 
     // Tracks if player has been properly initilized
     private val playerInitialized = MutableStateFlow(false)
@@ -617,11 +618,12 @@ class MusicService :
             toggleLibrary = ::toggleLibrary
             addToTargetPlaylist = ::addToTargetPlaylist
         }
-        val lyricsSessionPlayer = LyricsMetadataPlayer(player)
-        LockScreenLyrics.attach(lyricsSessionPlayer)
+        val sessionPlayer = LyricsMetadataPlayer(player)
+        lyricsSessionPlayer = sessionPlayer
+        LockScreenLyrics.attach(sessionPlayer)
         mediaSession =
             MediaLibrarySession
-                .Builder(this, lyricsSessionPlayer, mediaLibrarySessionCallback)
+                .Builder(this, sessionPlayer, mediaLibrarySessionCallback)
                 .setSessionActivity(
                     PendingIntent.getActivity(
                         this,
@@ -4458,6 +4460,7 @@ class MusicService :
         // or we can't easily reference the specific processor created in createExoPlayer here without storing it.
         // But since we are destroying the service, it's fine.
         LockScreenLyrics.attach(null)
+        lyricsSessionPlayer = null
         player.release()
         discordUpdateJob?.cancel()
         sponsorBlockJob?.cancel()
@@ -5073,9 +5076,13 @@ class MusicService :
         sleepTimer.player = player
 
         try {
-            (mediaSession as MediaSession).player = player
+            // The media session must keep the lyrics-aware ForwardingPlayer after crossfade.
+            val sessionPlayer = LyricsMetadataPlayer(player)
+            lyricsSessionPlayer = sessionPlayer
+            LockScreenLyrics.attach(sessionPlayer)
+            (mediaSession as MediaSession).player = sessionPlayer
         } catch (e: Exception) {
-            timber.log.Timber.e(e, "Failed to swap player in MediaSession")
+            timber.log.Timber.e(e, "Failed to swap lyrics-aware player in MediaSession")
         }
 
         crossfadeJob =
