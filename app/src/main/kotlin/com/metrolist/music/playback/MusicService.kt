@@ -4738,6 +4738,7 @@ class MusicService :
      * even when no widget was on the home screen.
      */
     private val WIDGET_REFRESH_MS = 1_000L
+    private val LYRICS_WIDGET_REFRESH_MS = 250L
 
     private fun shareSong() {
         val songData = currentSong.value
