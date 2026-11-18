@@ -216,6 +216,7 @@ import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.utils.reportException
 import com.metrolist.music.widget.MetrolistWidgetManager
+import com.metrolist.music.widget.LyricsWidgetManager
 import com.metrolist.music.widget.MusicWidgetReceiver
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -292,6 +293,9 @@ class MusicService :
 
     @Inject
     lateinit var widgetManager: MetrolistWidgetManager
+
+    @Inject
+    lateinit var lyricsWidgetManager: LyricsWidgetManager
 
     @Inject
     lateinit var listenTogetherManager: com.metrolist.music.listentogether.ListenTogetherManager
@@ -612,9 +616,11 @@ class MusicService :
             toggleLibrary = ::toggleLibrary
             addToTargetPlaylist = ::addToTargetPlaylist
         }
+        val lyricsSessionPlayer = LyricsMetadataPlayer(player)
+        LockScreenLyrics.attach(lyricsSessionPlayer)
         mediaSession =
             MediaLibrarySession
-                .Builder(this, player, mediaLibrarySessionCallback)
+                .Builder(this, lyricsSessionPlayer, mediaLibrarySessionCallback)
                 .setSessionActivity(
                     PendingIntent.getActivity(
                         this,
@@ -4378,6 +4384,7 @@ class MusicService :
         // Note: equalizerService audio processors are cleared in equalizerService.release() if needed,
         // or we can't easily reference the specific processor created in createExoPlayer here without storing it.
         // But since we are destroying the service, it's fine.
+        LockScreenLyrics.attach(null)
         player.release()
         discordUpdateJob?.cancel()
         sponsorBlockJob?.cancel()
@@ -4416,6 +4423,17 @@ class MusicService :
                     if (player.isPlaying) player.pause() else player.play()
                     updateWidgetUI(player.isPlaying)
                 }
+            }
+
+            MusicWidgetReceiver.ACTION_LYRICS_PLAY_PAUSE -> {
+                if (playerInitialized.value) {
+                    if (player.isPlaying) player.pause() else player.play()
+                    updateWidgetUI(player.isPlaying)
+                }
+            }
+
+            MusicWidgetReceiver.ACTION_UPDATE_LYRICS_WIDGET -> {
+                if (playerInitialized.value) updateWidgetUI(player.isPlaying)
             }
 
             MusicWidgetReceiver.ACTION_LIKE -> {
@@ -4560,6 +4578,15 @@ class MusicService :
     private fun updateWidgetUI(isPlaying: Boolean) {
         val songData = currentSong.value
         val song = songData?.song
+        lyricsWidgetManager.update(
+            mediaMetadata = currentMediaMetadata.value,
+            title = song?.title,
+            artist = songData?.artists?.joinToString(", ") { it.name },
+            artworkUri = song?.thumbnailUrl,
+            positionMs = player.currentPosition,
+            isPlaying = isPlaying,
+            showLockScreenLyrics = dataStore.get(ShowLyricsKey, false),
+        )
         widgetRenderRequests.trySend(
             WidgetUiState(
                 title = song?.title ?: getString(R.string.no_song_playing),
