@@ -865,6 +865,15 @@ class MusicService :
             updateWidgetUI(player.isPlaying)
         }
 
+        // Update lock-screen metadata immediately when its setting changes, including
+        // while playback is paused (the periodic lyric tick is intentionally stopped then).
+        dataStore.data
+            .map { it[LockScreenLyricsKey] ?: false }
+            .distinctUntilChanged()
+            .collect(scope) {
+                updateLyricsWidget(player.isPlaying)
+            }
+
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
             dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged(),
