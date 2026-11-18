@@ -2,4 +2,6 @@
 <resources>
     <string name="lyrics_widget_name">Lyrics</string>
     <string name="lyrics_widget_description">Live lyrics that follow the song, word by word</string>
+    <string name="lock_screen_lyrics">Lock-screen lyrics</string>
+    <string name="lock_screen_lyrics_desc">Show the current lyric in the media notification and on the lock screen</string>
 </resources>
