@@ -4657,7 +4657,7 @@ class MusicService :
             artworkUri = song?.thumbnailUrl,
             positionMs = player.currentPosition,
             isPlaying = isPlaying,
-            showLockScreenLyrics = dataStore.get(ShowLyricsKey, false),
+            showLockScreenLyrics = dataStore.get(LockScreenLyricsKey, false),
         )
         widgetRenderRequests.trySend(
             WidgetUiState(
