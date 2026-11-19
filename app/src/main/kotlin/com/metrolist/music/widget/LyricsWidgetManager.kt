@@ -22,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 @Singleton
 class LyricsWidgetManager @Inject constructor(
@@ -34,6 +35,7 @@ class LyricsWidgetManager @Inject constructor(
     private var entries: List<LyricsEntry> = emptyList()
     private var plainLines: List<String> = emptyList()
     private var hasSyncedLyrics = false
+    private var isLoadingLyrics = false
     private var loadJob: Job? = null
     private var latest: Snapshot? = null
 
@@ -82,32 +84,46 @@ class LyricsWidgetManager @Inject constructor(
             plainLines = emptyList()
             hasSyncedLyrics = false
             loadJob?.cancel()
+            isLoadingLyrics = true
             loadJob = scope.launch {
-                val rawLyrics = withContext(Dispatchers.IO) {
-                    val cached = database.lyrics(mediaMetadata.id).first()?.lyrics
-                    cached?.takeIf { it.isNotBlank() } ?: run {
-                        val fetched = lyricsHelper.getLyrics(mediaMetadata)
-                        database.query {
-                            upsert(
-                                LyricsEntity(
-                                    id = mediaMetadata.id,
-                                    lyrics = fetched.lyrics,
-                                    provider = fetched.provider,
-                                ),
-                            )
+                try {
+                    val rawLyrics = withContext(Dispatchers.IO) {
+                        val cached = database.lyrics(mediaMetadata.id).first()?.lyrics
+                        cached?.takeIf { it.isNotBlank() } ?: run {
+                            val fetched = lyricsHelper.getLyrics(mediaMetadata)
+                            database.query {
+                                upsert(
+                                    LyricsEntity(
+                                        id = mediaMetadata.id,
+                                        lyrics = fetched.lyrics,
+                                        provider = fetched.provider,
+                                    ),
+                                )
+                            }
+                            fetched.lyrics
                         }
-                        fetched.lyrics
                     }
+                    if (loadedMediaId != mediaMetadata.id) return@launch
+                    hasSyncedLyrics = rawLyrics.trimStart().startsWith("[")
+                    plainLines = rawLyrics.lineSequence().map { it.trim() }
+                        .filter { it.isNotBlank() && !it.startsWith("[") && !it.startsWith("{") }
+                        .toList()
+                    entries = withContext(Dispatchers.Default) {
+                        LyricsUtils.parseLyrics(rawLyrics)
+                    }
+                    isLoadingLyrics = false
+                    latest?.takeIf { it.metadata.id == mediaMetadata.id }?.let(::render)
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    if (loadedMediaId != mediaMetadata.id) return@launch
+                    Timber.tag("LyricsWidget").w(error, "Failed to load lyrics for widget")
+                    hasSyncedLyrics = false
+                    plainLines = emptyList()
+                    entries = emptyList()
+                    isLoadingLyrics = false
+                    latest?.takeIf { it.metadata.id == mediaMetadata.id }?.let(::render)
                 }
-                if (loadedMediaId != mediaMetadata.id) return@launch
-                hasSyncedLyrics = rawLyrics.trimStart().startsWith("[")
-                plainLines = rawLyrics.lineSequence().map { it.trim() }
-                    .filter { it.isNotBlank() && !it.startsWith("[") && !it.startsWith("{") }
-                    .toList()
-                entries = withContext(Dispatchers.Default) {
-                    runCatching { LyricsUtils.parseLyrics(rawLyrics) }.getOrDefault(emptyList())
-                }
-                latest?.takeIf { it.metadata.id == mediaMetadata.id }?.let(::render)
             }
         }
         render(snapshot)
@@ -116,6 +132,14 @@ class LyricsWidgetManager @Inject constructor(
     private fun render(snapshot: Snapshot) {
         val widgetInstalled = LyricsWidgetState.installed(context)
         val lines = entries
+        if (isLoadingLyrics) {
+            if (widgetInstalled) LyricsWidgetState.update(
+                context, snapshot.title, snapshot.artist, snapshot.artworkUri,
+                snapshot.metadata.id to "loading", "", "…", "", null, snapshot.isPlaying,
+            )
+            LockScreenLyrics.publish(null)
+            return
+        }
         if (!hasSyncedLyrics || lines.isEmpty()) {
             if (widgetInstalled) LyricsWidgetState.update(
                 context, snapshot.title, snapshot.artist, snapshot.artworkUri,
