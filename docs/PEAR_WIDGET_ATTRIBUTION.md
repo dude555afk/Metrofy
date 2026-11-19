@@ -1,13 +1,19 @@
-# Pear Music widget attribution
+# Pear Music lyrics widget attribution
 
-Metrofy's live lyrics home-screen widget is adapted from Pear Music by Dragonzord:
-https://github.com/dragonzords/Pear-Music
+Metrofy's live home-screen lyrics widget is adapted from **Pear Music**:
 
-Adapted components include the two-page animated lyric carousel, word-progress
-highlighting state machine, cached low-resolution artwork blur, and Media3
-lock-screen metadata technique. Widget layout and animation resources are ported
-from Pear Music; integration uses Metrofy's MusicService, LyricsHelper, LyricsUtils,
-and Media3 metadata.
+- Upstream project: https://github.com/dragonzords/Pear-Music
+- Upstream license: GNU General Public License, version 3 (GPL-3.0)
 
-Pear Music is distributed under GNU GPL v3.0. These adaptations remain under
-GPL-3.0. Metrofy-specific changes are dated 2026-11-19.
+The port retains the upstream widget's two-page `ViewFlipper` lyric transition,
+throttled karaoke word-fill updates, album-art backdrop, cached low-resolution
+three-pass box blur, widget layout, drawables, and animations.
+
+The Metrofy integration connects the widget to `MusicService`,
+`LyricsWidgetManager`, `LyricsWidgetState`, `LyricsHelper`, `LyricsUtils`,
+Room lyrics storage, and the Media3 playback clock. The lock-screen metadata
+implementation is also adapted from Pear Music's Media3 `ForwardingPlayer`
+approach.
+
+The Metrofy adaptation is modified from the upstream project and remains
+under GPL-3.0. Metrofy-specific changes are dated 2026-11-19.
