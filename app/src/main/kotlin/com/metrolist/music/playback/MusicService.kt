@@ -155,7 +155,6 @@ import com.metrolist.music.constants.ScrobbleDelayPercentKey
 import com.metrolist.music.constants.ScrobbleDelaySecondsKey
 import com.metrolist.music.constants.ScrobbleMinSongDurationKey
 import com.metrolist.music.constants.ShowLyricsKey
-import com.metrolist.music.constants.LockScreenLyricsKey
 import com.metrolist.music.constants.ShuffleModeKey
 import com.metrolist.music.constants.ShufflePlaylistFirstKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
@@ -193,6 +192,8 @@ import com.metrolist.music.extensions.toRuntimeQueue
 import com.metrolist.music.lyrics.LyricsHelper
 import com.metrolist.music.lyrics.LyricsEntry
 import com.metrolist.music.lyrics.LyricsUtils
+import com.metrolist.music.widget.LyricsWidget
+import com.metrolist.music.widget.LyricsWidgetState
 import com.metrolist.music.models.PersistPlayerState
 import com.metrolist.music.models.PersistQueue
 import com.metrolist.music.models.toMediaMetadata
@@ -218,10 +219,7 @@ import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.utils.reportException
-import com.metrolist.music.widget.LyricsWidget
-import com.metrolist.music.widget.LyricsWidgetState
 import com.metrolist.music.widget.MetrolistWidgetManager
-import com.metrolist.music.widget.LyricsWidgetManager
 import com.metrolist.music.widget.MusicWidgetReceiver
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -298,9 +296,6 @@ class MusicService :
 
     @Inject
     lateinit var widgetManager: MetrolistWidgetManager
-
-    @Inject
-    lateinit var lyricsWidgetManager: LyricsWidgetManager
 
     @Inject
     lateinit var listenTogetherManager: com.metrolist.music.listentogether.ListenTogetherManager
@@ -413,7 +408,6 @@ class MusicService :
     private var crossfadeJob: Job? = null
 
     private lateinit var mediaSession: MediaLibrarySession
-    private var lyricsSessionPlayer: LyricsMetadataPlayer? = null
 
     // Tracks if player has been properly initilized
     private val playerInitialized = MutableStateFlow(false)
@@ -622,12 +616,9 @@ class MusicService :
             toggleLibrary = ::toggleLibrary
             addToTargetPlaylist = ::addToTargetPlaylist
         }
-        val sessionPlayer = LyricsMetadataPlayer(player)
-        lyricsSessionPlayer = sessionPlayer
-        LockScreenLyrics.attach(sessionPlayer)
         mediaSession =
             MediaLibrarySession
-                .Builder(this, sessionPlayer, mediaLibrarySessionCallback)
+                .Builder(this, player, mediaLibrarySessionCallback)
                 .setSessionActivity(
                     PendingIntent.getActivity(
                         this,
@@ -867,17 +858,7 @@ class MusicService :
         currentSong.debounce(1000).collect(scope) { song ->
             updateNotification()
             updateWidgetUI(player.isPlaying)
-            if (LyricsWidgetState.installed(this@MusicService)) startLyricsWidgetUpdates()
         }
-
-        // Update lock-screen metadata immediately when its setting changes, including
-        // while playback is paused (the periodic lyric tick is intentionally stopped then).
-        dataStore.data
-            .map { it[LockScreenLyricsKey] ?: false }
-            .distinctUntilChanged()
-            .collect(scope) {
-                updateLyricsWidget(player.isPlaying)
-            }
 
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
@@ -1990,25 +1971,24 @@ class MusicService :
         // queue. addMediaItems() appends, so existing indices stay valid afterwards.
         val playedBefore =
             if (player.shuffleModeEnabled) playedShuffleIndices(player.currentMediaItemIndex) else emptyList()
-        val shuffleEnabled = player.shuffleModeEnabled
 
         player.addMediaItems(items)
-        player.prepare()
-        if (shuffleEnabled) {
+        if (player.shuffleModeEnabled) {
             val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
-            scope.launch(SilentHandler) {
-                if (playedBefore.isEmpty()) {
-                    applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
-                } else {
-                    // Preserve the played prefix; smart-shuffle only the remaining tracks.
-                    applyShuffleOrderKeepingHistory(
-                        playedBefore,
-                        player.currentMediaItemIndex,
-                        player.mediaItemCount,
-                    )
-                }
+            if (playedBefore.isEmpty()) {
+                applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
+            } else {
+                // Reshuffling the whole queue here would drop the listening history and put
+                // already-played tracks back in front of the user (issue #232). Keep the
+                // played prefix intact and randomise only what's still ahead.
+                applyShuffleOrderKeepingHistory(
+                    playedBefore,
+                    player.currentMediaItemIndex,
+                    player.mediaItemCount,
+                )
             }
         }
+        player.prepare()
     }
 
     /**
@@ -2034,24 +2014,25 @@ class MusicService :
         return played.distinct()
     }
 
-    private suspend fun applyShuffleOrderKeepingHistory(
+    private fun applyShuffleOrderKeepingHistory(
         playedIndices: List<Int>,
         currentIndex: Int,
         totalCount: Int,
     ) {
-        if (totalCount == 0 || currentIndex !in 0 until totalCount) return
+        if (totalCount == 0) return
 
         val played = playedIndices.filter { it in 0 until totalCount && it != currentIndex }
         val playedSet = played.toSet()
-        val remaining = (0 until totalCount).filter { it != currentIndex && it !in playedSet }
-        val currentArtist = primaryShuffleArtist(player.getMediaItemAt(currentIndex))
-        val mixedRemaining = smartShuffleIndices(remaining, listOf(currentArtist))
+        val remaining = (0 until totalCount)
+            .filter { it != currentIndex && it !in playedSet }
+            .toMutableList()
+        remaining.shuffle()
 
         val order = IntArray(totalCount)
         var pos = 0
         played.forEach { order[pos++] = it }
         order[pos++] = currentIndex
-        mixedRemaining.forEach { order[pos++] = it }
+        remaining.forEach { order[pos++] = it }
 
         player.setShuffleOrder(DefaultShuffleOrder(order, System.currentTimeMillis()))
     }
@@ -2500,6 +2481,7 @@ class MusicService :
         }
         if (events.containsAny(EVENT_TIMELINE_CHANGED, EVENT_POSITION_DISCONTINUITY)) {
             currentMediaMetadata.value = player.currentMetadata
+            if (LyricsWidgetState.installed(this)) updateLyricsWidget()
         }
 
         // Widget and Discord RPC updates
@@ -2639,117 +2621,45 @@ class MusicService :
      * Applies a new shuffle order to the player, maintaining the current item's position.
      * If `shufflePlaylistFirst` is true, it attempts to shuffle original items separately from added items.
      */
-    /**
-     * Pear-inspired artist-aware shuffle, weighted by Metrofy's own taste data.
-     * The current track remains first and the existing playlist-first grouping is kept.
-     */
-    private suspend fun applyShuffleOrder(
+    private fun applyShuffleOrder(
         currentIndex: Int,
         totalCount: Int,
         shufflePlaylistFirst: Boolean,
     ) {
-        if (totalCount == 0 || currentIndex !in 0 until totalCount) return
-        val currentArtist = primaryShuffleArtist(player.getMediaItemAt(currentIndex))
+        if (totalCount == 0) return
 
-        val order = if (shufflePlaylistFirst && originalQueueSize > 0 && originalQueueSize < totalCount) {
-            val originalIndices = (0 until originalQueueSize).filter { it != currentIndex }
-            val addedIndices = (originalQueueSize until totalCount).filter { it != currentIndex }
-            val firstGroup = smartShuffleIndices(originalIndices, listOf(currentArtist))
-            val nextArtist = firstGroup.lastOrNull()
-                ?.let { primaryShuffleArtist(player.getMediaItemAt(it)) }
-                ?: currentArtist
-            val secondGroup = smartShuffleIndices(addedIndices, listOf(nextArtist))
+        if (shufflePlaylistFirst && originalQueueSize > 0 && originalQueueSize < totalCount) {
+            // Shuffle original items and added items separately
+            val originalIndices = (0 until originalQueueSize).filter { it != currentIndex }.toMutableList()
+            val addedIndices = (originalQueueSize until totalCount).filter { it != currentIndex }.toMutableList()
 
-            buildList(totalCount) {
-                add(currentIndex)
-                addAll(firstGroup)
-                addAll(secondGroup)
+            originalIndices.shuffle()
+            addedIndices.shuffle()
+
+            val shuffledIndices = IntArray(totalCount)
+            var pos = 0
+            shuffledIndices[pos++] = currentIndex
+
+            if (currentIndex < originalQueueSize) {
+                originalIndices.forEach { shuffledIndices[pos++] = it }
+                addedIndices.forEach { shuffledIndices[pos++] = it }
+            } else {
+                (0 until originalQueueSize).shuffled().forEach { shuffledIndices[pos++] = it }
+                addedIndices.forEach { shuffledIndices[pos++] = it }
             }
+            player.setShuffleOrder(DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis()))
         } else {
-            buildList(totalCount) {
-                add(currentIndex)
-                addAll(smartShuffleIndices((0 until totalCount).filter { it != currentIndex }, listOf(currentArtist)))
+            val shuffledIndices = IntArray(totalCount) { it }
+            shuffledIndices.shuffle()
+            // Ensure current item is first in the shuffle order
+            val currentItemIndexInShuffled = shuffledIndices.indexOf(currentIndex)
+            if (currentItemIndexInShuffled != -1) { // Should always be true if totalCount > 0
+                val temp = shuffledIndices[0]
+                shuffledIndices[0] = shuffledIndices[currentItemIndexInShuffled]
+                shuffledIndices[currentItemIndexInShuffled] = temp
             }
+            player.setShuffleOrder(DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis()))
         }
-
-        if (order.size == totalCount && order.toSet().size == totalCount) {
-            player.setShuffleOrder(DefaultShuffleOrder(order.toIntArray(), System.currentTimeMillis()))
-        }
-    }
-
-    /**
-     * Spreads artists like Pear's shuffle, but uses Metrofy's locally stored likes and
-     * total listening time for gentle taste weighting. If a queue is dominated by one
-     * artist, the spacing window relaxes to the best feasible option.
-     */
-    private suspend fun smartShuffleIndices(
-        indices: List<Int>,
-        lastArtists: List<String>,
-    ): List<Int> {
-        if (indices.size < 2) return indices
-
-        val ids = indices.map { player.getMediaItemAt(it).mediaId }.distinct()
-        val songStats = withContext(Dispatchers.IO) {
-            runCatching { database.getSongsByIds(ids).associateBy { it.song.id } }
-                .getOrDefault(emptyMap())
-        }
-
-        val artistByIndex = indices.associateWith { index ->
-            primaryShuffleArtist(player.getMediaItemAt(index))
-        }
-        val remainingByArtist = HashMap<String, Int>()
-        artistByIndex.values.forEach { artist ->
-            remainingByArtist[artist] = (remainingByArtist[artist] ?: 0) + 1
-        }
-
-        val largestShare = (remainingByArtist.values.maxOrNull() ?: 0).toFloat() / indices.size
-        val spacingWindow = if (largestShare > 0.34f) 1 else 2
-        val recentArtists = ArrayDeque(lastArtists.takeLast(spacingWindow))
-        val pool = indices.toMutableList()
-        val result = ArrayList<Int>(indices.size)
-
-        while (pool.isNotEmpty()) {
-            val candidates = pool.filter { artistByIndex[it] !in recentArtists }.ifEmpty { pool }
-            val weights = candidates.map { index ->
-                val artist = artistByIndex[index] ?: "unknown:$index"
-                val mediaId = player.getMediaItemAt(index).mediaId
-                val song = songStats[mediaId]?.song
-                val tasteWeight = 1.0 +
-                    (if (song?.liked == true) 1.5 else 0.0) +
-                    kotlin.math.ln(1.0 + ((song?.totalPlayTime ?: 0L).coerceAtLeast(0L) / 60_000.0)) * 0.5
-                tasteWeight * Math.pow((remainingByArtist[artist] ?: 1).toDouble(), 1.5)
-            }
-
-            var randomWeight = kotlin.random.Random.nextDouble() * weights.sum()
-            var selected = candidates.last()
-            for (candidateIndex in candidates.indices) {
-                randomWeight -= weights[candidateIndex]
-                if (randomWeight <= 0.0) {
-                    selected = candidates[candidateIndex]
-                    break
-                }
-            }
-
-            result += selected
-            pool.remove(selected)
-            val selectedArtist = artistByIndex[selected] ?: "unknown:$selected"
-            remainingByArtist[selectedArtist] =
-                ((remainingByArtist[selectedArtist] ?: 1) - 1).coerceAtLeast(0)
-            recentArtists.addLast(selectedArtist)
-            while (recentArtists.size > spacingWindow) recentArtists.removeFirst()
-        }
-        return result
-    }
-
-    private fun primaryShuffleArtist(item: MediaItem): String {
-        val artist = item.mediaMetadata.artist?.toString().orEmpty()
-        val primary = artist
-            .split(" & ", ", ", " feat", " ft.", " x ", " X ", " and ")
-            .firstOrNull()
-            ?.trim()
-            ?.lowercase()
-            .orEmpty()
-        return primary.ifBlank { "unknown:" + item.mediaId }
     }
 
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
@@ -4473,8 +4383,6 @@ class MusicService :
         // Note: equalizerService audio processors are cleared in equalizerService.release() if needed,
         // or we can't easily reference the specific processor created in createExoPlayer here without storing it.
         // But since we are destroying the service, it's fine.
-        LockScreenLyrics.attach(null)
-        lyricsSessionPlayer = null
         player.release()
         discordUpdateJob?.cancel()
         sponsorBlockJob?.cancel()
@@ -4508,14 +4416,13 @@ class MusicService :
                 if (playerInitialized.value) {
                     if (player.isPlaying) player.pause() else player.play()
                     updateWidgetUI(player.isPlaying)
-                    updateLyricsWidget()
                 }
             }
 
             LyricsWidget.ACTION_UPDATE -> {
                 if (playerInitialized.value) {
                     updateLyricsWidget()
-                    startLyricsWidgetUpdates()
+                    if (player.isPlaying) startLyricsWidgetUpdates()
                 }
             }
 
@@ -4528,17 +4435,6 @@ class MusicService :
                     if (player.isPlaying) player.pause() else player.play()
                     updateWidgetUI(player.isPlaying)
                 }
-            }
-
-            MusicWidgetReceiver.ACTION_LYRICS_PLAY_PAUSE -> {
-                if (playerInitialized.value) {
-                    if (player.isPlaying) player.pause() else player.play()
-                    updateWidgetUI(player.isPlaying)
-                }
-            }
-
-            MusicWidgetReceiver.ACTION_UPDATE_LYRICS_WIDGET -> {
-                if (playerInitialized.value) updateWidgetUI(player.isPlaying)
             }
 
             MusicWidgetReceiver.ACTION_LIKE -> {
@@ -4680,24 +4576,10 @@ class MusicService :
      * queueing. Previously each tick did a fire-and-forget `scope.launch` on
      * Dispatchers.Main, which piled up without bound and saturated the main looper.
      */
-    private fun updateLyricsWidget(isPlaying: Boolean) {
-        val songData = currentSong.value
-        val song = songData?.song
-        lyricsWidgetManager.update(
-            mediaMetadata = currentMediaMetadata.value,
-            title = song?.title,
-            artist = songData?.artists?.joinToString(", ") { it.name },
-            artworkUri = song?.thumbnailUrl,
-            positionMs = player.currentPosition,
-            isPlaying = isPlaying,
-            showLockScreenLyrics = dataStore.get(LockScreenLyricsKey, false),
-        )
-    }
-
     private fun updateWidgetUI(isPlaying: Boolean) {
+        if (LyricsWidgetState.installed(this)) updateLyricsWidget()
         val songData = currentSong.value
         val song = songData?.song
-        updateLyricsWidget(isPlaying)
         widgetRenderRequests.trySend(
             WidgetUiState(
                 title = song?.title ?: getString(R.string.no_song_playing),
@@ -4710,13 +4592,6 @@ class MusicService :
             )
         )
     }
-
-    // The lyrics widget shares this service's playback clock and cached lyric pipeline.
-    private var lyricsWidgetTrackId: String? = null
-    private var lyricsWidgetRawText: String? = null
-    private var lyricsWidgetEntries: List<LyricsEntry>? = null
-    private var lyricsWidgetFetchJob: Job? = null
-    private var lyricsWidgetUpdateJob: Job? = null
 
     private val widgetRenderRequests = Channel<WidgetUiState>(Channel.CONFLATED)
 
@@ -4754,13 +4629,7 @@ class MusicService :
                     delay(WIDGET_REFRESH_MS)
                 }
             }
-        lyricsWidgetUpdateJob?.cancel()
-        lyricsWidgetUpdateJob = scope.launch {
-            while (isActive) {
-                if (player.isPlaying) updateLyricsWidget(true)
-                delay(LYRICS_WIDGET_REFRESH_MS)
-            }
-        }
+        startLyricsWidgetUpdates()
     }
 
     private fun stopWidgetUpdates() {
@@ -4779,21 +4648,22 @@ class MusicService :
     private val WIDGET_REFRESH_MS = 1_000L
     private val LYRICS_WIDGET_REFRESH_MS = 250L
 
-
     // ---------------------------------------------------------- lyrics widget
 
+    private var lyricsWidgetTrackId: String? = null
+    private var lyricsWidgetRawText: String? = null
+    private var lyricsWidgetEntries: List<LyricsEntry>? = null
+    private var lyricsWidgetFetchJob: Job? = null
+
     private fun startLyricsWidgetUpdates() {
-        if (!playerInitialized.value || !LyricsWidgetState.installed(this)) return
-        if (lyricsWidgetUpdateJob?.isActive == true) {
-            updateLyricsWidget()
-            return
-        }
+        if (!playerInitialized.value || !player.isPlaying || !LyricsWidgetState.installed(this)) return
+        if (lyricsWidgetUpdateJob?.isActive == true) return
 
         lyricsWidgetUpdateJob = scope.launch {
-            while (isActive && playerInitialized.value) {
+            while (isActive && playerInitialized.value && player.isPlaying) {
                 if (!LyricsWidgetState.installed(this@MusicService)) break
                 updateLyricsWidget()
-                delay(250L)
+                delay(LYRICS_WIDGET_REFRESH_MS)
             }
             lyricsWidgetUpdateJob = null
         }
@@ -4802,7 +4672,7 @@ class MusicService :
     private fun updateLyricsWidget() {
         if (!playerInitialized.value || !LyricsWidgetState.installed(this)) return
 
-        val metadata = currentMediaMetadata.value
+        val metadata = currentMediaMetadata.value ?: player.currentMetadata
         if (metadata == null) {
             lyricsWidgetFetchJob?.cancel()
             lyricsWidgetTrackId = null
@@ -4832,8 +4702,8 @@ class MusicService :
             lyricsWidgetFetchJob?.cancel()
             lyricsWidgetFetchJob = scope.launch {
                 try {
-                    // Reuse Metrofy's Room cache first. Only query providers when this
-                    // track has never had a lyrics record, exactly like the player flow.
+                    // Reuse Metrofy's lyrics cache first. Fetch only when this track has
+                    // no Room record, and persist the result through the existing DAO.
                     val stored = database.lyrics(metadata.id).first()
                     val text = if (stored != null) {
                         stored.lyrics
@@ -4858,8 +4728,11 @@ class MusicService :
                     ) {
                         emptyList()
                     } else {
-                        LyricsUtils.parseLyrics(text)
+                        withContext(Dispatchers.Default) {
+                            runCatching { LyricsUtils.parseLyrics(text) }.getOrDefault(emptyList())
+                        }
                     }
+                    updateLyricsWidget()
                 } catch (cancelled: kotlinx.coroutines.CancellationException) {
                     throw cancelled
                 } catch (error: Exception) {
@@ -4867,17 +4740,18 @@ class MusicService :
                     if (lyricsWidgetTrackId == metadata.id) {
                         lyricsWidgetRawText = ""
                         lyricsWidgetEntries = emptyList()
+                        updateLyricsWidget()
                     }
                 }
             }
         }
 
         val rawText = lyricsWidgetRawText
-        val entries = lyricsWidgetEntries
+        val parsed = lyricsWidgetEntries
         val artist = metadata.artists.joinToString(", ") { it.name }
-        val position = player.currentPosition.coerceAtLeast(0L) + 250L
+        val position = player.currentPosition.coerceAtLeast(0L) + if (player.isPlaying) 250L else 0L
 
-        if (entries == null) {
+        if (parsed == null) {
             LyricsWidgetState.update(
                 context = this,
                 songId = metadata.id,
@@ -4895,7 +4769,7 @@ class MusicService :
             return
         }
 
-        if (rawText.isNullOrBlank() || rawText == LyricsEntity.LYRICS_NOT_FOUND || entries.isEmpty()) {
+        if (rawText.isNullOrBlank() || rawText == LyricsEntity.LYRICS_NOT_FOUND) {
             LyricsWidgetState.update(
                 context = this,
                 songId = metadata.id,
@@ -4913,14 +4787,17 @@ class MusicService :
             return
         }
 
+        // Background-vocal entries are retained by Metrofy's parser, but the compact
+        // widget focuses on the primary lyric line, just as Pear's three-line widget does.
+        val synced = parsed.filter { !it.isBackground && it.text.isNotBlank() }.sortedBy { it.time }
         val hasTimestamps = Regex("""\[\d{1,2}:\d{2}""").containsMatchIn(rawText)
-        val hasSync = hasTimestamps && entries.size > 0
-        if (!hasSync) {
-            val plainLines = entries.map { it.text.trim() }.filter { it.isNotBlank() }
-                .ifEmpty {
-                    rawText.lines().map { it.replace(Regex("""^\[[^\]]+]"""), "").trim() }
-                        .filter { it.isNotBlank() }
+        if (!hasTimestamps || synced.isEmpty()) {
+            val plainLines = rawText.lineSequence()
+                .map { line ->
+                    line.replace(Regex("""^\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]"""), "").trim()
                 }
+                .filter { it.isNotBlank() && !it.startsWith("[") && !it.startsWith("{") }
+                .toList()
             LyricsWidgetState.update(
                 context = this,
                 songId = metadata.id,
@@ -4938,7 +4815,7 @@ class MusicService :
             return
         }
 
-        val index = entries.indexOfLast { it.time <= position }
+        val index = synced.indexOfLast { it.time <= position }
         if (index < 0) {
             LyricsWidgetState.update(
                 context = this,
@@ -4949,7 +4826,7 @@ class MusicService :
                 lineKey = metadata.id to -1,
                 previous = "",
                 current = "♪",
-                next = entries.firstOrNull()?.text.orEmpty(),
+                next = synced.firstOrNull()?.text.orEmpty(),
                 progress = 0f,
                 sungWordsOverride = 0,
                 playing = player.isPlaying,
@@ -4957,14 +4834,16 @@ class MusicService :
             return
         }
 
-        val entry = entries[index]
+        val entry = synced[index]
         val start = entry.time
-        val end = entries.getOrNull(index + 1)?.time ?: (start + 5_000L)
-        val lineDuration = (end - start).coerceAtMost(8_000L).coerceAtLeast(500L)
+        val end = synced.getOrNull(index + 1)?.time ?: (start + 5_000L)
+        val lineDuration = (end - start).coerceIn(500L, 8_000L)
         val progress = ((position - start).toFloat() / (lineDuration * 0.85f)).coerceIn(0f, 1f)
+        val wordCount = Regex("""\S+""").findAll(entry.text).count()
         val sungWords = entry.words
             ?.takeIf { it.isNotEmpty() }
             ?.count { position >= (it.startTime * 1_000.0).toLong() }
+            ?.coerceIn(0, wordCount)
 
         LyricsWidgetState.update(
             context = this,
@@ -4973,9 +4852,9 @@ class MusicService :
             artist = artist,
             artUrl = metadata.thumbnailUrl,
             lineKey = metadata.id to index,
-            previous = entries.getOrNull(index - 1)?.text.orEmpty(),
+            previous = synced.getOrNull(index - 1)?.text.orEmpty(),
             current = entry.text.ifBlank { "♪" },
-            next = entries.getOrNull(index + 1)?.text.orEmpty(),
+            next = synced.getOrNull(index + 1)?.text.orEmpty(),
             progress = if (sungWords == null) progress else null,
             sungWordsOverride = sungWords,
             playing = player.isPlaying,
@@ -5228,7 +5107,7 @@ class MusicService :
         return current.albumTitle != null && current.albumTitle == next.albumTitle
     }
 
-    private suspend fun startCrossfade() {
+    private fun startCrossfade() {
         if (isCrossfading) return
 
         // Preserve the live player state. DataStore can lag behind an in-flight UI change.
@@ -5315,13 +5194,9 @@ class MusicService :
         sleepTimer.player = player
 
         try {
-            // The media session must keep the lyrics-aware ForwardingPlayer after crossfade.
-            val sessionPlayer = LyricsMetadataPlayer(player)
-            lyricsSessionPlayer = sessionPlayer
-            LockScreenLyrics.attach(sessionPlayer)
-            (mediaSession as MediaSession).player = sessionPlayer
+            (mediaSession as MediaSession).player = player
         } catch (e: Exception) {
-            timber.log.Timber.e(e, "Failed to swap lyrics-aware player in MediaSession")
+            timber.log.Timber.e(e, "Failed to swap player in MediaSession")
         }
 
         crossfadeJob =
