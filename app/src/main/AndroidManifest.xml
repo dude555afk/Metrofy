@@ -332,12 +332,13 @@
 
         <!-- Adapted live lyrics widget from Pear Music (GPL-3.0). -->
         <receiver
-            android:name=".widget.LyricsWidgetProvider"
+            android:name=".widget.LyricsWidget"
             android:exported="true"
             android:label="@string/lyrics_widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.metrolist.music.widget.LYRICS_PLAY" />
+                <action android:name="com.metrolist.music.widget.LYRICS_PLAY_PAUSE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
