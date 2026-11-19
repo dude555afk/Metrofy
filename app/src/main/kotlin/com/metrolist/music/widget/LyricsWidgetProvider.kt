@@ -13,7 +13,7 @@ import android.os.Bundle
 import com.metrolist.music.MainActivity
 import com.metrolist.music.playback.MusicService
 
-class LyricsWidgetProvider : AppWidgetProvider() {
+class LyricsWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         LyricsWidgetState.installedCache = true
         LyricsWidgetState.push(context)
@@ -32,7 +32,7 @@ class LyricsWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_PLAY) {
+        if (intent.action == ACTION_PLAY || intent.action == ACTION_PLAY_PAUSE) {
             runCatching {
                 context.startService(
                     Intent(context, MusicService::class.java)
@@ -59,5 +59,6 @@ class LyricsWidgetProvider : AppWidgetProvider() {
 
     companion object {
         const val ACTION_PLAY = "com.metrolist.music.widget.LYRICS_PLAY"
+        const val ACTION_PLAY_PAUSE = "com.metrolist.music.widget.LYRICS_PLAY_PAUSE"
     }
 }
