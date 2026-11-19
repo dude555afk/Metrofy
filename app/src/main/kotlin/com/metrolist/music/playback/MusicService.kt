@@ -2486,6 +2486,9 @@ class MusicService :
 
         // Widget and Discord RPC updates
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
+            // Refresh the lyrics widget immediately on pause/resume so its play/pause
+            // icon does not remain stale after the 250 ms position ticker is stopped.
+            if (LyricsWidgetState.installed(this)) updateLyricsWidget()
             updateWidgetUI(player.isPlaying)
             if (player.isPlaying) {
                 startWidgetUpdates()
