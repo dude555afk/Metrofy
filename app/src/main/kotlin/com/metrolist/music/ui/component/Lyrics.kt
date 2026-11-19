@@ -6,11 +6,8 @@
 package com.metrolist.music.ui.component
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.metrolist.music.constants.ExperimentalLyricsKey
-import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.LyricsViewModel
 
 @Composable
@@ -20,20 +17,14 @@ fun Lyrics(
     showLyrics: Boolean,
     lyricsViewModel: LyricsViewModel = hiltViewModel()
 ) {
-    val (experimentalLyrics, _) = rememberPreference(key = ExperimentalLyricsKey, defaultValue = false)
-
-    if (experimentalLyrics) {
-        ExperimentalLyrics(
-            sliderPositionProvider = sliderPositionProvider,
-            modifier = modifier,
-            showLyrics = showLyrics,
-            lyricsViewModel = lyricsViewModel
-        )
-    } else {
-        OriginalLyrics(
-            sliderPositionProvider = sliderPositionProvider,
-            modifier = modifier,
-            showLyrics = showLyrics
-        )
-    }
+    // Always use the word-timing-aware renderer. Older installs may have a saved
+    // ExperimentalLyricsKey=false value, so changing a default is not sufficient.
+    // ExperimentalLyrics still falls back to ordinary line highlighting when the
+    // selected provider supplies only line timestamps.
+    ExperimentalLyrics(
+        sliderPositionProvider = sliderPositionProvider,
+        modifier = modifier,
+        showLyrics = showLyrics,
+        lyricsViewModel = lyricsViewModel
+    )
 }

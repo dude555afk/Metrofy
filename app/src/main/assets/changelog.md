@@ -1,3 +1,11 @@
+---v0.8.10.5
+# Pear-inspired lyrics and Smart Shuffle
+
+- Added an animated home-screen lyrics widget with live lyric progress, album-art backdrop, and playback controls.
+- Added optional lock-screen lyrics metadata under **Settings → Player → Lock Screen Lyrics** (off by default).
+- Reworked Smart Shuffle to space artists and gently weight liked and frequently played tracks, while keeping the current track first and preserving playlist-first grouping.
+- Removed fabricated word timings; word-by-word highlighting now relies on real timestamps supplied by the selected lyrics source. Line-only lyrics remain line-synced.
+
 ---v0.8.10.3
 # Spotify Home Play Random fix
 
