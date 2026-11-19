@@ -67,7 +67,7 @@ object LyricsWidgetState {
         if (cached != null && now - checkedAt < 30_000) return cached
         checkedAt = now
         val ids = AppWidgetManager.getInstance(context)
-            .getAppWidgetIds(ComponentName(context, LyricsWidgetProvider::class.java))
+            .getAppWidgetIds(ComponentName(context, LyricsWidget::class.java))
         return ids.isNotEmpty().also { installedCache = it }
     }
 
@@ -193,7 +193,7 @@ object LyricsWidgetState {
 
     private fun partial(context: Context, build: (RemoteViews) -> Unit) {
         val manager = AppWidgetManager.getInstance(context)
-        val ids = manager.getAppWidgetIds(ComponentName(context, LyricsWidgetProvider::class.java))
+        val ids = manager.getAppWidgetIds(ComponentName(context, LyricsWidget::class.java))
         if (ids.isEmpty()) return
         val views = RemoteViews(context.packageName, R.layout.widget_lyrics)
         build(views)
@@ -202,7 +202,7 @@ object LyricsWidgetState {
 
     fun push(context: Context) {
         val manager = AppWidgetManager.getInstance(context)
-        val ids = manager.getAppWidgetIds(ComponentName(context, LyricsWidgetProvider::class.java))
+        val ids = manager.getAppWidgetIds(ComponentName(context, LyricsWidget::class.java))
         if (ids.isEmpty()) return
         val views = RemoteViews(context.packageName, R.layout.widget_lyrics).apply {
             setTextViewText(R.id.lw_title, title ?: "Not Playing")
@@ -219,8 +219,8 @@ object LyricsWidgetState {
                 PendingIntent.getBroadcast(
                     context,
                     21,
-                    Intent(context, LyricsWidgetProvider::class.java)
-                        .setAction(LyricsWidgetProvider.ACTION_PLAY),
+                    Intent(context, LyricsWidget::class.java)
+                        .setAction(LyricsWidget.ACTION_PLAY),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                 ),
             )
