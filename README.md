@@ -28,7 +28,7 @@ I wanted an app that feels like Spotify but plays like YouTube Music. Most third
 What it does well:
 
 - **Spotify Canvas** — animated album art while a song plays
-- **Synced lyrics** — word-by-word lyrics pulled from Spotify
+- **Synced lyrics** — word-level highlighting when the selected lyrics source provides word timestamps
 - **Spotify-powered home & search** — your top tracks, playlists, and recommendations
 - **YouTube Music playback** — full YT Music catalog, including rare and live tracks
 - **Simple Spotify login** — no extra dashboards or developer setup
@@ -41,18 +41,20 @@ What it does well:
 
 ### 🎵 Spotify stuff
 - Spotify search and home feed
-- Smart queues from your listening history
+- Artist-aware Smart Shuffle, gently weighted by likes and listening history
 - Playlists, liked songs, albums, artists
 - Manual YouTube match override when the auto-match is wrong
 - Spotify album pages with full tracklists
 
 ### 🎨 Canvas & Lyrics
 - Spotify Canvas animations in the player
-- Real-time synced lyrics from Spotify
-- Word highlighting while a track plays
-- Works for Spotify-matched tracks
+- Synced lyrics with word-by-word highlighting when source timestamps are available
+- Line-only lyrics remain line-synced; Metrofy does not invent word timings
+- Animated home-screen lyrics widget with live lyric progress and playback controls
+- Optional lock-screen lyrics metadata (off by default)
 
 ### 🎧 Playback
+- Optional lock-screen lyrics in Settings → Player → Lock Screen Lyrics
 - Background playback
 - Search, queue, library, playlists
 - Floating Play Random button, including Spotify Home-only feeds
@@ -132,7 +134,7 @@ If Qobuz can't play a track, it quietly falls back to YouTube Music.
 ### Prerequisites
 - Android Studio Giraffe or newer
 - JDK 21
-- Android SDK with compileSdk 36
+- Android SDK with compileSdk 37
 
 ### Secrets
 Add to `local.properties`:
@@ -157,13 +159,12 @@ app/build/outputs/apk/foss/debug/app-foss-debug.apk
 
 See [`changelog.md`](changelog.md) for full release notes.
 
-Recent updates (v0.8.10.3):
-- Fixed the Play Random button disappearing in Spotify Home-only mode; random playback now supports Spotify tracks, artists, albums, and playlists.
-- **Listen Together** host-to-guest track synchronization repair
-- Guest recovery when playback state or track IDs drift out of sync
-- Reconnection and playback event-ordering improvements
-- **Spotify Canvas** and **Spotify Lyrics** support
-- **DownloadUtil** crash fixes for malformed streams
+Recent updates (v0.8.10.5):
+- Pear-inspired animated home-screen lyrics widget with lyric progress and playback controls
+- Optional lock-screen lyrics metadata toggle
+- Artist-aware Smart Shuffle with likes/listening-time weighting
+- Lyrics use real provider timestamps; line-only sources remain line-synced
+- Includes the v0.8.10.4 Spotify playback-mapping and earlier reliability fixes
 
 ---
 
@@ -191,7 +192,7 @@ Auto-matching uses title, artist, and duration. It's good, but not perfect — e
 
 **Does Metrofy support Spotify Canvas and lyrics?**
 
-Yes. For Spotify-matched tracks, you'll get Canvas animations and synced lyrics with word highlighting.
+Yes. For Spotify-matched tracks, you'll get Canvas animations and synced lyrics. Word-by-word highlighting depends on the selected lyrics source providing word timestamps; line-only sources remain line-synced.
 
 **Is Listen Together stable?**
 
