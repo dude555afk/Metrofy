@@ -53,7 +53,6 @@ import com.metrolist.music.constants.DisableLoadMoreWhenRepeatAllKey
 import com.metrolist.music.constants.EnableGoogleCastKey
 import com.metrolist.music.constants.HistoryDuration
 import com.metrolist.music.constants.KeepScreenOn
-import com.metrolist.music.constants.LockScreenLyricsKey
 import com.metrolist.music.constants.PauseOnMute
 import com.metrolist.music.constants.PersistentQueueKey
 import com.metrolist.music.constants.PersistentShuffleAcrossQueuesKey
@@ -180,10 +179,6 @@ fun PlayerSettings(
     )
     val (shufflePlaylistFirst, onShufflePlaylistFirstChange) = rememberPreference(
         ShufflePlaylistFirstKey,
-        defaultValue = false
-    )
-    val (lockScreenLyrics, onLockScreenLyricsChange) = rememberPreference(
-        LockScreenLyricsKey,
         defaultValue = false
     )
     val (preventDuplicateTracksInQueue, onPreventDuplicateTracksInQueueChange) = rememberPreference(
@@ -904,27 +899,6 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onShufflePlaylistFirstChange(!shufflePlaylistFirst) }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.queue_music),
-                    title = { Text(stringResource(R.string.lock_screen_lyrics)) },
-                    description = { Text(stringResource(R.string.lock_screen_lyrics_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = lockScreenLyrics,
-                            onCheckedChange = onLockScreenLyricsChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (lockScreenLyrics) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onLockScreenLyricsChange(!lockScreenLyrics) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.queue_music),

@@ -20,8 +20,7 @@ fun Lyrics(
     showLyrics: Boolean,
     lyricsViewModel: LyricsViewModel = hiltViewModel()
 ) {
-    // Word-level highlighting is now the default; the preference still permits opting out.
-    val (experimentalLyrics, _) = rememberPreference(key = ExperimentalLyricsKey, defaultValue = true)
+    val (experimentalLyrics, _) = rememberPreference(key = ExperimentalLyricsKey, defaultValue = false)
 
     if (experimentalLyrics) {
         ExperimentalLyrics(

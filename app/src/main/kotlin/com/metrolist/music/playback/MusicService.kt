@@ -191,6 +191,8 @@ import com.metrolist.music.extensions.toPersistQueue
 import com.metrolist.music.extensions.toQueue
 import com.metrolist.music.extensions.toRuntimeQueue
 import com.metrolist.music.lyrics.LyricsHelper
+import com.metrolist.music.lyrics.LyricsEntry
+import com.metrolist.music.lyrics.LyricsUtils
 import com.metrolist.music.models.PersistPlayerState
 import com.metrolist.music.models.PersistQueue
 import com.metrolist.music.models.toMediaMetadata
@@ -216,6 +218,8 @@ import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.utils.reportException
+import com.metrolist.music.widget.LyricsWidget
+import com.metrolist.music.widget.LyricsWidgetState
 import com.metrolist.music.widget.MetrolistWidgetManager
 import com.metrolist.music.widget.LyricsWidgetManager
 import com.metrolist.music.widget.MusicWidgetReceiver
@@ -863,6 +867,7 @@ class MusicService :
         currentSong.debounce(1000).collect(scope) { song ->
             updateNotification()
             updateWidgetUI(player.isPlaying)
+            if (LyricsWidgetState.installed(this@MusicService)) startLyricsWidgetUpdates()
         }
 
         // Update lock-screen metadata immediately when its setting changes, including
@@ -4499,6 +4504,21 @@ class MusicService :
         startId: Int,
     ): Int {
         when (intent?.action) {
+            LyricsWidget.ACTION_PLAY_PAUSE -> {
+                if (playerInitialized.value) {
+                    if (player.isPlaying) player.pause() else player.play()
+                    updateWidgetUI(player.isPlaying)
+                    updateLyricsWidget()
+                }
+            }
+
+            LyricsWidget.ACTION_UPDATE -> {
+                if (playerInitialized.value) {
+                    updateLyricsWidget()
+                    startLyricsWidgetUpdates()
+                }
+            }
+
             ACTION_ALARM_TRIGGER -> {
                 handleAlarmTrigger(intent)
             }
@@ -4691,6 +4711,13 @@ class MusicService :
         )
     }
 
+    // The lyrics widget shares this service's playback clock and cached lyric pipeline.
+    private var lyricsWidgetTrackId: String? = null
+    private var lyricsWidgetRawText: String? = null
+    private var lyricsWidgetEntries: List<LyricsEntry>? = null
+    private var lyricsWidgetFetchJob: Job? = null
+    private var lyricsWidgetUpdateJob: Job? = null
+
     private val widgetRenderRequests = Channel<WidgetUiState>(Channel.CONFLATED)
 
     private fun startWidgetRenderer() {
@@ -4751,6 +4778,209 @@ class MusicService :
      */
     private val WIDGET_REFRESH_MS = 1_000L
     private val LYRICS_WIDGET_REFRESH_MS = 250L
+
+
+    // ---------------------------------------------------------- lyrics widget
+
+    private fun startLyricsWidgetUpdates() {
+        if (!playerInitialized.value || !LyricsWidgetState.installed(this)) return
+        if (lyricsWidgetUpdateJob?.isActive == true) {
+            updateLyricsWidget()
+            return
+        }
+
+        lyricsWidgetUpdateJob = scope.launch {
+            while (isActive && playerInitialized.value) {
+                if (!LyricsWidgetState.installed(this@MusicService)) break
+                updateLyricsWidget()
+                delay(250L)
+            }
+            lyricsWidgetUpdateJob = null
+        }
+    }
+
+    private fun updateLyricsWidget() {
+        if (!playerInitialized.value || !LyricsWidgetState.installed(this)) return
+
+        val metadata = currentMediaMetadata.value
+        if (metadata == null) {
+            lyricsWidgetFetchJob?.cancel()
+            lyricsWidgetTrackId = null
+            lyricsWidgetRawText = null
+            lyricsWidgetEntries = null
+            LyricsWidgetState.update(
+                context = this,
+                songId = null,
+                title = null,
+                artist = null,
+                artUrl = null,
+                lineKey = null,
+                previous = "",
+                current = "Play a song to see its lyrics here",
+                next = "",
+                progress = null,
+                sungWordsOverride = null,
+                playing = false,
+            )
+            return
+        }
+
+        if (lyricsWidgetTrackId != metadata.id) {
+            lyricsWidgetTrackId = metadata.id
+            lyricsWidgetRawText = null
+            lyricsWidgetEntries = null
+            lyricsWidgetFetchJob?.cancel()
+            lyricsWidgetFetchJob = scope.launch {
+                try {
+                    // Reuse Metrofy's Room cache first. Only query providers when this
+                    // track has never had a lyrics record, exactly like the player flow.
+                    val stored = database.lyrics(metadata.id).first()
+                    val text = if (stored != null) {
+                        stored.lyrics
+                    } else {
+                        val fetched = lyricsHelper.getLyrics(metadata)
+                        database.query {
+                            upsert(
+                                LyricsEntity(
+                                    id = metadata.id,
+                                    lyrics = fetched.lyrics,
+                                    provider = fetched.provider,
+                                ),
+                            )
+                        }
+                        fetched.lyrics
+                    }
+
+                    if (lyricsWidgetTrackId != metadata.id) return@launch
+                    lyricsWidgetRawText = text
+                    lyricsWidgetEntries = if (
+                        text.isBlank() || text == LyricsEntity.LYRICS_NOT_FOUND
+                    ) {
+                        emptyList()
+                    } else {
+                        LyricsUtils.parseLyrics(text)
+                    }
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Timber.tag("LyricsWidget").w(error, "Could not load lyrics for widget")
+                    if (lyricsWidgetTrackId == metadata.id) {
+                        lyricsWidgetRawText = ""
+                        lyricsWidgetEntries = emptyList()
+                    }
+                }
+            }
+        }
+
+        val rawText = lyricsWidgetRawText
+        val entries = lyricsWidgetEntries
+        val artist = metadata.artists.joinToString(", ") { it.name }
+        val position = player.currentPosition.coerceAtLeast(0L) + 250L
+
+        if (entries == null) {
+            LyricsWidgetState.update(
+                context = this,
+                songId = metadata.id,
+                title = metadata.title,
+                artist = artist,
+                artUrl = metadata.thumbnailUrl,
+                lineKey = metadata.id to "loading",
+                previous = "",
+                current = "…",
+                next = "",
+                progress = null,
+                sungWordsOverride = null,
+                playing = player.isPlaying,
+            )
+            return
+        }
+
+        if (rawText.isNullOrBlank() || rawText == LyricsEntity.LYRICS_NOT_FOUND || entries.isEmpty()) {
+            LyricsWidgetState.update(
+                context = this,
+                songId = metadata.id,
+                title = metadata.title,
+                artist = artist,
+                artUrl = metadata.thumbnailUrl,
+                lineKey = metadata.id to "no-lyrics",
+                previous = "",
+                current = "No lyrics for this song",
+                next = "",
+                progress = null,
+                sungWordsOverride = null,
+                playing = player.isPlaying,
+            )
+            return
+        }
+
+        val hasTimestamps = Regex("""\[\d{1,2}:\d{2}""").containsMatchIn(rawText)
+        val hasSync = hasTimestamps && entries.size > 0
+        if (!hasSync) {
+            val plainLines = entries.map { it.text.trim() }.filter { it.isNotBlank() }
+                .ifEmpty {
+                    rawText.lines().map { it.replace(Regex("""^\[[^\]]+]"""), "").trim() }
+                        .filter { it.isNotBlank() }
+                }
+            LyricsWidgetState.update(
+                context = this,
+                songId = metadata.id,
+                title = metadata.title,
+                artist = artist,
+                artUrl = metadata.thumbnailUrl,
+                lineKey = metadata.id to "plain",
+                previous = "",
+                current = plainLines.firstOrNull() ?: "No lyrics for this song",
+                next = plainLines.getOrNull(1).orEmpty(),
+                progress = null,
+                sungWordsOverride = null,
+                playing = player.isPlaying,
+            )
+            return
+        }
+
+        val index = entries.indexOfLast { it.time <= position }
+        if (index < 0) {
+            LyricsWidgetState.update(
+                context = this,
+                songId = metadata.id,
+                title = metadata.title,
+                artist = artist,
+                artUrl = metadata.thumbnailUrl,
+                lineKey = metadata.id to -1,
+                previous = "",
+                current = "♪",
+                next = entries.firstOrNull()?.text.orEmpty(),
+                progress = 0f,
+                sungWordsOverride = 0,
+                playing = player.isPlaying,
+            )
+            return
+        }
+
+        val entry = entries[index]
+        val start = entry.time
+        val end = entries.getOrNull(index + 1)?.time ?: (start + 5_000L)
+        val lineDuration = (end - start).coerceAtMost(8_000L).coerceAtLeast(500L)
+        val progress = ((position - start).toFloat() / (lineDuration * 0.85f)).coerceIn(0f, 1f)
+        val sungWords = entry.words
+            ?.takeIf { it.isNotEmpty() }
+            ?.count { position >= (it.startTime * 1_000.0).toLong() }
+
+        LyricsWidgetState.update(
+            context = this,
+            songId = metadata.id,
+            title = metadata.title,
+            artist = artist,
+            artUrl = metadata.thumbnailUrl,
+            lineKey = metadata.id to index,
+            previous = entries.getOrNull(index - 1)?.text.orEmpty(),
+            current = entry.text.ifBlank { "♪" },
+            next = entries.getOrNull(index + 1)?.text.orEmpty(),
+            progress = if (sungWords == null) progress else null,
+            sungWordsOverride = sungWords,
+            playing = player.isPlaying,
+        )
+    }
 
     private fun shareSong() {
         val songData = currentSong.value

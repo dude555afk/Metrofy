@@ -6,7 +6,6 @@
     android:background="@drawable/widget_bg"
     android:clipToOutline="true">
 
-    <!-- The cover, blurred, behind everything. -->
     <ImageView
         android:id="@+id/lw_backdrop"
         android:layout_width="match_parent"
@@ -75,8 +74,6 @@
                 android:src="@drawable/ic_w_play" />
         </LinearLayout>
 
-        <!-- Two pages of lines: the next line is written into the hidden one, then it
-             slides in (the same way the app's lyrics move on). -->
         <ViewFlipper
             android:id="@+id/lw_flipper"
             android:layout_width="match_parent"

@@ -251,9 +251,24 @@ internal fun LyricsLine(
                     )
                 )
 
-                // Word karaoke is only truthful when the provider supplied real word times.
-                // Line-synced LRC/plain lyrics continue to use the normal line highlight.
-                val effectiveWords = item.words?.takeIf { it.isNotEmpty() }
+                val effectiveWords = if (item.words?.isNotEmpty() == true) {
+                    item.words
+                } else if (mainText != null) {
+                    remember(mainText, item.time) {
+                        val words = mainText.split(Regex("\\s+")).filter { it.isNotBlank() }
+                        val wordDurationSec = 0.18
+                        val wordStaggerSec = 0.03
+                        val startTimeSec = item.time / 1000.0
+                        words.mapIndexed { idx, wordText ->
+                            WordTimestamp(
+                                text = wordText,
+                                startTime = startTimeSec + (idx * wordStaggerSec),
+                                endTime = startTimeSec + (idx * wordStaggerSec) + wordDurationSec,
+                                hasTrailingSpace = idx < words.size - 1
+                            )
+                        }
+                    }
+                } else null
 
                 if (isSynced && effectiveWords != null && (isActiveLine || abs(index - displayedCurrentLineIndex) <= 3) && mainText != null) {
                     WordLevelLyrics(
