@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -49,8 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -144,7 +141,7 @@ private fun Material3SettingsItemRow(
     )
 
     Row(
-        modifier = item.modifier
+        modifier = Modifier
             .fillMaxWidth()
             .bringIntoViewRequester(bringIntoViewRequester)
             .padding(horizontal = 16.dp)
@@ -155,24 +152,11 @@ private fun Material3SettingsItemRow(
                 color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
                 shape = groupShape,
             )
-            .then(
-                if (item.checked != null) {
-                    Modifier.toggleable(
-                        value = item.checked,
-                        enabled = item.enabled && item.onClick != null,
-                        role = Role.Switch,
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onValueChange = { item.onClick?.invoke() },
-                    )
-                } else {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        enabled = item.enabled && item.onClick != null,
-                        onClick = { item.onClick?.invoke() },
-                    )
-                },
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = item.enabled && item.onClick != null,
+                onClick = { item.onClick?.invoke() },
             )
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -190,7 +174,7 @@ private fun Material3SettingsItemRow(
                         Icon(
                             painter = item.icon,
                             contentDescription = null,
-                            tint = item.iconTint ?: if (item.enabled) {
+                            tint = if (item.enabled) {
                                 if (item.isHighlighted) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
                             } else {
@@ -203,7 +187,7 @@ private fun Material3SettingsItemRow(
                     Icon(
                         painter = item.icon,
                         contentDescription = null,
-                        tint = item.iconTint ?: if (item.enabled) {
+                        tint = if (item.enabled) {
                             if (item.isHighlighted) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         } else {
