@@ -3,11 +3,19 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+/**
+ * This file uses the same carousel and interaction APIs as Metrofy's Home shelves.
+ */
+@file:OptIn(
+    androidx.compose.foundation.ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
+)
+
 package com.metrolist.music.ui.component
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -20,12 +28,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,7 +39,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -57,7 +62,6 @@ import com.metrolist.spotify.models.SpotifyAlbum
 import com.metrolist.spotify.models.SpotifyArtist
 import com.metrolist.spotify.models.SpotifyPlaylist
 import com.metrolist.spotify.models.SpotifyTrack
-import androidx.compose.foundation.shape.RoundedCornerShape
 
 /**
  * Resolves the display title for a Spotify home section.
@@ -127,62 +131,61 @@ fun SpotifyTrackSectionRow(
 }
 
 /**
- * Renders a section of artists as a horizontal scrollable row with circular images.
+ * Renders Spotify artists using Metrolist's multi-browse artwork carousel.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SpotifyArtistSectionRow(
     artists: List<SpotifyArtist>,
     onArtistClick: (SpotifyArtist) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 12.dp),
-        modifier = modifier,
-    ) {
-        items(
-            items = artists,
-            key = { "spotify_artist_${it.id}" }
-        ) { artist ->
-            val thumbnail = remember(artist.id) {
-                artist.images.firstOrNull { it.width in 200..400 }?.url
-                    ?: artist.images.firstOrNull()?.url
-            }
+    val state = androidx.compose.material3.carousel.rememberCarouselState { artists.size }
+    val flingBehavior = androidx.compose.material3.carousel.CarouselDefaults.multiBrowseFlingBehavior(state)
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+    androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel(
+        state = state,
+        flingBehavior = flingBehavior,
+        preferredItemWidth = GridThumbnailHeight + 24.dp,
+        itemSpacing = 12.dp,
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) { index ->
+        val artist = artists[index]
+        val thumbnail = remember(artist.id) {
+            artist.images.firstOrNull { it.width in 200..400 }?.url
+                ?: artist.images.firstOrNull()?.url
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = { onArtistClick(artist) }),
+        ) {
+            AsyncImage(
+                model = thumbnail,
+                contentDescription = artist.name,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .width(GridThumbnailHeight + 24.dp)
-                    .padding(horizontal = 6.dp)
-                    .combinedClickable(
-                        onClick = { onArtistClick(artist) },
-                    ),
-            ) {
-                AsyncImage(
-                    model = thumbnail,
-                    contentDescription = artist.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(GridThumbnailHeight)
-                        .clip(CircleShape),
-                )
-                Text(
-                    text = artist.name,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
+                    .size(GridThumbnailHeight)
+                    .clip(CircleShape),
+            )
+            Text(
+                text = artist.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
     }
 }
 
 /**
- * Renders a section of albums as a horizontal row with cover art.
+ * Renders Spotify albums in the same multi-browse card treatment as Metrolist shelves.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SpotifyAlbumSectionRow(
     albums: List<SpotifyAlbum>,
@@ -190,36 +193,35 @@ fun SpotifyAlbumSectionRow(
     onAlbumPlay: ((SpotifyAlbum) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 12.dp),
-        modifier = modifier,
-    ) {
-        items(
-            items = albums,
-            key = { "spotify_album_${it.id}" }
-        ) { album ->
-            val albumItem = remember(album.id) { album.toAlbumItem() }
-            YouTubeGridItem(
-                item = albumItem,
-                isActive = false,
-                isPlaying = false,
-                onPlayClick = onAlbumPlay?.let { cb -> { cb(album) } },
-                modifier = Modifier
-                    .width(GridThumbnailHeight + 24.dp)
-                    .padding(horizontal = 6.dp)
-                    .combinedClickable(
-                        onClick = { onAlbumClick(album) },
-                    ),
-            )
-        }
+    val state = androidx.compose.material3.carousel.rememberCarouselState { albums.size }
+    val flingBehavior = androidx.compose.material3.carousel.CarouselDefaults.multiBrowseFlingBehavior(state)
+
+    androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel(
+        state = state,
+        flingBehavior = flingBehavior,
+        preferredItemWidth = GridThumbnailHeight + 24.dp,
+        itemSpacing = 12.dp,
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) { index ->
+        val album = albums[index]
+        val albumItem = remember(album.id) { album.toAlbumItem() }
+        YouTubeGridItem(
+            item = albumItem,
+            isActive = false,
+            isPlaying = false,
+            onPlayClick = onAlbumPlay?.let { callback -> { callback(album) } },
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = { onAlbumClick(album) }),
+        )
     }
 }
 
 /**
- * Renders a section of playlists as a horizontal row.
- * Optional [onPlaylistLongClick] enables "Pin to speed dial" from the long-press menu.
+ * Renders Spotify playlists in the same multi-browse card treatment as Metrolist shelves.
+ * Keeps the existing long-press action used to pin playlists to Speed Dial.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SpotifyPlaylistSectionRow(
     playlists: List<SpotifyPlaylist>,
@@ -227,27 +229,29 @@ fun SpotifyPlaylistSectionRow(
     onPlaylistLongClick: ((SpotifyPlaylist) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 12.dp),
-        modifier = modifier,
-    ) {
-        items(
-            items = playlists,
-            key = { "spotify_playlist_${it.id}" }
-        ) { playlist ->
-            val playlistItem = remember(playlist.id) { playlist.toPlaylistItem() }
-            YouTubeGridItem(
-                item = playlistItem,
-                isActive = false,
-                isPlaying = false,
-                modifier = Modifier
-                    .pointerInput(playlist.id) {
-                        detectTapGestures(
-                            onTap = { onPlaylistClick(playlist) },
-                            onLongPress = { onPlaylistLongClick?.invoke(playlist) },
-                        )
-                    },
-            )
-        }
+    val state = androidx.compose.material3.carousel.rememberCarouselState { playlists.size }
+    val flingBehavior = androidx.compose.material3.carousel.CarouselDefaults.multiBrowseFlingBehavior(state)
+
+    androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel(
+        state = state,
+        flingBehavior = flingBehavior,
+        preferredItemWidth = GridThumbnailHeight + 24.dp,
+        itemSpacing = 12.dp,
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) { index ->
+        val playlist = playlists[index]
+        val playlistItem = remember(playlist.id) { playlist.toPlaylistItem() }
+        YouTubeGridItem(
+            item = playlistItem,
+            isActive = false,
+            isPlaying = false,
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = { onPlaylistClick(playlist) },
+                    onLongClick = onPlaylistLongClick?.let { callback -> { callback(playlist) } },
+                ),
+        )
     }
 }
