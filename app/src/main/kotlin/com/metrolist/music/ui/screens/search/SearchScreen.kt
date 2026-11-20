@@ -10,10 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,10 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -67,7 +62,9 @@ import com.metrolist.music.constants.SearchSource
 import com.metrolist.music.constants.SearchSourceKey
 import com.metrolist.music.db.entities.SearchHistory
 import com.metrolist.music.playback.queues.YouTubeQueue
+import com.metrolist.music.ui.component.FloatingTopAppBar
 import com.metrolist.music.ui.component.HideOnScrollFAB
+import com.metrolist.music.ui.component.TopBarIconButton
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
@@ -181,106 +178,90 @@ fun SearchScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            FloatingTopAppBar(
                 title = {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = CircleShape,
-                        color = if (pureBlack) Color(0xFF1C1C1C) else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(start = 16.dp, end = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            BasicTextField(
-                                value = query,
-                                onValueChange = { query = it },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .focusRequester(focusRequester),
-                                textStyle = TextStyle(
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 16.sp,
-                                ),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                                singleLine = true,
-                                decorationBox = { innerTextField ->
-                                    if (query.text.isEmpty()) {
-                                        Text(
-                                            text = stringResource(
-                                                when (searchSource) {
-                                                    SearchSource.LOCAL -> R.string.search_library
-                                                    SearchSource.ONLINE -> R.string.search_yt_music
-                                                },
-                                            ),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    innerTextField()
-                                },
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                keyboardActions = KeyboardActions(onSearch = { onSearch(query.text) }),
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(
+                                painter = painterResource(R.drawable.arrow_back),
+                                contentDescription = stringResource(R.string.dismiss),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
 
-                            if (query.text.isNotEmpty()) {
-                                IconButton(onClick = { query = TextFieldValue("") }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.close),
-                                        contentDescription = stringResource(R.string.clear),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        BasicTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(focusRequester),
+                            textStyle = TextStyle(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 16.sp,
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            singleLine = true,
+                            decorationBox = { innerTextField ->
+                                if (query.text.isEmpty()) {
+                                    Text(
+                                        text = stringResource(
+                                            when (searchSource) {
+                                                SearchSource.LOCAL -> R.string.search_library
+                                                SearchSource.ONLINE -> R.string.search_yt_music
+                                            },
+                                        ),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    searchSource = if (searchSource == SearchSource.ONLINE) {
-                                        SearchSource.LOCAL
-                                    } else {
-                                        SearchSource.ONLINE
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    painter = painterResource(
-                                        when (searchSource) {
-                                            SearchSource.LOCAL -> R.drawable.library_music
-                                            SearchSource.ONLINE -> R.drawable.language
-                                        },
-                                    ),
-                                    contentDescription = stringResource(
-                                        when (searchSource) {
-                                            SearchSource.LOCAL -> R.string.search_library
-                                            SearchSource.ONLINE -> R.string.search_yt_music
-                                        },
-                                    ),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(
-                            painter = painterResource(R.drawable.arrow_back),
-                            contentDescription = stringResource(R.string.dismiss),
-                            tint = MaterialTheme.colorScheme.onSurface,
+                                innerTextField()
+                            },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = { onSearch(query.text) }),
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface,
-                ),
-            )
-        },
-        containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                    ),
+                actions = {
+                    if (query.text.isNotEmpty()) {
+                        TopBarIconButton(
+                            onClick = { query = TextFieldValue("") },
+                            floating = true,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.close),
+                                contentDescription = stringResource(R.string.clear),
+                            )
+                        }
+                    }
+                    TopBarIconButton(
+                        onClick = {
+                            searchSource = if (searchSource == SearchSource.ONLINE) {
+                                SearchSource.LOCAL
+                            } else {
+                                SearchSource.ONLINE
+                            }
+                        },
+                        floating = true,
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                when (searchSource) {
+                                    SearchSource.LOCAL -> R.drawable.library_music
+                                    SearchSource.ONLINE -> R.drawable.language
+                                },
+                            ),
+                            contentDescription = stringResource(
+                                when (searchSource) {
+                                    SearchSource.LOCAL -> R.string.search_library
+                                    SearchSource.ONLINE -> R.string.search_yt_music
+                                },
+                            ),
+                        )
+                    }
+                },
             )
         },
         containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.background,
