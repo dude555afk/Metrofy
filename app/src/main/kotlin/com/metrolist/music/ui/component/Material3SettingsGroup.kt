@@ -251,3 +251,15 @@ private fun Material3SettingsItemRow(
         }
     }
 }
+
+data class Material3SettingsItem(
+    val icon: Painter? = null,
+    val leadingContent: (@Composable () -> Unit)? = null,
+    val title: @Composable () -> Unit,
+    val description: (@Composable () -> Unit)? = null,
+    val trailingContent: (@Composable () -> Unit)? = null,
+    val showBadge: Boolean = false,
+    val isHighlighted: Boolean = false,
+    val enabled: Boolean = true,
+    val onClick: (() -> Unit)? = null
+)
