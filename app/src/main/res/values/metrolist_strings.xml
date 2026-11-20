@@ -1168,4 +1168,7 @@
     <string name="playlist_position_beginning_desc">Newly added songs appear before existing songs</string>
     <string name="playlist_position_end">End of playlist</string>
     <string name="playlist_position_end_desc">Newly added songs appear after existing songs</string>
+    <string name="settings_search_placeholder">Search settings and features</string>
+    <string name="settings_search_results">Search results (%1$d)</string>
+    <string name="settings_search_no_results">No matching settings found</string>
 </resources>
