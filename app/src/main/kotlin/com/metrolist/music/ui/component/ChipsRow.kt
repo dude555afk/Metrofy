@@ -1,8 +1,8 @@
 /**
  * Metrolist Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
+ * Adapted from Metrolist's shared ChipShelf / ExpressiveFilterChip.
+ * Metrofy's OptionStats dropdown and public selection callbacks are preserved.
  */
-
 package com.metrolist.music.ui.component
 
 import android.annotation.SuppressLint
@@ -18,28 +18,29 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -55,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
 import com.metrolist.music.ui.screens.OptionStats
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun <E> ChipsRow(
     chips: List<Pair<E, String>>,
@@ -64,27 +66,33 @@ fun <E> ChipsRow(
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
 ) {
     Row(
-        modifier =
-        modifier
+        modifier = modifier
             .fillMaxWidth()
+            .height(ButtonDefaults.ExtraSmallContainerHeight)
             .horizontalScroll(rememberScrollState())
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+            .padding(horizontal = 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Spacer(Modifier.width(12.dp))
-
         chips.forEach { (value, label) ->
-            FilterChip(
-                label = { Text(label) },
-                selected = currentValue == value,
-                colors = FilterChipDefaults.filterChipColors(
+            ToggleButton(
+                checked = currentValue == value,
+                onCheckedChange = { onValueUpdate(value) },
+                shapes = ToggleButtonDefaults.shapesFor(ButtonDefaults.ExtraSmallContainerHeight),
+                colors = ToggleButtonDefaults.colors(
                     containerColor = containerColor,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ),
-                onClick = { onValueUpdate(value) },
-                shape = RoundedCornerShape(16.dp),
-                border = null
-            )
-
-            Spacer(Modifier.width(8.dp))
+                contentPadding = ButtonDefaults.ExtraSmallContentPadding,
+                modifier = Modifier.height(ButtonDefaults.ExtraSmallContainerHeight),
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
@@ -105,15 +113,13 @@ fun <Int> ChoiceChipsRow(
     val rotationAnimation by animateFloatAsState(
         targetValue = expandIconDegree,
         animationSpec = tween(durationMillis = 400),
-        label = "",
+        label = "choiceChipDropdownRotation",
     )
 
     Row(
-        modifier =
-        modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(start = 12.dp)
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+            .padding(start = 12.dp),
     ) {
         var expanded by remember { mutableStateOf(false) }
 
@@ -125,12 +131,11 @@ fun <Int> ChoiceChipsRow(
                 },
                 label = {
                     Text(
-                        text =
-                        when (selectedOption) {
-                            OptionStats.WEEKS -> stringResource(id = R.string.weeks)
-                            OptionStats.MONTHS -> stringResource(id = R.string.months)
-                            OptionStats.YEARS -> stringResource(id = R.string.years)
-                            OptionStats.CONTINUOUS -> stringResource(id = R.string.continuous)
+                        text = when (selectedOption) {
+                            OptionStats.WEEKS -> stringResource(R.string.weeks)
+                            OptionStats.MONTHS -> stringResource(R.string.months)
+                            OptionStats.YEARS -> stringResource(R.string.years)
+                            OptionStats.CONTINUOUS -> stringResource(R.string.continuous)
                         },
                     )
                 },
@@ -145,8 +150,8 @@ fun <Int> ChoiceChipsRow(
                 border = null,
                 colors = AssistChipDefaults.assistChipColors(
                     containerColor = containerColor,
-                    labelColor = MaterialTheme.colorScheme.onSurface
-                )
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                ),
             )
 
             AnimatedVisibility(
@@ -164,7 +169,7 @@ fun <Int> ChoiceChipsRow(
                 ) {
                     options.forEach { option ->
                         DropdownMenuItem(
-                            text = { Text(text = option.second) },
+                            text = { Text(option.second) },
                             onClick = {
                                 onSelectionChange(option.first)
                                 expandIconDegree -= 180
@@ -178,28 +183,25 @@ fun <Int> ChoiceChipsRow(
 
         AnimatedContent(
             targetState = selectedOption,
-            transitionSpec = { slideInHorizontally() + fadeIn() togetherWith slideOutHorizontally() + fadeOut() },
-            label = "",
+            transitionSpec = {
+                slideInHorizontally() + fadeIn() togetherWith slideOutHorizontally() + fadeOut()
+            },
+            label = "choiceChipsContent",
         ) {
             Row(
-                modifier =
-                Modifier
+                modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+                    .horizontalScroll(rememberScrollState()),
             ) {
                 chips.forEach { (value, label) ->
                     Spacer(Modifier.width(8.dp))
-
                     FilterChip(
                         label = { Text(label) },
                         selected = currentValue == value,
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = containerColor,
-                        ),
+                        colors = FilterChipDefaults.filterChipColors(containerColor = containerColor),
                         onClick = { onValueUpdate(value) },
                         shape = RoundedCornerShape(16.dp),
-                        border = null
+                        border = null,
                     )
                 }
             }
