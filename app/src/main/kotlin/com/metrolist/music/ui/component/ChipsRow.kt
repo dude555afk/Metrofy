@@ -39,8 +39,6 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -74,25 +72,26 @@ fun <E> ChipsRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         chips.forEach { (value, label) ->
-            ToggleButton(
-                checked = currentValue == value,
-                onCheckedChange = { onValueUpdate(value) },
-                shapes = ToggleButtonDefaults.shapesFor(ButtonDefaults.ExtraSmallContainerHeight),
-                colors = ToggleButtonDefaults.colors(
+            FilterChip(
+                selected = currentValue == value,
+                onClick = { onValueUpdate(value) },
+                label = {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
                     containerColor = containerColor,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ),
-                contentPadding = ButtonDefaults.ExtraSmallContentPadding,
+                shape = RoundedCornerShape(100.dp),
+                border = null,
                 modifier = Modifier.height(ButtonDefaults.ExtraSmallContainerHeight),
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                )
-            }
+            )
         }
     }
 }

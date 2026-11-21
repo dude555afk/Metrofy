@@ -61,7 +61,6 @@ import kotlinx.coroutines.flow.collectLatest
 private val FloatingBarHeight = 64.dp
 private val FloatingItemHeight = 48.dp
 private val FloatingBarShadow = 6.dp
-private val NavSpring = spring<Float>(dampingRatio = 0.9f, stiffness = 700f)
 
 @Stable
 private fun isRouteSelected(currentRoute: String?, screenRoute: String, navigationItems: List<Screens>): Boolean {
@@ -194,12 +193,12 @@ fun AppNavigationBar(
                             val currentSelected by rememberUpdatedState(selected)
                             val indicator by animateColorAsState(
                                 if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-                                animationSpec = NavSpring,
+                                animationSpec = spring(dampingRatio = 0.9f, stiffness = 700f),
                                 label = "floatingItemIndicator",
                             )
                             val content by animateColorAsState(
                                 if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                animationSpec = NavSpring,
+                                animationSpec = spring(dampingRatio = 0.9f, stiffness = 700f),
                                 label = "floatingItemContent",
                             )
                             Row(
@@ -222,8 +221,8 @@ fun AppNavigationBar(
                                 if (!slimNav) {
                                     AnimatedVisibility(
                                         visible = selected,
-                                        enter = fadeIn() + expandHorizontally(NavSpring),
-                                        exit = fadeOut() + shrinkHorizontally(NavSpring),
+                                        enter = fadeIn() + expandHorizontally(spring(dampingRatio = 0.9f, stiffness = 700f)),
+                                        exit = fadeOut() + shrinkHorizontally(spring(dampingRatio = 0.9f, stiffness = 700f)),
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Spacer(Modifier.width(8.dp))
@@ -246,12 +245,12 @@ fun AppNavigationBar(
                 searchItem?.let { screen ->
                     val container by animateColorAsState(
                         if (selectedSearch) MaterialTheme.colorScheme.secondaryContainer else baseContainer,
-                        animationSpec = NavSpring,
+                        animationSpec = spring(dampingRatio = 0.9f, stiffness = 700f),
                         label = "floatingSearchContainer",
                     )
                     val content by animateColorAsState(
                         if (selectedSearch) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                        animationSpec = NavSpring,
+                        animationSpec = spring(dampingRatio = 0.9f, stiffness = 700f),
                         label = "floatingSearchContent",
                     )
                     Surface(
