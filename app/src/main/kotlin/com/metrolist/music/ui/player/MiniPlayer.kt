@@ -288,7 +288,7 @@ private fun NewMiniPlayer(
 
     // Memoize colors
     val backgroundColor = when (miniPlayerBackground) {
-        MiniPlayerBackgroundStyle.DEFAULT    -> MaterialTheme.colorScheme.surfaceContainer
+        MiniPlayerBackgroundStyle.DEFAULT    -> MaterialTheme.colorScheme.primaryContainer
         MiniPlayerBackgroundStyle.TRANSPARENT -> Color.Black.copy(alpha = 0.25f)
         MiniPlayerBackgroundStyle.BLUR       -> MaterialTheme.colorScheme.surfaceContainer
         MiniPlayerBackgroundStyle.GRADIENT   -> MaterialTheme.colorScheme.surfaceContainer
@@ -298,9 +298,13 @@ private fun NewMiniPlayer(
             miniPlayerBackground == MiniPlayerBackgroundStyle.BLUR ||
             miniPlayerBackground == MiniPlayerBackgroundStyle.GRADIENT)
 
-    val primaryColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.primary
-    val outlineColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.outline
-    val onSurfaceColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.onSurface
+    val isExpressiveDefault = miniPlayerBackground == MiniPlayerBackgroundStyle.DEFAULT
+    val primaryColor = if (isExpressiveDefault) MaterialTheme.colorScheme.onPrimaryContainer
+        else if (forceLightColors) Color.White else MaterialTheme.colorScheme.primary
+    val outlineColor = if (isExpressiveDefault) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.22f)
+        else if (forceLightColors) Color.White else MaterialTheme.colorScheme.outline
+    val onSurfaceColor = if (isExpressiveDefault) MaterialTheme.colorScheme.onPrimaryContainer
+        else if (forceLightColors) Color.White else MaterialTheme.colorScheme.onSurface
     val errorColor = if (forceLightColors) Color(0xFFFF6B6B) else MaterialTheme.colorScheme.error
 
     Box(
@@ -381,7 +385,11 @@ private fun NewMiniPlayer(
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                     .clip(RoundedCornerShape(32.dp))
                     .background(color = backgroundColor)
-                    .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(32.dp)),
+                    .border(
+                        1.dp,
+                        if (isExpressiveDefault) Color.Transparent else outlineColor.copy(alpha = 0.3f),
+                        RoundedCornerShape(32.dp),
+                    ),
         ) {
             when (miniPlayerBackground) {
                 MiniPlayerBackgroundStyle.BLUR -> {
@@ -438,7 +446,7 @@ private fun NewMiniPlayer(
                     coverIsLight = coverIsLight,
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
                 // Song info - isolated composable
                 NewMiniPlayerSongInfo(
@@ -536,7 +544,7 @@ private fun NewMiniPlayerPlayButton(
         contentAlignment = Alignment.Center,
         modifier =
             Modifier
-                .size(48.dp)
+                .size(54.dp)
                 .drawWithContent {
                     drawContent()
                     // Draw progress arc - this reads progressState.progress during draw phase only
@@ -656,8 +664,8 @@ private fun NewMiniPlayerSongInfo(
             Text(
                 text = metadata.title,
                 color = onSurfaceColor,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
                 modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
@@ -671,7 +679,7 @@ private fun NewMiniPlayerSongInfo(
                     Text(
                         text = metadata.artists.joinToString { it.name },
                         color = onSurfaceColor.copy(alpha = 0.7f),
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Clip,
                         modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
@@ -1055,16 +1063,10 @@ private fun SubscribeButton(
         contentAlignment = Alignment.Center,
         modifier =
             Modifier
-                .size(40.dp)
+                .size(44.dp)
                 .clip(CircleShape)
-                .border(
-                    width = 1.dp,
-                    color = if (isSubscribed) primaryColor.copy(alpha = 0.5f) else outlineColor.copy(alpha = 0.3f),
-                    shape = CircleShape,
-                ).background(
-                    color = if (isSubscribed) primaryColor.copy(alpha = 0.1f) else Color.Transparent,
-                    shape = CircleShape,
-                ).clickable {
+                .background(MaterialTheme.colorScheme.onPrimary, CircleShape)
+                .clickable {
                     database.transaction {
                         val artist = libraryArtist?.artist
                         if (artist != null) {
@@ -1087,7 +1089,7 @@ private fun SubscribeButton(
         Icon(
             painter = painterResource(if (isSubscribed) R.drawable.subscribed else R.drawable.subscribe),
             contentDescription = null,
-            tint = if (isSubscribed) primaryColor else onSurfaceColor.copy(alpha = 0.7f),
+            tint = if (isSubscribed) MaterialTheme.colorScheme.error else primaryColor,
             modifier = Modifier.size(20.dp),
         )
     }
@@ -1106,21 +1108,13 @@ private fun AddToPlaylistButton(
         modifier = Modifier
             .size(40.dp)
             .clip(CircleShape)
-            .border(
-                width = 1.dp,
-                color = outlineColor.copy(alpha = 0.3f),
-                shape = CircleShape,
-            )
-            .background(
-                color = Color.Transparent,
-                shape = CircleShape,
-            )
+            .background(MaterialTheme.colorScheme.onPrimary, CircleShape)
             .clickable { onClick() },
     ) {
         Icon(
             painter = painterResource(R.drawable.add),
             contentDescription = contentDescription,
-            tint = onSurfaceColor.copy(alpha = 0.7f),
+            tint = primaryColor,
             modifier = Modifier.size(20.dp),
         )
     }
@@ -1146,19 +1140,13 @@ private fun FavoriteButton(
             Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .border(
-                    width = 1.dp,
-                    color = if (isLiked) errorColor.copy(alpha = 0.5f) else outlineColor.copy(alpha = 0.3f),
-                    shape = CircleShape,
-                ).background(
-                    color = if (isLiked) errorColor.copy(alpha = 0.1f) else Color.Transparent,
-                    shape = CircleShape,
-                ).clickable { playerConnection.service.toggleLike() },
+                .background(MaterialTheme.colorScheme.onPrimary, CircleShape)
+                .clickable { playerConnection.service.toggleLike() },
     ) {
         Icon(
             painter = painterResource(if (isLiked) R.drawable.favorite else R.drawable.favorite_border),
             contentDescription = null,
-            tint = if (isLiked) errorColor else onSurfaceColor.copy(alpha = 0.7f),
+            tint = if (isLiked) errorColor else primaryColor,
             modifier = Modifier.size(20.dp),
         )
     }

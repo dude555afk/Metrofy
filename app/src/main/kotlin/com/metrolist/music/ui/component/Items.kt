@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -135,7 +136,7 @@ fun currentGridThumbnailHeight(): Dp {
     return if (gridItemSize == GridItemSize.BIG) GridThumbnailHeight else SmallGridThumbnailHeight
 }
 
-// Basic list item - optimized with inline to reduce recomposition
+// Metrolist-style compact list row, retaining Metrofy's offline and playback states.
 @Composable
 inline fun ListItem(
     modifier: Modifier = Modifier,
@@ -147,33 +148,25 @@ inline fun ListItem(
     isActive: Boolean = false,
     isAvailable: Boolean = true,
 ) {
+    val itemShape = if (isActive) CircleShape else RoundedCornerShape(8.dp)
+    val itemColor = when {
+        isActive -> MaterialTheme.colorScheme.secondaryContainer
+        isSelected == true -> MaterialTheme.colorScheme.primaryContainer
+        else -> Color.Transparent
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = if (isActive) {
-            modifier // playing highlight
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(
-                    color = // selected active
-                        if (isSelected == true) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                        else MaterialTheme.colorScheme.secondaryContainer
-                )
-        } else if (isSelected == true) {
-            modifier // inactive selected
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(color = MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.4f))
-        } else {
-            modifier // default
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-        }
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .clip(itemShape)
+            .background(itemColor),
     ) {
         Box(
-            modifier = Modifier.padding(6.dp),
-            contentAlignment = Alignment.Center
+            modifier = Modifier.padding(start = 4.dp, end = 4.dp),
+            contentAlignment = Alignment.Center,
         ) {
             thumbnailContent()
             if (!isAvailable) {
@@ -183,8 +176,8 @@ inline fun ListItem(
                         .align(Alignment.Center)
                         .background(
                             Color.Black.copy(alpha = 0.25f),
-                            RoundedCornerShape(ThumbnailCornerRadius)
-                        )
+                            RoundedCornerShape(ThumbnailCornerRadius),
+                        ),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.offline),
@@ -193,22 +186,24 @@ inline fun ListItem(
                         modifier = Modifier
                             .size(ListThumbnailSize / 2)
                             .align(Alignment.Center)
-                            .graphicsLayer { alpha = 1f }
+                            .graphicsLayer { alpha = 1f },
                     )
                 }
             }
         }
+
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 6.dp)
+                .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             if (subtitle != null) {
@@ -239,8 +234,8 @@ fun ListItem(
         if (subtitle != null) {
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -272,8 +267,8 @@ fun ListItem(
         if (!subtitle.isNullOrEmpty()) {
             Text(
                 text = subtitle,
-                color = MaterialTheme.colorScheme.secondary,
-                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -346,8 +341,8 @@ fun GridItem(
     title = {
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
@@ -358,7 +353,7 @@ fun GridItem(
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -465,8 +460,8 @@ fun SongGridItem(
     title = {
         Text(
             text = song.song.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee().fillMaxWidth()
@@ -478,8 +473,8 @@ fun SongGridItem(
                 song.orderedArtists.joinToString { it.name },
                 makeTimeString(song.song.duration * 1000L)
             ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -685,8 +680,8 @@ fun AlbumGridItem(
     title = {
         Text(
             text = album.album.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee().fillMaxWidth()
@@ -695,8 +690,8 @@ fun AlbumGridItem(
     subtitle = {
         Text(
             text = album.artists.joinToString { it.name },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -856,8 +851,8 @@ fun PlaylistGridItem(
     title = {
         Text(
             text = playlist.playlist.name,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.basicMarquee().fillMaxWidth()
@@ -883,8 +878,8 @@ fun PlaylistGridItem(
         }
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -1090,8 +1085,8 @@ fun YouTubeGridItem(
     title = {
         Text(
             text = item.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
@@ -1111,7 +1106,7 @@ fun YouTubeGridItem(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
