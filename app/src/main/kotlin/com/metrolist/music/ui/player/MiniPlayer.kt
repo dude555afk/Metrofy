@@ -463,7 +463,7 @@ private fun NewMiniPlayer(
                     Icon(
                         painter = painterResource(R.drawable.cast_connected),
                         contentDescription = "Casting",
-                        tint = primaryColor,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -1089,7 +1089,7 @@ private fun SubscribeButton(
         Icon(
             painter = painterResource(if (isSubscribed) R.drawable.subscribed else R.drawable.subscribe),
             contentDescription = null,
-            tint = if (isSubscribed) MaterialTheme.colorScheme.error else primaryColor,
+            tint = if (isSubscribed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp),
         )
     }
@@ -1114,7 +1114,7 @@ private fun AddToPlaylistButton(
         Icon(
             painter = painterResource(R.drawable.add),
             contentDescription = contentDescription,
-            tint = primaryColor,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp),
         )
     }
@@ -1146,7 +1146,7 @@ private fun FavoriteButton(
         Icon(
             painter = painterResource(if (isLiked) R.drawable.favorite else R.drawable.favorite_border),
             contentDescription = null,
-            tint = if (isLiked) errorColor else primaryColor,
+            tint = if (isLiked) errorColor else MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp),
         )
     }
