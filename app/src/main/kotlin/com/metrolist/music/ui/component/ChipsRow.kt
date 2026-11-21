@@ -34,8 +34,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -72,26 +72,25 @@ fun <E> ChipsRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         chips.forEach { (value, label) ->
-            FilterChip(
-                selected = currentValue == value,
-                onClick = { onValueUpdate(value) },
-                label = {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
+            ToggleButton(
+                checked = currentValue == value,
+                onCheckedChange = { onValueUpdate(value) },
+                shapes = ToggleButtonDefaults.shapesFor(ButtonDefaults.ExtraSmallContainerHeight),
+                colors = ToggleButtonDefaults.colors(
                     containerColor = containerColor,
-                    labelColor = MaterialTheme.colorScheme.onSurface,
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ),
-                shape = RoundedCornerShape(100.dp),
-                border = null,
+                contentPadding = ButtonDefaults.ExtraSmallContentPadding,
                 modifier = Modifier.height(ButtonDefaults.ExtraSmallContainerHeight),
-            )
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
