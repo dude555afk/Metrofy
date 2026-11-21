@@ -171,6 +171,8 @@ import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.AccountSettingsDialog
 import com.metrolist.music.ui.component.AppNavigationBar
 import com.metrolist.music.ui.component.AppNavigationRail
+import com.metrolist.music.ui.component.FloatingTopAppBar
+import com.metrolist.music.ui.component.TopBarIconButton
 import com.metrolist.music.ui.component.BottomSheetMenu
 import com.metrolist.music.ui.component.BottomSheetPage
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
@@ -949,85 +951,73 @@ class MainActivity : ComponentActivity() {
                         topBar = {
                             AnimatedVisibility(
                                 visible = shouldShowTopBar,
-                                enter = fadeIn(animationSpec = tween(durationMillis = 300)),
-                                exit = fadeOut(animationSpec = tween(durationMillis = 200)),
+                                enter = fadeIn(animationSpec = tween(durationMillis = 260)),
+                                exit = fadeOut(animationSpec = tween(durationMillis = 180)),
                             ) {
-                                Row {
-                                    TopAppBar(
-                                        title = {
-                                            Text(
-                                                text = currentTitleRes?.let { stringResource(it) } ?: "",
-                                                style = MaterialTheme.typography.titleLarge,
-                                            )
-                                        },
-                                        actions = {
-                                            if (showHistoryButton) {
-                                                IconButton(onClick = { navController.navigate("history") }) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.history),
-                                                        contentDescription = stringResource(R.string.history),
-                                                    )
-                                                }
-                                            }
-                                            IconButton(onClick = { navController.navigate("stats") }) {
+                                FloatingTopAppBar(
+                                    title = {
+                                        Text(
+                                            text = currentTitleRes?.let { stringResource(it) } ?: "",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            maxLines = 1,
+                                        )
+                                    },
+                                    actions = {
+                                        if (showHistoryButton) {
+                                            TopBarIconButton(
+                                                onClick = { navController.navigate("history") },
+                                                floating = true,
+                                            ) {
                                                 Icon(
-                                                    painter = painterResource(R.drawable.stats),
-                                                    contentDescription = stringResource(R.string.stats),
+                                                    painter = painterResource(R.drawable.history),
+                                                    contentDescription = stringResource(R.string.history),
                                                 )
                                             }
-                                            if (listenTogetherInTopBar) {
-                                                IconButton(onClick = { navController.navigate("listen_together_from_topbar") }) {
+                                        }
+                                        TopBarIconButton(
+                                            onClick = { navController.navigate("stats") },
+                                            floating = true,
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.stats),
+                                                contentDescription = stringResource(R.string.stats),
+                                            )
+                                        }
+                                        if (listenTogetherInTopBar) {
+                                            TopBarIconButton(
+                                                onClick = { navController.navigate("listen_together_from_topbar") },
+                                                floating = true,
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.group_outlined),
+                                                    contentDescription = stringResource(R.string.together),
+                                                )
+                                            }
+                                        }
+                                        TopBarIconButton(
+                                            onClick = { showAccountDialog = true },
+                                            floating = true,
+                                        ) {
+                                            BadgedBox(badge = {
+                                                if (Updater.isUpdateAvailable(BuildConfig.VERSION_NAME, latestVersionName)) Badge()
+                                            }) {
+                                                if (accountImageUrl != null) {
+                                                    AsyncImage(
+                                                        model = accountImageUrl,
+                                                        contentDescription = stringResource(R.string.account),
+                                                        modifier = Modifier.size(24.dp).clip(CircleShape),
+                                                    )
+                                                } else {
                                                     Icon(
-                                                        painter = painterResource(R.drawable.group_outlined),
-                                                        contentDescription = stringResource(R.string.together),
+                                                        painter = painterResource(R.drawable.account),
+                                                        contentDescription = stringResource(R.string.account),
+                                                        modifier = Modifier.size(24.dp),
                                                     )
                                                 }
                                             }
-                                            IconButton(onClick = { showAccountDialog = true }) {
-                                                BadgedBox(badge = {
-                                                    if (Updater.isUpdateAvailable(BuildConfig.VERSION_NAME, latestVersionName)) {
-                                                        Badge()
-                                                    }
-                                                }) {
-                                                    if (accountImageUrl != null) {
-                                                        AsyncImage(
-                                                            model = accountImageUrl,
-                                                            contentDescription = stringResource(R.string.account),
-                                                            modifier =
-                                                                Modifier
-                                                                    .size(24.dp)
-                                                                    .clip(CircleShape),
-                                                        )
-                                                    } else {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.account),
-                                                            contentDescription = stringResource(R.string.account),
-                                                            modifier = Modifier.size(24.dp),
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        scrollBehavior = topAppBarScrollBehavior,
-                                        colors =
-                                            TopAppBarDefaults.topAppBarColors(
-                                                containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                                scrolledContainerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                                                actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            ),
-                                        modifier =
-                                            Modifier.windowInsetsPadding(
-                                                if (showRail) {
-                                                    WindowInsets(left = NavigationBarHeight)
-                                                        .add(cutoutInsets.only(WindowInsetsSides.Start))
-                                                } else {
-                                                    cutoutInsets.only(WindowInsetsSides.Start + WindowInsetsSides.End)
-                                                },
-                                            ),
-                                    )
-                                }
+                                        }
+                                    },
+                                )
                             }
                         },
                         bottomBar = {
