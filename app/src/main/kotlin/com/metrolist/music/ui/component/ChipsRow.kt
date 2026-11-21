@@ -78,12 +78,6 @@ fun <E> ChipsRow(
                 checked = currentValue == value,
                 onCheckedChange = { onValueUpdate(value) },
                 shapes = ToggleButtonDefaults.shapesFor(ButtonDefaults.ExtraSmallContainerHeight),
-                colors = ToggleButtonDefaults.colors(
-                    containerColor = containerColor,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
                 contentPadding = ButtonDefaults.ExtraSmallContentPadding,
                 modifier = Modifier.height(ButtonDefaults.ExtraSmallContainerHeight),
             ) {
