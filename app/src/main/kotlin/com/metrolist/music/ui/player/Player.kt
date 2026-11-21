@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -57,10 +58,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -1596,11 +1599,11 @@ fun BottomSheetPlayer(
                             val playPauseWeight by animateFloatAsState(
                                 targetValue =
                                     if (isPlayPausePressed) {
-                                        1.9f
+                                        2.2f
                                     } else if (isBackPressed || isNextPressed) {
-                                        1.1f
-                                    } else {
                                         1.3f
+                                    } else {
+                                        1.9f
                                     },
                                 animationSpec =
                                     spring(
@@ -1613,11 +1616,13 @@ fun BottomSheetPlayer(
                             val backButtonWeight by animateFloatAsState(
                                 targetValue =
                                     if (isBackPressed) {
-                                        0.65f
+                                        0.9f
                                     } else if (isPlayPausePressed) {
-                                        0.35f
+                                        0.4f
+                                    } else if (isNextPressed) {
+                                        0.5f
                                     } else {
-                                        0.45f
+                                        0.6f
                                     },
                                 animationSpec =
                                     spring(
@@ -1630,11 +1635,13 @@ fun BottomSheetPlayer(
                             val nextButtonWeight by animateFloatAsState(
                                 targetValue =
                                     if (isNextPressed) {
-                                        0.65f
+                                        0.9f
                                     } else if (isPlayPausePressed) {
-                                        0.35f
+                                        0.4f
+                                    } else if (isBackPressed) {
+                                        0.5f
                                     } else {
-                                        0.45f
+                                        0.6f
                                     },
                                 animationSpec =
                                     spring(
@@ -1644,16 +1651,17 @@ fun BottomSheetPlayer(
                                 label = "nextButtonWeight",
                             )
 
-                            FilledIconButton(
+                            FilledTonalButton(
                                 onClick = playerConnection::seekToPrevious,
                                 enabled = canSkipPrevious && !isListenTogetherGuest,
-                                shape = RoundedCornerShape(50),
+                                shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(50)),
                                 interactionSource = backInteractionSource,
                                 colors =
-                                    IconButtonDefaults.filledIconButtonColors(
+                                    ButtonDefaults.filledTonalButtonColors(
                                         containerColor = sideButtonContainerColor,
                                         contentColor = sideButtonContentColor,
                                     ),
+                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
                                 modifier =
                                     Modifier
                                         .height(68.dp)
@@ -1668,11 +1676,11 @@ fun BottomSheetPlayer(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            FilledIconButton(
+                            FilledTonalButton(
                                 onClick = {
                                     if (isListenTogetherGuest) {
                                         playerConnection.toggleMute()
-                                        return@FilledIconButton
+                                        return@FilledTonalButton
                                     }
                                     if (isCasting) {
                                         if (castIsPlaying) {
@@ -1687,13 +1695,14 @@ fun BottomSheetPlayer(
                                         playerConnection.togglePlayPause()
                                     }
                                 },
-                                shape = RoundedCornerShape(50),
+                                shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(50)),
                                 interactionSource = playPauseInteractionSource,
                                 colors =
-                                    IconButtonDefaults.filledIconButtonColors(
+                                    ButtonDefaults.filledTonalButtonColors(
                                         containerColor = textButtonColor,
                                         contentColor = iconButtonColor,
                                     ),
+                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
                                 modifier =
                                     Modifier
                                         .height(68.dp)
@@ -1735,16 +1744,17 @@ fun BottomSheetPlayer(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            FilledIconButton(
+                            FilledTonalButton(
                                 onClick = playerConnection::seekToNext,
                                 enabled = canSkipNext && !isListenTogetherGuest,
-                                shape = RoundedCornerShape(50),
+                                shapes = ButtonDefaults.shapes(shape = RoundedCornerShape(50)),
                                 interactionSource = nextInteractionSource,
                                 colors =
-                                    IconButtonDefaults.filledIconButtonColors(
+                                    ButtonDefaults.filledTonalButtonColors(
                                         containerColor = sideButtonContainerColor,
                                         contentColor = sideButtonContentColor,
                                     ),
+                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
                                 modifier =
                                     Modifier
                                         .height(68.dp)
