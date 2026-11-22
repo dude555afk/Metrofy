@@ -142,7 +142,7 @@ import timber.log.Timber
 import com.metrolist.music.ui.component.YouTubeListItem
 import com.metrolist.music.ui.component.AlbumGridItem
 import com.metrolist.music.ui.component.ArtistGridItem
-import com.metrolist.music.ui.component.ChipsRow
+import com.metrolist.music.ui.component.MetrolistChipShelf
 import com.metrolist.music.ui.component.HideOnScrollFAB
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
@@ -1211,12 +1211,12 @@ fun HomeScreen(
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 item {
-                    ChipsRow(
-                        chips = homePage?.chips?.map { it to it.title } ?: emptyList(),
-                        currentValue = selectedChip,
-                        onValueUpdate = {
-                            viewModel.toggleChip(it)
-                        },
+                    MetrolistChipShelf(
+                        options = homePage?.chips.orEmpty(),
+                        selectedOption = selectedChip,
+                        onSelectionChange = viewModel::toggleChip,
+                        label = { it.title },
+                        modifier = Modifier.padding(top = 1.dp),
                     )
                 }
 
