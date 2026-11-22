@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,6 +47,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -135,7 +137,7 @@ fun currentGridThumbnailHeight(): Dp {
     return if (gridItemSize == GridItemSize.BIG) GridThumbnailHeight else SmallGridThumbnailHeight
 }
 
-// Basic list item - optimized with inline to reduce recomposition
+// Metrolist-style list row adapted to Metrofy's local item and download state.
 @Composable
 inline fun ListItem(
     modifier: Modifier = Modifier,
@@ -147,73 +149,76 @@ inline fun ListItem(
     isActive: Boolean = false,
     isAvailable: Boolean = true,
 ) {
+    val rowShape = if (isActive) CircleShape else RoundedCornerShape(4.dp)
+    val rowColor = when {
+        isActive -> MaterialTheme.colorScheme.primaryContainer
+        isSelected == true -> MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.22f)
+        else -> Color.Transparent
+    }
+    val titleColor =
+        if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurface
+    val subtitleColor =
+        if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = if (isActive) {
-            modifier // playing highlight
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(
-                    color = // selected active
-                        if (isSelected == true) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                        else MaterialTheme.colorScheme.secondaryContainer
-                )
-        } else if (isSelected == true) {
-            modifier // inactive selected
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(color = MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.4f))
-        } else {
-            modifier // default
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-        }
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .clip(rowShape)
+                .background(rowColor)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
         Box(
-            modifier = Modifier.padding(6.dp),
-            contentAlignment = Alignment.Center
+            modifier = Modifier.size(ListThumbnailSize),
+            contentAlignment = Alignment.Center,
         ) {
             thumbnailContent()
             if (!isAvailable) {
                 Box(
-                    modifier = Modifier
-                        .size(ListThumbnailSize)
-                        .align(Alignment.Center)
-                        .background(
-                            Color.Black.copy(alpha = 0.25f),
-                            RoundedCornerShape(ThumbnailCornerRadius)
-                        )
+                    modifier =
+                        Modifier
+                            .size(ListThumbnailSize)
+                            .align(Alignment.Center)
+                            .background(
+                                Color.Black.copy(alpha = 0.25f),
+                                RoundedCornerShape(ThumbnailCornerRadius),
+                            ),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.offline),
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier
-                            .size(ListThumbnailSize / 2)
-                            .align(Alignment.Center)
-                            .graphicsLayer { alpha = 1f }
+                        modifier =
+                            Modifier
+                                .size(ListThumbnailSize / 2)
+                                .align(Alignment.Center)
+                                .graphicsLayer { alpha = 1f },
                     )
                 }
             }
         }
+        Spacer(Modifier.width(12.dp))
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 6.dp)
+            modifier = Modifier.weight(1f),
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
+                color = titleColor,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             if (subtitle != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    subtitle()
+                CompositionLocalProvider(LocalContentColor provides subtitleColor) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        subtitle()
+                    }
                 }
             }
         }
