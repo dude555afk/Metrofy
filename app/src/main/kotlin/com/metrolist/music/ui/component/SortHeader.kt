@@ -45,6 +45,7 @@ inline fun <reified T : Enum<T>> SortHeader(
     showDescending: Boolean? = true,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val canChangeDirection = sortType != PlaylistSongSortType.CUSTOM && showDescending == true
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -55,7 +56,6 @@ inline fun <reified T : Enum<T>> SortHeader(
                 leadingButton = {
                     SplitButtonDefaults.TonalLeadingButton(
                         onClick = { menuExpanded = true },
-                        shapes = SplitButtonDefaults.leadingButtonShapesFor(SplitButtonDefaults.SmallContainerHeight),
                         enabled = true,
                     ) {
                         Text(
@@ -66,30 +66,27 @@ inline fun <reified T : Enum<T>> SortHeader(
                     }
                 },
                 trailingButton = {
-                    if (sortType != PlaylistSongSortType.CUSTOM && showDescending == true) {
-                        SplitButtonDefaults.TrailingButton(
-                            colors = ButtonDefaults.filledTonalButtonColors(),
-                            elevation = ButtonDefaults.filledTonalButtonElevation(),
-                            onClick = { onSortDescendingChange(!sortDescending) },
-                            shapes = SplitButtonDefaults.trailingButtonShapesFor(SplitButtonDefaults.SmallContainerHeight),
-                            modifier = Modifier.size(44.dp, SplitButtonDefaults.SmallContainerHeight),
-                        ) {
+                    SplitButtonDefaults.TrailingButton(
+                        colors = ButtonDefaults.filledTonalButtonColors(),
+                        elevation = ButtonDefaults.filledTonalButtonElevation(),
+                        onClick = {
+                            if (canChangeDirection) {
+                                onSortDescendingChange(!sortDescending)
+                            }
+                        },
+                        enabled = canChangeDirection,
+                        shapes = SplitButtonDefaults.trailingButtonShapesFor(SplitButtonDefaults.SmallContainerHeight),
+                        modifier = Modifier.size(44.dp, SplitButtonDefaults.SmallContainerHeight),
+                    ) {
+                        if (canChangeDirection) {
                             Icon(
                                 painter = painterResource(
                                     if (sortDescending) R.drawable.arrow_downward else R.drawable.arrow_upward,
                                 ),
-                                contentDescription = stringResource(
-                                    if (sortDescending) R.string.sort_descending else R.string.sort_ascending,
-                                ),
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                             )
                         }
-                    } else {
-                        SplitButtonDefaults.TrailingButton(
-                            onClick = {},
-                            enabled = false,
-                            modifier = Modifier.size(12.dp, SplitButtonDefaults.SmallContainerHeight),
-                        ) {}
                     }
                 },
             )
