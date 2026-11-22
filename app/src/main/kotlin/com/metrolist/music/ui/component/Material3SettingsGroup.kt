@@ -36,6 +36,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -143,7 +146,7 @@ private fun Material3SettingsItemRow(
 
     Row(
         modifier =
-            Modifier
+            item.modifier
                 .fillMaxWidth()
                 .bringIntoViewRequester(bringIntoViewRequester)
                 .clip(shape)
@@ -153,13 +156,32 @@ private fun Material3SettingsItemRow(
                     color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
                     shape = shape,
                 )
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    enabled = item.enabled && item.onClick != null,
-                    role = Role.Button,
-                    onClick = { item.onClick?.invoke() },
+                .then(
+                    if (item.checked != null) {
+                        Modifier.toggleable(
+                            value = item.checked,
+                            enabled = item.enabled && item.onClick != null,
+                            role = Role.Switch,
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onValueChange = { item.onClick?.invoke() },
+                        )
+                    } else {
+                        Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            enabled = item.enabled && item.onClick != null,
+                            role = Role.Button,
+                            onClickLabel = item.onClickLabel,
+                            onClick = { item.onClick?.invoke() },
+                        )
+                    },
                 )
+                .semantics {
+                    item.badgeDescription?.takeIf { item.showBadge }?.let {
+                        stateDescription = it
+                    }
+                }
                 .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -174,6 +196,7 @@ private fun Material3SettingsItemRow(
                 val iconTint =
                     when {
                         !item.enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        item.iconTint != null -> item.iconTint
                         item.isHighlighted -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
@@ -240,4 +263,11 @@ data class Material3SettingsItem(
     val isHighlighted: Boolean = false,
     val enabled: Boolean = true,
     val onClick: (() -> Unit)? = null,
+    val badgeDescription: String? = null,
+    val iconTint: Color? = null,
+    val searchTitle: String? = null,
+    val searchDescription: String? = null,
+    val modifier: Modifier = Modifier,
+    val checked: Boolean? = null,
+    val onClickLabel: String? = null,
 )
