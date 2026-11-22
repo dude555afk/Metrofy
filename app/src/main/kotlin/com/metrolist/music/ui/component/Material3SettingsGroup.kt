@@ -143,7 +143,7 @@ private fun Material3SettingsItemRow(
 
     Row(
         modifier =
-            item.modifier
+            Modifier
                 .fillMaxWidth()
                 .bringIntoViewRequester(bringIntoViewRequester)
                 .clip(shape)
