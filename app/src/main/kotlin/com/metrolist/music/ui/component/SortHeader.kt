@@ -5,6 +5,8 @@
  * Sort selector adapted to Metrolist's expressive split-button pattern.
  */
 
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.metrolist.music.ui.component
 
 import androidx.compose.foundation.layout.Box
