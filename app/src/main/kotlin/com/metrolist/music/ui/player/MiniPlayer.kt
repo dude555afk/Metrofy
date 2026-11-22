@@ -72,6 +72,9 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -302,6 +305,8 @@ private fun NewMiniPlayer(
     val outlineColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.outline
     val onSurfaceColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.onSurface
     val errorColor = if (forceLightColors) Color(0xFFFF6B6B) else MaterialTheme.colorScheme.error
+    val previousTrackLabel = stringResource(R.string.mini_player_skip_previous)
+    val nextTrackLabel = stringResource(R.string.mini_player_skip_next)
 
     Box(
         modifier =
@@ -371,6 +376,27 @@ private fun NewMiniPlayer(
                     } else {
                         baseModifier
                     }
+                }
+                .semantics {
+                    customActions =
+                        buildList {
+                            if (canSkipPrevious) {
+                                add(
+                                    CustomAccessibilityAction(previousTrackLabel) {
+                                        playerConnection.seekToPrevious()
+                                        true
+                                    },
+                                )
+                            }
+                            if (canSkipNext) {
+                                add(
+                                    CustomAccessibilityAction(nextTrackLabel) {
+                                        playerConnection.seekToNext()
+                                        true
+                                    },
+                                )
+                            }
+                        }
                 },
     ) {
         Box(
