@@ -393,7 +393,8 @@ fun LibraryMixScreen(
                 viewModel.updateSearchQuery("")
             },
             keyboardController = keyboardController,
-            modifier = Modifier.padding(start = 16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            onActivate = { isSearchActive = true },
         ) {
             SortHeader(
                 sortType = sortType,
@@ -410,16 +411,6 @@ fun LibraryMixScreen(
             )
 
             Spacer(Modifier.weight(1f))
-
-            IconButton(
-                onClick = { isSearchActive = true },
-                modifier = Modifier.padding(start = 8.dp).size(40.dp),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.search),
-                    contentDescription = stringResource(R.string.search),
-                )
-            }
 
             IconButton(
                 onClick = {
