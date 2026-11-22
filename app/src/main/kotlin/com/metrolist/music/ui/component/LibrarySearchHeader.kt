@@ -1,13 +1,17 @@
 /**
  * Metrolist Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
+ *
+ * Library search and control row adapted from Metrolist's CollectionFilterBar.
  */
 
 package com.metrolist.music.ui.component
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
@@ -23,11 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
 
 @Composable
@@ -38,9 +45,11 @@ fun LibrarySearchHeader(
     onBack: () -> Unit,
     keyboardController: SoftwareKeyboardController?,
     modifier: Modifier = Modifier,
+    onActivate: () -> Unit = {},
     inactiveContent: @Composable RowScope.() -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
 
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
@@ -49,44 +58,68 @@ fun LibrarySearchHeader(
         }
     }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
         modifier = modifier.fillMaxWidth(),
     ) {
-        if (isSearchActive) {
-            TextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = {
-                    Text(
-                        text = stringResource(R.string.search_library),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.titleMedium,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
+        TextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            placeholder = {
+                Text(
+                    text = stringResource(R.string.search_library),
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.search),
+                    contentDescription = null,
+                )
+            },
+            trailingIcon = {
+                if (isSearchActive || searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = {
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                            onBack()
+                        },
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.close),
+                            contentDescription = stringResource(R.string.close),
+                        )
+                    }
+                }
+            },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+            shape = RoundedCornerShape(28.dp),
+            colors =
+                TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
                 ),
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-            )
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { state ->
+                        if (state.isFocused && !isSearchActive) onActivate()
+                    },
+        )
 
-            IconButton(onClick = onBack) {
-                Icon(
-                    painter = painterResource(R.drawable.close),
-                    contentDescription = stringResource(R.string.close),
-                )
-            }
-        } else {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             inactiveContent()
         }
     }
