@@ -5,6 +5,8 @@
 
 package com.metrolist.music
 
+import com.metrolist.music.ui.component.TopBarIconButton
+import com.metrolist.music.ui.component.FloatingTopAppBar
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
@@ -953,42 +955,58 @@ class MainActivity : ComponentActivity() {
                                 exit = fadeOut(animationSpec = tween(durationMillis = 200)),
                             ) {
                                 Row {
-                                    TopAppBar(
+                                    FloatingTopAppBar(
                                         title = {
                                             Text(
                                                 text = currentTitleRes?.let { stringResource(it) } ?: "",
                                                 style = MaterialTheme.typography.titleLarge,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
                                             )
                                         },
                                         actions = {
                                             if (showHistoryButton) {
-                                                IconButton(onClick = { navController.navigate("history") }) {
+                                                TopBarIconButton(
+                                                    onClick = { navController.navigate("history") },
+                                                    floating = true,
+                                                ) {
                                                     Icon(
                                                         painter = painterResource(R.drawable.history),
                                                         contentDescription = stringResource(R.string.history),
                                                     )
                                                 }
                                             }
-                                            IconButton(onClick = { navController.navigate("stats") }) {
+                                            TopBarIconButton(
+                                                onClick = { navController.navigate("stats") },
+                                                floating = true,
+                                            ) {
                                                 Icon(
                                                     painter = painterResource(R.drawable.stats),
                                                     contentDescription = stringResource(R.string.stats),
                                                 )
                                             }
                                             if (listenTogetherInTopBar) {
-                                                IconButton(onClick = { navController.navigate("listen_together_from_topbar") }) {
+                                                TopBarIconButton(
+                                                    onClick = { navController.navigate("listen_together_from_topbar") },
+                                                    floating = true,
+                                                ) {
                                                     Icon(
                                                         painter = painterResource(R.drawable.group_outlined),
                                                         contentDescription = stringResource(R.string.together),
                                                     )
                                                 }
                                             }
-                                            IconButton(onClick = { showAccountDialog = true }) {
-                                                BadgedBox(badge = {
-                                                    if (Updater.isUpdateAvailable(BuildConfig.VERSION_NAME, latestVersionName)) {
-                                                        Badge()
-                                                    }
-                                                }) {
+                                            TopBarIconButton(
+                                                onClick = { showAccountDialog = true },
+                                                floating = true,
+                                            ) {
+                                                BadgedBox(
+                                                    badge = {
+                                                        if (Updater.isUpdateAvailable(BuildConfig.VERSION_NAME, latestVersionName)) {
+                                                            Badge()
+                                                        }
+                                                    },
+                                                ) {
                                                     if (accountImageUrl != null) {
                                                         AsyncImage(
                                                             model = accountImageUrl,
@@ -1008,15 +1026,6 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             }
                                         },
-                                        scrollBehavior = topAppBarScrollBehavior,
-                                        colors =
-                                            TopAppBarDefaults.topAppBarColors(
-                                                containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                                scrolledContainerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                                                actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            ),
                                         modifier =
                                             Modifier.windowInsetsPadding(
                                                 if (showRail) {
