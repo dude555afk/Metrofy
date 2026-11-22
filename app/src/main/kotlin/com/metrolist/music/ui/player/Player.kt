@@ -1622,7 +1622,7 @@ fun BottomSheetPlayer(
                         centerContainerColor = textButtonColor,
                         centerContentColor = iconButtonColor,
                         isPlaying = effectiveIsPlaying,
-                        useRoundedRect = useRoundedRectPlayButton,
+                        useRoundedRect = false,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
