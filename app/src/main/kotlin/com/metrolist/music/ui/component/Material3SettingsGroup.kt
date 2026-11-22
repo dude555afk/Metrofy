@@ -17,6 +17,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -108,6 +109,7 @@ fun Material3SettingsGroup(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun Material3SettingsItemRow(
     item: Material3SettingsItem,
     isFirst: Boolean,
