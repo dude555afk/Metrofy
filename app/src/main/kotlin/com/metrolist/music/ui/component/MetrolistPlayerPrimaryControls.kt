@@ -5,6 +5,8 @@
  * Android/Media3 adapter for Metrolist's expressive PlayerPrimaryControls.
  */
 
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.metrolist.music.ui.component
 
 import androidx.compose.animation.core.animateFloatAsState
