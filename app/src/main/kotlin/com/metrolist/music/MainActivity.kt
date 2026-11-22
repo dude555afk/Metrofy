@@ -1103,6 +1103,7 @@ class MainActivity : ComponentActivity() {
                                         pureBlack = pureBlack,
                                         slimNav = slimNav,
                                         onSearchLongClick = onSearchLongClick,
+                                        bottomInset = bottomInset,
                                         modifier =
                                             Modifier
                                                 .align(Alignment.BottomCenter)
