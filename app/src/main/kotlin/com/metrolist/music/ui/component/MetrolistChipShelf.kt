@@ -134,7 +134,6 @@ fun ExpressiveFilterChip(
         checked = selected,
         onCheckedChange = { onClick() },
         enabled = enabled,
-        shapes = ToggleButtonDefaults.shapesFor(ButtonDefaults.ExtraSmallContainerHeight),
         contentPadding = ButtonDefaults.ExtraSmallContentPadding,
         modifier =
             modifier
