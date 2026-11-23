@@ -299,10 +299,10 @@ fun LibraryMixScreen(
     // filter shelf; Metrofy's local/Spotify data sources remain the backing store.
     val selectedItems = when (selectedFilter) {
         LibraryFilter.LIBRARY -> allItems
-        LibraryFilter.PLAYLISTS -> playlist.value
+        LibraryFilter.PLAYLISTS -> allItems.filterIsInstance<Playlist>()
         LibraryFilter.SONGS -> songs.value
-        LibraryFilter.ALBUMS -> albums.value
-        LibraryFilter.ARTISTS -> artist.value
+        LibraryFilter.ALBUMS -> allItems.filterIsInstance<Album>()
+        LibraryFilter.ARTISTS -> allItems.filterIsInstance<Artist>()
         LibraryFilter.PODCASTS, LibraryFilter.LOCAL_FILES -> emptyList()
     }
     val searchableItems =
