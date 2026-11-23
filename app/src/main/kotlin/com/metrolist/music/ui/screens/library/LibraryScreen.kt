@@ -57,20 +57,19 @@ fun LibraryScreen(navController: NavController) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         when (filterType) {
-            LibraryFilter.LIBRARY -> LibraryMixScreen(navController, filterContent)
-            LibraryFilter.PLAYLISTS -> LibraryPlaylistsScreen(navController, filterContent)
-            LibraryFilter.SONGS -> LibrarySongsScreen(
-                navController,
-                { filterType = LibraryFilter.LIBRARY },
+            LibraryFilter.LIBRARY,
+            LibraryFilter.PLAYLISTS,
+            LibraryFilter.SONGS,
+            LibraryFilter.ALBUMS,
+            LibraryFilter.ARTISTS,
+            -> LibraryMixScreen(
+                navController = navController,
+                filterContent = filterContent,
+                selectedFilter = filterType,
             )
-            LibraryFilter.ALBUMS -> LibraryAlbumsScreen(
-                navController,
-                { filterType = LibraryFilter.LIBRARY },
-            )
-            LibraryFilter.ARTISTS -> LibraryArtistsScreen(
-                navController,
-                { filterType = LibraryFilter.LIBRARY },
-            )
+
+            // Metrofy's podcast and device-file collections have dedicated
+            // data sources; they retain those routes but share the same filter shelf.
             LibraryFilter.PODCASTS -> LibraryPodcastsScreen(
                 navController,
                 { filterType = LibraryFilter.LIBRARY },
