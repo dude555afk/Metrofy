@@ -66,6 +66,7 @@ import com.metrolist.music.constants.CONTENT_TYPE_PLAYLIST
 import com.metrolist.music.constants.GridItemSize
 import com.metrolist.music.constants.GridItemsSizeKey
 import com.metrolist.music.constants.GridThumbnailHeight
+import com.metrolist.music.constants.LibraryFilter
 import com.metrolist.music.constants.LibraryViewType
 import com.metrolist.music.constants.MixSortDescendingKey
 import com.metrolist.music.constants.MixSortType
@@ -121,6 +122,7 @@ import java.util.UUID
 fun LibraryMixScreen(
     navController: NavController,
     filterContent: @Composable () -> Unit,
+    selectedFilter: LibraryFilter = LibraryFilter.LIBRARY,
     viewModel: LibraryMixViewModel = hiltViewModel(),
     spotifyViewModel: SpotifyViewModel = hiltViewModel(),
 ) {
@@ -230,21 +232,25 @@ fun LibraryMixScreen(
     val (showCached) = rememberPreference(ShowCachedPlaylistKey, true)
     val (showUploaded) = rememberPreference(ShowUploadedPlaylistKey, true)
     
-    val showLikedPlaylist = showLiked && matchesNormalizedQuery(normalizedQuery, likedPlaylist.playlist.name)
+    val isPlaylistCollection =
+        selectedFilter == LibraryFilter.LIBRARY || selectedFilter == LibraryFilter.PLAYLISTS
+    val showLikedPlaylist =
+        isPlaylistCollection && showLiked && matchesNormalizedQuery(normalizedQuery, likedPlaylist.playlist.name)
     val showDownloadedPlaylist =
-        showDownloaded && matchesNormalizedQuery(normalizedQuery, downloadPlaylist.playlist.name)
-    val showTopPlaylists = showTop && matchesNormalizedQuery(normalizedQuery, topPlaylist.playlist.name)
+        isPlaylistCollection && showDownloaded && matchesNormalizedQuery(normalizedQuery, downloadPlaylist.playlist.name)
+    val showTopPlaylists =
+        isPlaylistCollection && showTop && matchesNormalizedQuery(normalizedQuery, topPlaylist.playlist.name)
     val showUploadedPlaylists =
-        showUploaded && matchesNormalizedQuery(normalizedQuery, uploadedPlaylist.playlist.name)
-    val showCachedPlaylists = showCached && matchesNormalizedQuery(normalizedQuery, cachedPlaylist.playlist.name)
-
+        isPlaylistCollection && showUploaded && matchesNormalizedQuery(normalizedQuery, uploadedPlaylist.playlist.name)
+    val showCachedPlaylists =
+        isPlaylistCollection && showCached && matchesNormalizedQuery(normalizedQuery, cachedPlaylist.playlist.name)
 
     val albums = viewModel.albums.collectAsState()
     val artist = viewModel.artists.collectAsState()
     val songs = viewModel.songs.collectAsState()
     val playlist = viewModel.playlists.collectAsState()
 
-    var allItems = albums.value + artist.value + playlist.value
+    val allItems = albums.value + artist.value + playlist.value
     val locale = LocalLocale.current.platformLocale
     val collator = remember(locale) {
         Collator.getInstance(locale).apply {
@@ -289,7 +295,22 @@ fun LibraryMixScreen(
             }
         }.reversed(sortDescending)
 
-    val searchableItems = if (normalizedQuery.isBlank()) allItems else allItems + songs.value
+    // Metrolist keeps one collection surface and changes its dataset through the
+    // filter shelf; Metrofy's local/Spotify data sources remain the backing store.
+    val selectedItems = when (selectedFilter) {
+        LibraryFilter.LIBRARY -> allItems
+        LibraryFilter.PLAYLISTS -> playlist.value
+        LibraryFilter.SONGS -> songs.value
+        LibraryFilter.ALBUMS -> albums.value
+        LibraryFilter.ARTISTS -> artist.value
+        LibraryFilter.PODCASTS, LibraryFilter.LOCAL_FILES -> emptyList()
+    }
+    val searchableItems =
+        if (selectedFilter == LibraryFilter.LIBRARY && normalizedQuery.isNotBlank()) {
+            selectedItems + songs.value
+        } else {
+            selectedItems
+        }
 
     val filteredItems = remember(searchableItems, normalizedQuery, collator) {
         val matchedItems =
@@ -564,7 +585,7 @@ fun LibraryMixScreen(
                         }
                     }
 
-                    if (needsSpotifyReLogin) {
+                    if (isPlaylistCollection && needsSpotifyReLogin) {
                         item(key = "spotify_relogin_banner") {
                             Card(
                                 modifier = Modifier
@@ -605,7 +626,7 @@ fun LibraryMixScreen(
                         }
                     }
 
-                    if (isSpotifyActive && spotifyLikedSongsTotal > 0) {
+                    if (isPlaylistCollection && isSpotifyActive && spotifyLikedSongsTotal > 0) {
                         item(key = "spotify_liked_songs") {
                             val likedSongsName = stringResource(R.string.spotify_liked_songs)
                             PlaylistListItem(
@@ -641,7 +662,7 @@ fun LibraryMixScreen(
                         }
                     }
 
-                    if (isSpotifyActive && spotifyPlaylists.isNotEmpty()) {
+                    if (isPlaylistCollection && isSpotifyActive && spotifyPlaylists.isNotEmpty()) {
                         items(
                             items = spotifyPlaylists,
                             key = { "spotify_${it.id}" },
@@ -1027,7 +1048,7 @@ fun LibraryMixScreen(
                         }
                     }
 
-                    if (needsSpotifyReLogin) {
+                    if (isPlaylistCollection && needsSpotifyReLogin) {
                         item(
                             key = "spotify_relogin_banner",
                             span = { GridItemSpan(maxLineSpan) },
@@ -1071,7 +1092,7 @@ fun LibraryMixScreen(
                         }
                     }
 
-                    if (isSpotifyActive && spotifyLikedSongsTotal > 0) {
+                    if (isPlaylistCollection && isSpotifyActive && spotifyLikedSongsTotal > 0) {
                         item(key = "spotify_liked_songs") {
                             val likedSongsName = stringResource(R.string.spotify_liked_songs)
                             PlaylistGridItem(
@@ -1108,7 +1129,7 @@ fun LibraryMixScreen(
                         }
                     }
 
-                    if (isSpotifyActive && spotifyPlaylists.isNotEmpty()) {
+                    if (isPlaylistCollection && isSpotifyActive && spotifyPlaylists.isNotEmpty()) {
                         items(
                             items = spotifyPlaylists,
                             key = { "spotify_${it.id}" },
