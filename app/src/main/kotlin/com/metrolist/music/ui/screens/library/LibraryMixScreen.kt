@@ -9,6 +9,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -449,11 +451,13 @@ fun LibraryMixScreen(
                     isRefreshing = isRefreshing,
                     onRefresh = viewModel::refresh,
                 ),
+        contentAlignment = Alignment.TopCenter,
     ) {
         when (viewType) {
             LibraryViewType.LIST -> {
                 LazyColumn(
                     state = lazyListState,
+                    modifier = Modifier.widthIn(max = 1400.dp).fillMaxSize(),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     item(
@@ -895,10 +899,13 @@ fun LibraryMixScreen(
             LibraryViewType.GRID -> {
                 LazyVerticalGrid(
                     state = lazyGridState,
+                    modifier = Modifier.widthIn(max = 1400.dp).fillMaxSize(),
                     columns =
                         GridCells.Adaptive(
                             minSize = GridThumbnailHeight + if (gridItemSize == GridItemSize.BIG) 24.dp else (-24).dp,
                         ),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     item(
