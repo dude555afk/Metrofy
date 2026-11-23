@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -1183,8 +1184,11 @@ fun HomeScreen(
     ) {
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.TopStart,
+            contentAlignment = Alignment.TopCenter,
         ) {
+            // Match Metrolist's responsive home canvas: keep shelves centered on
+            // wide displays while preserving the edge-to-edge phone layout.
+            val isWide = maxWidth > 840.dp
             val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f
             val horizontalLazyGridItemWidth = maxWidth * horizontalLazyGridItemWidthFactor
             val quickPicksSnapLayoutInfoProvider =
@@ -1208,7 +1212,9 @@ fun HomeScreen(
 
             LazyColumn(
                 state = lazylistState,
+                modifier = Modifier.widthIn(max = 1400.dp).fillMaxSize(),
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+                verticalArrangement = Arrangement.spacedBy(if (isWide) 16.dp else 8.dp),
             ) {
                 item {
                     MetrolistChipShelf(
