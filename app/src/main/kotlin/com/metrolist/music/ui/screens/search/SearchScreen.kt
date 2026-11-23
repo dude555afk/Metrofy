@@ -6,6 +6,12 @@
 package com.metrolist.music.ui.screens.search
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.width
@@ -184,61 +190,83 @@ fun SearchScreen(
     val onSearchFromSuggestion: (String) -> Unit = { searchQuery -> handleSearch(searchQuery) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
+        modifier = Modifier.fillMaxSize(),
+        containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0),
+    ) { paddingValues ->
+        val bottomPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
+
+        Box(
+            modifier = Modifier.padding(paddingValues).fillMaxSize(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.statusBars),
+            ) {
+                // Metrolist search is a dedicated filled field at the top of the
+                // page, not a conventional app bar with a search box embedded in it.
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
                     Surface(
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        modifier = Modifier.widthIn(max = 1400.dp).fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(28.dp),
-                        color =
-                            if (pureBlack) {
-                                MaterialTheme.colorScheme.surfaceContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerHigh
-                            },
+                        color = if (pureBlack) {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                        },
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp,
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp),
+                            modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.search),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.width(12.dp))
+                            IconButton(
+                                onClick = { navController.navigateUp() },
+                                modifier = Modifier.size(48.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.arrow_back),
+                                    contentDescription = stringResource(R.string.dismiss),
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+
+                            Spacer(Modifier.width(4.dp))
 
                             BasicTextField(
                                 value = query,
                                 onValueChange = { query = it },
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .focusRequester(focusRequester),
-                                textStyle =
-                                    TextStyle(
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontSize = 16.sp,
-                                    ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(focusRequester),
+                                textStyle = TextStyle(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 16.sp,
+                                ),
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                 singleLine = true,
                                 decorationBox = { innerTextField ->
                                     if (query.text.isEmpty()) {
                                         Text(
-                                            text =
-                                                stringResource(
-                                                    when (searchSource) {
-                                                        SearchSource.LOCAL -> R.string.search_library
-                                                        SearchSource.ONLINE -> R.string.search_yt_music
-                                                    },
-                                                ),
-                                            style =
-                                                TextStyle(
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    fontSize = 16.sp,
-                                                ),
+                                            text = stringResource(
+                                                when (searchSource) {
+                                                    SearchSource.LOCAL -> R.string.search_library
+                                                    SearchSource.ONLINE -> R.string.search_yt_music
+                                                },
+                                            ),
+                                            style = TextStyle(
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontSize = 16.sp,
+                                            ),
+                                            maxLines = 1,
                                         )
                                     }
                                     innerTextField()
@@ -259,79 +287,59 @@ fun SearchScreen(
 
                             IconButton(
                                 onClick = {
-                                    searchSource =
-                                        if (searchSource == SearchSource.ONLINE) {
-                                            SearchSource.LOCAL
-                                        } else {
-                                            SearchSource.ONLINE
-                                        }
+                                    searchSource = if (searchSource == SearchSource.ONLINE) {
+                                        SearchSource.LOCAL
+                                    } else {
+                                        SearchSource.ONLINE
+                                    }
                                 },
                             ) {
                                 Icon(
-                                    painter =
-                                        painterResource(
-                                            when (searchSource) {
-                                                SearchSource.LOCAL -> R.drawable.library_music
-                                                SearchSource.ONLINE -> R.drawable.language
-                                            },
-                                        ),
-                                    contentDescription = null,
+                                    painter = painterResource(
+                                        when (searchSource) {
+                                            SearchSource.LOCAL -> R.drawable.library_music
+                                            SearchSource.ONLINE -> R.drawable.language
+                                        },
+                                    ),
+                                    contentDescription = stringResource(
+                                        when (searchSource) {
+                                            SearchSource.LOCAL -> R.string.search_library
+                                            SearchSource.ONLINE -> R.string.search_yt_music
+                                        },
+                                    ),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
                     }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(
-                            painter = painterResource(R.drawable.arrow_back),
-                            contentDescription = stringResource(R.string.dismiss),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-            )
-        },
-        containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.background,
-    ) { paddingValues ->
-        val bottomPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
+                }
 
-        Box(
-            modifier =
-                Modifier
-                    .padding(paddingValues)
-                    .fillMaxSize(),
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(bottom = bottomPadding)
-                        .fillMaxSize(),
-            ) {
-                when (searchSource) {
-                    SearchSource.LOCAL -> {
-                        LocalSearchScreen(
-                            query = query.text,
-                            navController = navController,
-                            onDismiss = { navController.navigateUp() },
-                            pureBlack = pureBlack,
-                        )
-                    }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(bottom = bottomPadding),
+                ) {
+                    when (searchSource) {
+                        SearchSource.LOCAL -> {
+                            LocalSearchScreen(
+                                query = query.text,
+                                navController = navController,
+                                onDismiss = { navController.navigateUp() },
+                                pureBlack = pureBlack,
+                            )
+                        }
 
-                    SearchSource.ONLINE -> {
-                        OnlineSearchScreen(
-                            query = query.text,
-                            onQueryChange = { query = it },
-                            navController = navController,
-                            onSearch = onSearchFromSuggestion,
-                            onDismiss = { /* Don't dismiss when searching from suggestions */ },
-                            pureBlack = pureBlack,
-                        )
+                        SearchSource.ONLINE -> {
+                            OnlineSearchScreen(
+                                query = query.text,
+                                onQueryChange = { query = it },
+                                navController = navController,
+                                onSearch = onSearchFromSuggestion,
+                                onDismiss = { /* Keep suggestion navigation on the search page. */ },
+                                pureBlack = pureBlack,
+                            )
+                        }
                     }
                 }
             }
