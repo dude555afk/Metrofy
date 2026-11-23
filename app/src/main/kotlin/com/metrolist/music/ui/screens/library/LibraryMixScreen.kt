@@ -250,7 +250,7 @@ fun LibraryMixScreen(
     val songs = viewModel.songs.collectAsState()
     val playlist = viewModel.playlists.collectAsState()
 
-    val allItems = albums.value + artist.value + playlist.value
+    var allItems = albums.value + artist.value + playlist.value
     val locale = LocalLocale.current.platformLocale
     val collator = remember(locale) {
         Collator.getInstance(locale).apply {
