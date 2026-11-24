@@ -1491,7 +1491,7 @@ fun BottomSheetPlayer(
                 SliderStyle.WAVY -> {
                     if (squigglySlider) {
                         SquigglySlider(
-                            value = (sliderPosition ?: effectivePosition).toFloat(),
+                            value = (sliderPosition ?: interpolatedPosition).toFloat(),
                             valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
@@ -1514,7 +1514,7 @@ fun BottomSheetPlayer(
                         )
                     } else {
                         WavySlider(
-                            value = (sliderPosition ?: effectivePosition).toFloat(),
+                            value = (sliderPosition ?: interpolatedPosition).toFloat(),
                             valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
@@ -1540,7 +1540,7 @@ fun BottomSheetPlayer(
 
                 SliderStyle.SLIM -> {
                     Slider(
-                        value = (sliderPosition ?: effectivePosition).toFloat(),
+                        value = (sliderPosition ?: interpolatedPosition).toFloat(),
                         valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                         onValueChange = {
                             if (!isListenTogetherGuest) {
