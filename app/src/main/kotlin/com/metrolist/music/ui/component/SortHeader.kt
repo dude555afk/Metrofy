@@ -115,9 +115,7 @@ inline fun <reified T : Enum<T>> SortHeader(
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_downward),
-                        contentDescription = stringResource(
-                            if (sortDescending) R.string.sort_descending else R.string.sort_ascending,
-                        ),
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier
                             .size(20.dp)
