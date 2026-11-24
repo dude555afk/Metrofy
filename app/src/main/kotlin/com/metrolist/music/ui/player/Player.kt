@@ -81,6 +81,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -368,6 +370,37 @@ fun BottomSheetPlayer(
                 castPosition
             } else {
                 position
+            }
+        }
+    }
+
+    // Metrolist-style frame interpolation keeps the playback thumb and elapsed clock smooth
+    // between Media3 position callbacks. Manual seeks and Cast remain authoritative.
+    val latestPosition by rememberUpdatedState(effectivePosition)
+    val latestDuration by rememberUpdatedState(duration)
+    val interpolatedPosition by produceState(
+        initialValue = effectivePosition,
+        mediaMetadata?.id,
+        effectiveIsPlaying,
+        isCasting,
+        sliderPosition != null,
+        duration > 0L,
+    ) {
+        value = effectivePosition
+        if (effectiveIsPlaying && !isCasting && sliderPosition == null && duration > 0L) {
+            var sampledPosition = latestPosition
+            var sampleFrameNanos = 0L
+            while (true) {
+                withFrameNanos { frameNanos ->
+                    val newSample = latestPosition
+                    if (newSample != sampledPosition || sampleFrameNanos == 0L) {
+                        sampledPosition = newSample
+                        sampleFrameNanos = frameNanos
+                    }
+                    value =
+                        (sampledPosition + (frameNanos - sampleFrameNanos) / 1_000_000L)
+                            .coerceIn(0L, latestDuration.coerceAtLeast(0L))
+                }
             }
         }
     }
@@ -1428,7 +1461,7 @@ fun BottomSheetPlayer(
             when (sliderStyle) {
                 SliderStyle.DEFAULT -> {
                     Slider(
-                        value = (sliderPosition ?: effectivePosition).toFloat(),
+                        value = (sliderPosition ?: interpolatedPosition).toFloat(),
                         valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                         onValueChange = {
                             if (!isListenTogetherGuest) {
@@ -1552,7 +1585,7 @@ fun BottomSheetPlayer(
                         .padding(horizontal = PlayerHorizontalPadding + 4.dp),
             ) {
                 Text(
-                    text = makeTimeString(sliderPosition ?: effectivePosition),
+                    text = makeTimeString(sliderPosition ?: interpolatedPosition),
                     style = MaterialTheme.typography.labelMedium,
                     color = TextBackgroundColor,
                     maxLines = 1,
