@@ -1168,4 +1168,6 @@
     <string name="playlist_position_beginning_desc">Newly added songs appear before existing songs</string>
     <string name="playlist_position_end">End of playlist</string>
     <string name="playlist_position_end_desc">Newly added songs appear after existing songs</string>
+    <string name="floating_top_bar">Floating top bar</string>
+    <string name="floating_top_bar_desc">Use a rounded floating title and separate circular action buttons</string>
 </resources>
