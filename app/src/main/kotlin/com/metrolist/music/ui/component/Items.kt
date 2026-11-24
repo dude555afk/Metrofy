@@ -9,6 +9,8 @@ package com.metrolist.music.ui.component
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandIn
@@ -61,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -147,29 +150,40 @@ inline fun ListItem(
     isActive: Boolean = false,
     isAvailable: Boolean = true,
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    val targetContainer =
+        when {
+            isActive -> colorScheme.primaryContainer
+            isSelected == true -> colorScheme.inversePrimary.copy(alpha = 0.4f)
+            else -> Color.Transparent
+        }
+    val containerColor by animateColorAsState(
+        targetValue = targetContainer,
+        animationSpec = tween(durationMillis = 220),
+        label = "metrolistListItemContainer",
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (isActive) colorScheme.onPrimaryContainer else colorScheme.onSurface,
+        animationSpec = tween(durationMillis = 220),
+        label = "metrolistListItemTitle",
+    )
+    val subtitleColor by animateColorAsState(
+        targetValue = if (isActive) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
+        animationSpec = tween(durationMillis = 220),
+        label = "metrolistListItemSubtitle",
+    )
+    val rowShape = if (isActive) CircleShape else RoundedCornerShape(20.dp)
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = if (isActive) {
-            modifier // playing highlight
+        modifier =
+            modifier
+                .fillMaxWidth()
                 .height(ListItemHeight)
                 .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(
-                    color = // selected active
-                        if (isSelected == true) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                        else MaterialTheme.colorScheme.secondaryContainer
-                )
-        } else if (isSelected == true) {
-            modifier // inactive selected
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(color = MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.4f))
-        } else {
-            modifier // default
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-        }
+                .clip(rowShape)
+                .background(containerColor)
+                .alpha(if (isAvailable) 1f else 0.38f)
     ) {
         Box(
             modifier = Modifier.padding(6.dp),
@@ -206,14 +220,17 @@ inline fun ListItem(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
+                color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
             if (subtitle != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    subtitle()
+                CompositionLocalProvider(LocalContentColor provides subtitleColor) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        subtitle()
+                    }
                 }
             }
         }
@@ -240,7 +257,7 @@ fun ListItem(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -272,7 +289,7 @@ fun ListItem(
         if (!subtitle.isNullOrEmpty()) {
             Text(
                 text = subtitle,
-                color = MaterialTheme.colorScheme.secondary,
+                color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
