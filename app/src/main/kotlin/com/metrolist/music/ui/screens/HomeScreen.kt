@@ -1257,16 +1257,10 @@ fun HomeScreen(
                         }
 
                         item(key = "00_your_shows_list") {
-                            LazyRow(
-                                contentPadding =
-                                    WindowInsets.systemBars
-                                        .only(WindowInsetsSides.Horizontal)
-                                        .asPaddingValues(),
-                            ) {
-                                items(savedPodcastShows) { podcast ->
-                                    ytGridItem(podcast)
-                                }
-                            }
+                            MetrolistVideoShelf(
+                                items = savedPodcastShows,
+                                itemContent = { podcast -> ytGridItem(podcast) },
+                            )
                         }
                     }
 
@@ -1282,16 +1276,10 @@ fun HomeScreen(
                         }
 
                         item(key = "00_episodes_for_later_list") {
-                            LazyRow(
-                                contentPadding =
-                                    WindowInsets.systemBars
-                                        .only(WindowInsetsSides.Horizontal)
-                                        .asPaddingValues(),
-                            ) {
-                                items(episodesForLater) { episode ->
-                                    ytGridItem(episode)
-                                }
-                            }
+                            MetrolistVideoShelf(
+                                items = episodesForLater,
+                                itemContent = { episode -> ytGridItem(episode) },
+                            )
                         }
                     }
 
@@ -1305,16 +1293,10 @@ fun HomeScreen(
                         }
 
                         item(key = "0_podcast_channels_list") {
-                            LazyRow(
-                                contentPadding =
-                                    WindowInsets.systemBars
-                                        .only(WindowInsetsSides.Horizontal)
-                                        .asPaddingValues(),
-                            ) {
-                                items(featuredPodcasts) { podcast ->
-                                    ytGridItem(podcast)
-                                }
-                            }
+                            MetrolistVideoShelf(
+                                items = featuredPodcasts,
+                                itemContent = { podcast -> ytGridItem(podcast) },
+                            )
                         }
                     }
 
@@ -1388,16 +1370,10 @@ fun HomeScreen(
                             }
 
                             item(key = "1_chip_section_list_${section.index}") {
-                                LazyRow(
-                                    contentPadding =
-                                        WindowInsets.systemBars
-                                            .only(WindowInsetsSides.Horizontal)
-                                            .asPaddingValues(),
-                                ) {
-                                    items(sectionData.items) { item ->
-                                        ytGridItem(item)
-                                    }
-                                }
+                                MetrolistVideoShelf(
+                                    items = sectionData.items,
+                                    itemContent = { item -> ytGridItem(item) },
+                                )
                             }
                         }
                     }
@@ -2071,20 +2047,10 @@ fun HomeScreen(
                                 }
 
                                 item(key = "account_playlists_list") {
-                                    LazyRow(
-                                        contentPadding =
-                                            WindowInsets.systemBars
-                                                .only(WindowInsetsSides.Horizontal)
-                                                .asPaddingValues(),
-                                        modifier = Modifier,
-                                    ) {
-                                        items(
-                                            items = accountPlaylists.distinctBy { it.id },
-                                            key = { "home_account_playlist_${it.id}" },
-                                        ) { item ->
-                                            ytGridItem(item)
-                                        }
-                                    }
+                                    MetrolistVideoShelf(
+                                        items = accountPlaylists.distinctBy { it.id },
+                                        itemContent = { item -> ytGridItem(item) },
+                                    )
                                 }
                             }
                         }
@@ -2249,17 +2215,10 @@ fun HomeScreen(
                                 }
 
                                 item(key = "similar_to_list_${section.index}") {
-                                    LazyRow(
-                                        contentPadding =
-                                            WindowInsets.systemBars
-                                                .only(WindowInsetsSides.Horizontal)
-                                                .asPaddingValues(),
-                                        modifier = Modifier,
-                                    ) {
-                                        items(recommendation.items) { item ->
-                                            ytGridItem(item)
-                                        }
-                                    }
+                                    MetrolistVideoShelf(
+                                        items = recommendation.items,
+                                        itemContent = { item -> ytGridItem(item) },
+                                    )
                                 }
                             }
                         }
