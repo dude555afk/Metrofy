@@ -144,7 +144,7 @@ import com.metrolist.music.ui.component.AlbumGridItem
 import com.metrolist.music.ui.component.ArtistGridItem
 import com.metrolist.music.ui.component.ChipsRow
 import com.metrolist.music.ui.component.ChipShelf
-import com.metrolist.music.ui.component.HideOnScrollFAB
+import com.metrolist.music.ui.component.HideOnScrollFAB\nimport com.metrolist.music.ui.component.MetrolistHomeLoadingPlaceholder\nimport com.metrolist.music.ui.component.MetrolistVideoShelf
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.menu.SpotifyPlaylistMenu
@@ -2461,20 +2461,10 @@ fun HomeScreen(
                                     }
                                 } else {
                                     item(key = "home_section_list_${section.index}") {
-                                        LazyRow(
-                                            contentPadding =
-                                                WindowInsets.systemBars
-                                                    .only(WindowInsetsSides.Horizontal)
-                                                    .asPaddingValues(),
-                                            modifier = Modifier,
-                                        ) {
-                                            items(
-                                                items = sectionData.items.distinctBy { it.id },
-                                                key = { "home_section_${section.index}_item_${it.id}" },
-                                            ) { item ->
-                                                ytGridItem(item)
-                                            }
-                                        }
+                                        MetrolistVideoShelf(
+                                            items = sectionData.items.distinctBy { it.id },
+                                            itemContent = { item -> ytGridItem(item) },
+                                        )
                                     }
                                 }
                             }
@@ -2734,54 +2724,12 @@ fun HomeScreen(
                     }
                 }
 
-                // Only show shimmer during initial loading, not for pagination
+                // Source-ported Metrolist Home skeleton: chip loading remains handled by the Metrofy chip row above.
                 if (isLoading && homePage?.sections.isNullOrEmpty()) {
                     item(key = "loading_shimmer") {
-                        ShimmerHost(
-                            modifier = Modifier,
-                        ) {
-                            repeat(2) {
-                                TextPlaceholder(
-                                    height = 36.dp,
-                                    modifier =
-                                        Modifier
-                                            .padding(12.dp)
-                                            .width(250.dp),
-                                )
-                                LazyRow(
-                                    contentPadding =
-                                        WindowInsets.systemBars
-                                            .only(WindowInsetsSides.Horizontal)
-                                            .asPaddingValues(),
-                                ) {
-                                    items(4) {
-                                        GridItemPlaceHolder()
-                                    }
-                                }
-                            }
-
-                            TextPlaceholder(
-                                height = 36.dp,
-                                modifier =
-                                    Modifier
-                                        .padding(vertical = 12.dp, horizontal = 12.dp)
-                                        .width(250.dp),
-                            )
-                            repeat(4) {
-                                Row {
-                                    repeat(2) {
-                                        TextPlaceholder(
-                                            height = MoodAndGenresButtonHeight,
-                                            shape = RoundedCornerShape(6.dp),
-                                            modifier =
-                                                Modifier
-                                                    .padding(horizontal = 12.dp)
-                                                    .width(200.dp),
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        MetrolistHomeLoadingPlaceholder(
+                            isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE,
+                        )
                     }
                 }
             }

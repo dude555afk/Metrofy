@@ -1,40 +1,42 @@
 /**
- * Metrolist Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
+ * Adapted from Metrolist shared UI HomeComponents.SectionTitle.
+ * Keeps Metrofy's existing call contract so all screen/ViewModel integrations remain intact.
+ * Licensed under GPL-3.0.
  */
-
 package com.metrolist.music.ui.component
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
 
+/**
+ * Metrofy-compatible adapter for Metrolist's expressive Home section header.
+ * The custom thumbnail slot and existing callbacks preserve Metrofy navigation/actions.
+ */
 @Composable
 fun NavigationTitle(
     title: String,
@@ -44,66 +46,87 @@ fun NavigationTitle(
     onClick: (() -> Unit)? = null,
     onPlayAllClick: (() -> Unit)? = null,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-            .clickable(enabled = onClick != null) {
-                onClick?.invoke()
-            }
-            .padding(horizontal = 12.dp, vertical = 12.dp)
-    ) {
-        thumbnail?.invoke()
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val isWide = maxWidth > 840.dp
+        val titleStyle =
+            if (isWide) MaterialTheme.typography.headlineMedium
+            else MaterialTheme.typography.headlineSmall
+        val minHeight = if (isWide || label != null) 60.dp else 50.dp
 
-        Column(
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.weight(1f)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = minHeight)
+                .then(
+                    if (onClick != null) {
+                        Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClick = onClick)
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(horizontal = if (isWide) 24.dp else 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            label?.let { label ->
+            thumbnail?.let {
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    it()
+                }
+                Spacer(Modifier.width(10.dp))
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                label?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelLarge,
+                    text = title,
+                    style = titleStyle,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
 
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                overflow = TextOverflow.Ellipsis,
-                maxLines = 1,
-            )
-        }
+            if (onPlayAllClick != null) {
+                Box(
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .size(width = 48.dp, height = 40.dp)
+                        .clip(RoundedCornerShape(100.dp))
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable(onClick = onPlayAllClick),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_widget_play),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
 
-        onPlayAllClick?.let { playAllClick ->
-            OutlinedButton(
-                onClick = playAllClick,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.primary
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                modifier = Modifier
-                    .height(24.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.play_all),
-                    style = MaterialTheme.typography.labelSmall
+            if (onClick != null) {
+                Icon(
+                    painter = painterResource(R.drawable.arrow_forward),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 8.dp),
                 )
             }
-        }
-
-        if (onClick != null) {
-            Icon(
-                painter = painterResource(R.drawable.arrow_forward),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
         }
     }
 }
