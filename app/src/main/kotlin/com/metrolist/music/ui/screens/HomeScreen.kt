@@ -149,6 +149,7 @@ import com.metrolist.music.ui.component.ChipShelf
 import com.metrolist.music.ui.component.HideOnScrollFAB
 import com.metrolist.music.ui.component.MetrolistHomeLoadingPlaceholder
 import com.metrolist.music.ui.component.MetrolistVideoShelf
+import com.metrolist.music.ui.component.MetrolistSpeedDialPageIndicator
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.menu.SpotifyPlaylistMenu
@@ -1472,7 +1473,7 @@ fun HomeScreen(
                                     val itemsPerPage = columns * rows
                                     val itemWidth = availableWidth / columns
 
-                                    val pagerState = rememberPagerState(pageCount = { (items.size + itemsPerPage - 1) / itemsPerPage })
+                                    val pagerState = rememberPagerState(pageCount = { (items.size + 1 + itemsPerPage - 1) / itemsPerPage })
 
                                     Column(
                                         modifier =
@@ -1488,16 +1489,17 @@ fun HomeScreen(
                                                     .fillMaxWidth()
                                                     .height(itemWidth * rows),
                                         ) { page ->
-                                            val pageStartIndex = page * itemsPerPage
-                                            val pageItems = items.drop(pageStartIndex).take(itemsPerPage)
-
                                             Column(modifier = Modifier.fillMaxSize()) {
                                                 for (row in 0 until rows) {
                                                     Row(modifier = Modifier.fillMaxWidth()) {
                                                         for (col in 0 until columns) {
-                                                            val itemIndex = row * columns + col
-
-                                                            val isRandomizeSlot = (page == 0 && itemIndex == itemsPerPage - 1)
+                                                            // Metrolist maps pager cells column-first and counts the random slot
+                                                            // as a real entry, so no speed-dial item is lost when the slot appears.
+                                                            val contentIndex = page * itemsPerPage + col * rows + row
+                                                            val isRandomizeSlot = contentIndex == itemsPerPage - 1
+                                                            val itemIndex =
+                                                                if (contentIndex < itemsPerPage - 1) contentIndex
+                                                                else contentIndex - 1
 
                                                             if (isRandomizeSlot) {
                                                                 Box(
@@ -1572,8 +1574,8 @@ fun HomeScreen(
                                                                         },
                                                                     )
                                                                 }
-                                                            } else if (itemIndex < pageItems.size) {
-                                                                val item = pageItems[itemIndex]
+                                                            } else if (contentIndex < items.size + 1 && itemIndex in items.indices) {
+                                                                val item = items[itemIndex]
                                                                 val isPinned by database.speedDialDao
                                                                     .isPinned(
                                                                         item.id,
@@ -1724,33 +1726,7 @@ fun HomeScreen(
                                             }
                                         }
 
-                                        if (pagerState.pageCount > 1) {
-                                            Row(
-                                                modifier =
-                                                    Modifier
-                                                        .height(24.dp)
-                                                        .fillMaxWidth(),
-                                                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                repeat(pagerState.pageCount) { iteration ->
-                                                    val color =
-                                                        if (pagerState.currentPage == iteration) {
-                                                            MaterialTheme.colorScheme.primary
-                                                        } else {
-                                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                                        }
-                                                    Box(
-                                                        modifier =
-                                                            Modifier
-                                                                .padding(4.dp)
-                                                                .clip(CircleShape)
-                                                                .background(color)
-                                                                .size(8.dp),
-                                                    )
-                                                }
-                                            }
-                                        }
+                                        MetrolistSpeedDialPageIndicator(pagerState)
                                     }
                                 }
                             }
