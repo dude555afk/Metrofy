@@ -374,6 +374,10 @@ fun BottomSheetPlayer(
         }
     }
 
+    var sliderPosition by remember {
+        mutableStateOf<Long?>(null)
+    }
+
     // Metrolist-style frame interpolation keeps the playback thumb and elapsed clock smooth
     // between Media3 position callbacks. Manual seeks and Cast remain authoritative.
     val latestPosition by rememberUpdatedState(effectivePosition)
@@ -417,9 +421,6 @@ fun BottomSheetPlayer(
         }
     }
 
-    var sliderPosition by remember {
-        mutableStateOf<Long?>(null)
-    }
     // Track when we last manually set position to avoid Cast overwriting it
     var lastManualSeekTime by remember { mutableLongStateOf(0L) }
 
