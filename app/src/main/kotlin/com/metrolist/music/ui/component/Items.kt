@@ -343,9 +343,9 @@ fun GridItem(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             badges()
-
             subtitle()
         }
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -363,8 +363,8 @@ fun GridItem(
     title = {
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 19.sp),
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
@@ -374,8 +374,8 @@ fun GridItem(
     subtitle = {
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            style = MaterialTheme.typography.labelSmall.copy(lineHeight = 12.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -1127,8 +1127,8 @@ fun YouTubeGridItem(
         if (subtitle != null) {
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                style = MaterialTheme.typography.labelSmall.copy(lineHeight = 12.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
