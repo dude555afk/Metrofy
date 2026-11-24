@@ -57,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -287,21 +288,40 @@ private fun NewMiniPlayer(
     }
 
     // Memoize colors
+    val sourceMiniPlayerScheme = MaterialTheme.colorScheme
+    val usesMetrolistExpressiveSurface = miniPlayerBackground == MiniPlayerBackgroundStyle.DEFAULT
     val backgroundColor = when (miniPlayerBackground) {
-        MiniPlayerBackgroundStyle.DEFAULT    -> MaterialTheme.colorScheme.surfaceContainer
+        MiniPlayerBackgroundStyle.DEFAULT -> sourceMiniPlayerScheme.primaryContainer
         MiniPlayerBackgroundStyle.TRANSPARENT -> Color.Black.copy(alpha = 0.25f)
-        MiniPlayerBackgroundStyle.BLUR       -> MaterialTheme.colorScheme.surfaceContainer
-        MiniPlayerBackgroundStyle.GRADIENT   -> MaterialTheme.colorScheme.surfaceContainer
+        MiniPlayerBackgroundStyle.BLUR -> sourceMiniPlayerScheme.surfaceContainer
+        MiniPlayerBackgroundStyle.GRADIENT -> sourceMiniPlayerScheme.surfaceContainer
         MiniPlayerBackgroundStyle.PURE_BLACK -> Color.Black
     }
-    val forceLightColors = !useDarkTheme && (miniPlayerBackground == MiniPlayerBackgroundStyle.PURE_BLACK ||
+    val forceLightColors = !useDarkTheme && (
+        miniPlayerBackground == MiniPlayerBackgroundStyle.PURE_BLACK ||
             miniPlayerBackground == MiniPlayerBackgroundStyle.BLUR ||
-            miniPlayerBackground == MiniPlayerBackgroundStyle.GRADIENT)
+            miniPlayerBackground == MiniPlayerBackgroundStyle.GRADIENT
+    )
 
-    val primaryColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.primary
-    val outlineColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.outline
-    val onSurfaceColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.onSurface
-    val errorColor = if (forceLightColors) Color(0xFFFF6B6B) else MaterialTheme.colorScheme.error
+    // Match Metrolist's expressive mini-player contrast while retaining Metrofy's
+    // selectable blur/gradient/transparent/pure-black backgrounds.
+    val primaryColor =
+        when {
+            forceLightColors -> Color.White
+            usesMetrolistExpressiveSurface -> sourceMiniPlayerScheme.onPrimaryContainer
+            else -> sourceMiniPlayerScheme.primary
+        }
+    val outlineColor =
+        when {
+            forceLightColors -> Color.White
+            usesMetrolistExpressiveSurface -> sourceMiniPlayerScheme.onPrimaryContainer.copy(alpha = 0.34f)
+            else -> sourceMiniPlayerScheme.outline
+        }
+    val onSurfaceColor =
+        if (forceLightColors) Color.White
+        else if (usesMetrolistExpressiveSurface) sourceMiniPlayerScheme.onPrimaryContainer
+        else sourceMiniPlayerScheme.onSurface
+    val errorColor = if (forceLightColors) Color(0xFFFF6B6B) else sourceMiniPlayerScheme.error
 
     Box(
         modifier =
@@ -379,6 +399,7 @@ private fun NewMiniPlayer(
                     .then(if (isTabletLandscape) Modifier.width(500.dp).align(Alignment.Center) else Modifier.fillMaxWidth())
                     .height(64.dp)
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
+                    .shadow(3.dp, RoundedCornerShape(32.dp))
                     .clip(RoundedCornerShape(32.dp))
                     .background(color = backgroundColor)
                     .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(32.dp)),

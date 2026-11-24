@@ -60,6 +60,7 @@ fun MetrolistArtistHeader(
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val isSquareHeader = maxWidth < 600.dp
+        val headerHorizontalPadding = if (maxWidth >= 960.dp) 32.dp else 20.dp
         val imageHeight =
             when {
                 isSquareHeader -> maxWidth
@@ -107,7 +108,7 @@ fun MetrolistArtistHeader(
                 modifier = Modifier
                     .fillMaxWidth()
                     .offset(y = (-24).dp)
-                    .padding(horizontal = if (maxWidth >= 960.dp) 32.dp else 20.dp),
+                    .padding(horizontal = headerHorizontalPadding),
             ) {
                 Column(
                     modifier = Modifier
