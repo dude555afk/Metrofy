@@ -5,6 +5,7 @@
 
 package com.metrolist.music.ui.screens
 
+import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -78,6 +79,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -144,7 +146,9 @@ import com.metrolist.music.ui.component.AlbumGridItem
 import com.metrolist.music.ui.component.ArtistGridItem
 import com.metrolist.music.ui.component.ChipsRow
 import com.metrolist.music.ui.component.ChipShelf
-import com.metrolist.music.ui.component.HideOnScrollFAB\nimport com.metrolist.music.ui.component.MetrolistHomeLoadingPlaceholder\nimport com.metrolist.music.ui.component.MetrolistVideoShelf
+import com.metrolist.music.ui.component.HideOnScrollFAB
+import com.metrolist.music.ui.component.MetrolistHomeLoadingPlaceholder
+import com.metrolist.music.ui.component.MetrolistVideoShelf
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.menu.SpotifyPlaylistMenu
