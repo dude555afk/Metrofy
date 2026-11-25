@@ -2,7 +2,6 @@ package com.metrolist.music.ui.screens.podcast
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
@@ -23,11 +22,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ContainedLoadingIndicator
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -35,12 +32,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,8 +44,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -60,23 +52,18 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastAny
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PodcastItem
 import timber.log.Timber
-import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalPlayerAwareWindowInsets
-import com.metrolist.music.db.entities.PodcastEntity
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.models.toMediaMetadata
@@ -84,7 +71,8 @@ import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.LocalMenuState
-import com.metrolist.music.ui.component.YouTubeListItem
+import com.metrolist.music.ui.component.MetrolistPodcastEpisodeRow
+import com.metrolist.music.ui.component.MetrolistExpandableSearchBar
 import com.metrolist.music.ui.menu.YouTubeSongMenu
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.viewmodels.OnlinePodcastViewModel
@@ -99,7 +87,6 @@ fun OnlinePodcastScreen(
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val database = LocalDatabase.current
 
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -123,8 +110,6 @@ fun OnlinePodcastScreen(
         }
     }
 
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(isSearching) { if (isSearching) focusRequester.requestFocus() }
 
     if (isSearching) {
         BackHandler {
@@ -170,70 +155,81 @@ fun OnlinePodcastScreen(
                 }
             } else {
                 podcast?.let { podcastItem ->
-                    if (!isSearching) {
-                        item(key = "podcast_header") {
-                            val context = LocalContext.current
-                            PodcastHeader(
-                                podcast = podcastItem,
-                                episodeCount = episodes.size,
-                                inLibrary = libraryPodcast?.inLibrary == true,
-                                canPlay = episodes.isNotEmpty(),
-                                onPlayClick = {
-                                    val playableEpisodes = episodes
-                                    if (playableEpisodes.isNotEmpty()) {
-                                        playerConnection.playQueue(
-                                            ListQueue(
-                                                title = podcastItem.title,
-                                                items = playableEpisodes.map { it.toMediaMetadata().toMediaItem() },
-                                            ),
-                                        )
-                                    }
-                                },
-                                onLibraryClick = { viewModel.toggleLibrary() },
-                                onViewChannelClick = {
-                                    val channelId = podcastItem.channelId ?: podcastItem.author?.id
-                                    if (channelId != null) {
-                                        navController.navigate("artist/$channelId?isPodcastChannel=true")
-                                    }
-                                },
-                            )
-                        }
+                    item(key = "podcast_header") {
+                        PodcastHeader(
+                            podcast = podcastItem,
+                            episodeCount = episodes.size,
+                            inLibrary = libraryPodcast?.inLibrary == true,
+                            canPlay = episodes.isNotEmpty(),
+                            onPlayClick = {
+                                val playableEpisodes = episodes
+                                if (playableEpisodes.isNotEmpty()) {
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = podcastItem.title,
+                                            items = playableEpisodes.map { it.toMediaMetadata().toMediaItem() },
+                                        ),
+                                    )
+                                }
+                            },
+                            onLibraryClick = { viewModel.toggleLibrary() },
+                            onViewChannelClick = {
+                                val channelId = podcastItem.channelId ?: podcastItem.author?.id
+                                if (channelId != null) {
+                                    navController.navigate("artist/$channelId?isPodcastChannel=true")
+                                }
+                            },
+                            onSearchClick = {
+                                isSearching = !isSearching
+                                if (!isSearching) query = TextFieldValue()
+                            },
+                        )
+                        MetrolistExpandableSearchBar(
+                            visible = isSearching,
+                            query = query.text,
+                            onQueryChange = { query = TextFieldValue(it) },
+                            onClose = {
+                                isSearching = false
+                                query = TextFieldValue()
+                            },
+                            placeholder = stringResource(R.string.search),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
                     }
 
                     itemsIndexed(
                         items = filteredEpisodes,
                         key = { _, episode -> episode.id }
                     ) { index, episode ->
-                        YouTubeListItem(
-                            item = episode,
+                        MetrolistPodcastEpisodeRow(
+                            episode = episode,
+                            isFirst = index == 0,
+                            isLast = index == filteredEpisodes.lastIndex,
                             isActive = mediaMetadata?.id == episode.id,
                             isPlaying = isPlaying,
-                            modifier = Modifier
-                                .combinedClickable(
-                                    onClick = {
-                                        if (episode.id == mediaMetadata?.id) {
-                                            playerConnection.togglePlayPause()
-                                        } else {
-                                            Timber.d("Playing episode: ${episode.title}, index: $index, total episodes: ${filteredEpisodes.size}")
-                                            val mediaItems = filteredEpisodes.map { it.toMediaMetadata().toMediaItem() }
-                                            Timber.d("Created ${mediaItems.size} media items for queue")
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = podcast?.title,
-                                                    items = mediaItems,
-                                                    startIndex = index
-                                                )
-                                            )
-                                        }
-                                    },
-                                    onLongClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        menuState.show {
-                                            YouTubeSongMenu(episode.asSongItem(), navController, menuState::dismiss)
-                                        }
-                                    }
-                                )
-                                .animateItem(),
+                            onClick = {
+                                if (episode.id == mediaMetadata?.id) {
+                                    playerConnection.togglePlayPause()
+                                } else {
+                                    Timber.d("Playing episode: ${episode.title}, index: $index, total episodes: ${filteredEpisodes.size}")
+                                    val mediaItems = filteredEpisodes.map { it.toMediaMetadata().toMediaItem() }
+                                    Timber.d("Created ${mediaItems.size} media items for queue")
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = podcast?.title,
+                                            items = mediaItems,
+                                            startIndex = index
+                                        )
+                                    )
+                                }
+                            },
+                            onLongClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                menuState.show {
+                                    YouTubeSongMenu(episode.asSongItem(), navController, menuState::dismiss)
+                                }
+                            },
+                            modifier = Modifier.animateItem(),
                             trailingContent = {
                                 IconButton(onClick = {
                                     menuState.show {
@@ -242,7 +238,7 @@ fun OnlinePodcastScreen(
                                 }) {
                                     Icon(painterResource(R.drawable.more_vert), null)
                                 }
-                            }
+                            },
                         )
                     }
                 }
@@ -251,31 +247,7 @@ fun OnlinePodcastScreen(
 
         TopAppBar(
             title = {
-                if (isSearching) {
-                    TextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        placeholder = {
-                            Text(
-                                text = stringResource(R.string.search),
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                        },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.titleLarge,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester)
-                    )
-                } else if (lazyListState.firstVisibleItemIndex > 0) {
+                if (!isSearching && lazyListState.firstVisibleItemIndex > 0) {
                     Text(podcast?.title ?: "")
                 }
             },
@@ -299,16 +271,6 @@ fun OnlinePodcastScreen(
                     )
                 }
             },
-            actions = {
-                if (!isSearching) {
-                    IconButton(onClick = { isSearching = true }) {
-                        Icon(
-                            painter = painterResource(R.drawable.search),
-                            contentDescription = stringResource(R.string.search)
-                        )
-                    }
-                }
-            },
             scrollBehavior = scrollBehavior
         )
     }
@@ -323,6 +285,7 @@ private fun PodcastHeader(
     onPlayClick: () -> Unit,
     onLibraryClick: () -> Unit,
     onViewChannelClick: () -> Unit,
+    onSearchClick: () -> Unit,
 ) {
     val context = LocalContext.current
     val canViewChannel = !podcast.channelId.isNullOrBlank() || !podcast.author?.id.isNullOrBlank()
@@ -402,6 +365,16 @@ private fun PodcastHeader(
                     stringResource(if (inLibrary) R.string.remove_from_library else R.string.add_to_library),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+            IconButton(
+                onClick = onSearchClick,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.search),
+                    contentDescription = stringResource(R.string.search),
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
