@@ -120,6 +120,7 @@ import com.metrolist.music.constants.RandomizeHomeOrderKey
 import com.metrolist.music.constants.ShowPlayRandomButtonKey
 import com.metrolist.music.constants.ShowRecognizeButtonKey
 import com.metrolist.music.constants.SmallGridThumbnailHeight
+import com.metrolist.music.constants.speedDialLayout
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.db.entities.Album
 import com.metrolist.music.db.entities.Artist
@@ -1428,18 +1429,11 @@ fun HomeScreen(
                                 }
 
                                 item(key = "speed_dial_list") {
-                                    val targetItemSize = 160.dp
                                     val availableWidth = maxWidth - 32.dp
-                                    val columns = (availableWidth / targetItemSize).toInt().coerceAtLeast(3)
-                                    val rows =
-                                        if (columns >= 6) {
-                                            1
-                                        } else if (columns >= 4) {
-                                            2
-                                        } else {
-                                            3
-                                        }
-                                    val itemsPerPage = columns * rows
+                                    val speedDialLayout = speedDialLayout(availableWidth, gridItemSize)
+                                    val columns = speedDialLayout.columns
+                                    val rows = speedDialLayout.rows
+                                    val itemsPerPage = speedDialLayout.itemsPerPage
                                     val itemWidth = availableWidth / columns
 
                                     val pagerState = rememberPagerState(pageCount = { (items.size + 1 + itemsPerPage - 1) / itemsPerPage })
