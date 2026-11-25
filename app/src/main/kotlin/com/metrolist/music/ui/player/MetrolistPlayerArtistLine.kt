@@ -25,7 +25,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.layout.Layout
 import com.metrolist.music.models.MediaMetadata
 import kotlinx.coroutines.delay
