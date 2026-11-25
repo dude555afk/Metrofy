@@ -943,15 +943,15 @@ fun HomeScreen(
         }
     }
 
-    val ytGridItem: @Composable (YTItem) -> Unit = { item ->
+    val ytGridItem: @Composable (YTItem, Modifier) -> Unit = { item, itemModifier ->
         YouTubeGridItem(
             item = item,
             isActive = item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id),
             isPlaying = isPlaying,
             coroutineScope = scope,
-            thumbnailRatio = 1f,
+            thumbnailRatio = 16f / 9f,
             modifier =
-                Modifier
+                itemModifier
                     .combinedClickable(
                         onClick = {
                             when (item) {
@@ -1234,7 +1234,7 @@ fun HomeScreen(
                         item(key = "00_your_shows_list") {
                             MetrolistVideoShelf(
                                 items = savedPodcastShows,
-                                itemContent = { podcast -> ytGridItem(podcast) },
+                                itemContent = { podcast, itemModifier -> ytGridItem(podcast, itemModifier) },
                             )
                         }
                     }
@@ -1253,7 +1253,7 @@ fun HomeScreen(
                         item(key = "00_episodes_for_later_list") {
                             MetrolistVideoShelf(
                                 items = episodesForLater,
-                                itemContent = { episode -> ytGridItem(episode) },
+                                itemContent = { episode, itemModifier -> ytGridItem(episode, itemModifier) },
                             )
                         }
                     }
@@ -1270,7 +1270,7 @@ fun HomeScreen(
                         item(key = "0_podcast_channels_list") {
                             MetrolistVideoShelf(
                                 items = featuredPodcasts,
-                                itemContent = { podcast -> ytGridItem(podcast) },
+                                itemContent = { podcast, itemModifier -> ytGridItem(podcast, itemModifier) },
                             )
                         }
                     }
@@ -1347,7 +1347,7 @@ fun HomeScreen(
                             item(key = "1_chip_section_list_${section.index}") {
                                 MetrolistVideoShelf(
                                     items = sectionData.items,
-                                    itemContent = { item -> ytGridItem(item) },
+                                    itemContent = { item, itemModifier -> ytGridItem(item, itemModifier) },
                                 )
                             }
                         }
@@ -1962,7 +1962,7 @@ fun HomeScreen(
                                 item(key = "account_playlists_list") {
                                     MetrolistVideoShelf(
                                         items = accountPlaylists.distinctBy { it.id },
-                                        itemContent = { item -> ytGridItem(item) },
+                                        itemContent = { item, itemModifier -> ytGridItem(item, itemModifier) },
                                     )
                                 }
                             }
@@ -2089,7 +2089,7 @@ fun HomeScreen(
                                 item(key = "similar_to_list_${section.index}") {
                                     MetrolistVideoShelf(
                                         items = recommendation.items,
-                                        itemContent = { item -> ytGridItem(item) },
+                                        itemContent = { item, itemModifier -> ytGridItem(item, itemModifier) },
                                     )
                                 }
                             }
@@ -2246,7 +2246,7 @@ fun HomeScreen(
                                     item(key = "home_section_list_${section.index}") {
                                         MetrolistVideoShelf(
                                             items = sectionData.items.distinctBy { it.id },
-                                            itemContent = { item -> ytGridItem(item) },
+                                            itemContent = { item, itemModifier -> ytGridItem(item, itemModifier) },
                                         )
                                     }
                                 }

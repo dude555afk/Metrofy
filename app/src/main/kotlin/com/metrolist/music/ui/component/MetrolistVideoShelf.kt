@@ -1,10 +1,14 @@
 /**
  * Android adapter of Metrolist shared UI components.VideoShelf.
- * Its item renderer is supplied by Metrofy so click, menu, offline and playback logic stay local.
+ *
+ * Keeps Metrolist's responsive multi-browse card sizing and horizontal carousel
+ * container while delegating each card to Metrofy's own item renderer. That
+ * preserves Metrofy's menus, navigation, offline rules and playback queue.
  * Licensed under GPL-3.0.
  */
 package com.metrolist.music.ui.component
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,23 +28,26 @@ fun MetrolistVideoShelf(
     items: List<YTItem>,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
-    itemContent: @Composable (YTItem) -> Unit,
+    itemContent: @Composable (YTItem, Modifier) -> Unit,
 ) {
     if (items.isEmpty()) return
 
-    val itemSize = currentGridThumbnailHeight() + 24.dp
     val carouselState = rememberCarouselState { items.size }
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        // These are the source VideoShelf's Android card widths.
+        val preferredItemWidth = if (maxWidth > 840.dp) 320.dp else 280.dp
 
-    HorizontalMultiBrowseCarousel(
-        state = carouselState,
-        preferredItemWidth = itemSize,
-        itemSpacing = 12.dp,
-        contentPadding = PaddingValues(0.dp),
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(contentPadding)
-            .clip(RoundedCornerShape(24.dp)),
-    ) { index ->
-        itemContent(items[index])
+        HorizontalMultiBrowseCarousel(
+            state = carouselState,
+            preferredItemWidth = preferredItemWidth,
+            itemSpacing = 12.dp,
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(contentPadding)
+                .clip(RoundedCornerShape(24.dp)),
+        ) { index ->
+            itemContent(items[index], Modifier.fillMaxWidth())
+        }
     }
 }
