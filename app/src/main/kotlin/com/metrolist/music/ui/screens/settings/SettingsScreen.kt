@@ -11,6 +11,7 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -40,6 +41,7 @@ import com.metrolist.music.R
 import com.metrolist.music.constants.UpdateChannelKey
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.MetrolistSettingsSearchField
+import com.metrolist.music.ui.component.MetrolistSettingsSearchResultRow
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.ReleaseNotesCard
@@ -345,22 +347,19 @@ fun SettingsScreen(
     
     
         } else if (filteredSettings.isNotEmpty()) {
-            Material3SettingsGroup(
-                title = "Search results",
-                items = filteredSettings.map { destination ->
-                    Material3SettingsItem(
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(destination.icon),
-                                contentDescription = null,
-                            )
-                        },
-                        title = { Text(destination.title) },
-                        description = { Text(destination.description) },
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                filteredSettings.forEachIndexed { index, destination ->
+                    MetrolistSettingsSearchResultRow(
+                        title = destination.title,
+                        supportingText = destination.description,
+                        iconRes = destination.icon,
+                        query = searchQuery,
+                        isFirst = index == 0,
+                        isLast = index == filteredSettings.lastIndex,
                         onClick = destination.onClick,
                     )
-                },
-            )
+                }
+            }
         } else {
             Text(
                 text = "No matching settings",
