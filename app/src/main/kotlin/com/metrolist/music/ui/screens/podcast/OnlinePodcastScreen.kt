@@ -177,9 +177,9 @@ fun OnlinePodcastScreen(
                                 podcast = podcastItem,
                                 episodeCount = episodes.size,
                                 inLibrary = libraryPodcast?.inLibrary == true,
-                                canPlay = episodes.any { !it.isUnavailable },
+                                canPlay = episodes.isNotEmpty(),
                                 onPlayClick = {
-                                    val playableEpisodes = episodes.filterNot { it.isUnavailable }
+                                    val playableEpisodes = episodes
                                     if (playableEpisodes.isNotEmpty()) {
                                         playerConnection.playQueue(
                                             ListQueue(
