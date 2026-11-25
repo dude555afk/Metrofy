@@ -148,6 +148,7 @@ import com.metrolist.music.ui.component.ChipShelf
 import com.metrolist.music.ui.component.HideOnScrollFAB
 import com.metrolist.music.ui.component.MetrolistHomeLoadingPlaceholder
 import com.metrolist.music.ui.component.MetrolistHomeGallery
+import com.metrolist.music.ui.component.MetrolistHomeCarousel
 import com.metrolist.music.ui.component.MetrolistVideoShelf
 import com.metrolist.music.ui.component.MetrolistSpeedDialPageIndicator
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
@@ -2016,47 +2017,21 @@ fun HomeScreen(
 
                                 item(key = "forgotten_favorites_list") {
                                     val songs = forgottenFavorites.distinctBy { it.id }
-                                    val rows = min(4, songs.size)
-                                    MetrolistHomeGallery(
+                                    MetrolistHomeCarousel(
                                         items = songs,
-                                        rows = rows,
-                                        itemWidth = horizontalLazyGridItemWidth,
-                                        rowHeight = ListItemHeight,
-                                        pageSpacing = 16.dp,
-                                        contentPadding = WindowInsets.systemBars
-                                            .only(WindowInsetsSides.Horizontal)
-                                            .asPaddingValues(),
-                                        key = { _, song -> "home_forgotten_${song.id}" },
-                                    ) { _, originalSong, itemModifier ->
+                                        preferredItemWidth = currentGridHeight + 24.dp,
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                    ) { originalSong, itemModifier ->
                                         val song by database
                                             .song(originalSong.id)
                                             .collectAsState(initial = originalSong)
 
-                                        SongListItem(
+                                        SongGridItem(
                                             song = song!!,
                                             showInLibraryIcon = true,
                                             isActive = song!!.id == mediaMetadata?.id,
                                             isPlaying = isPlaying,
-                                            isSwipeable = false,
-                                            trailingContent = {
-                                                IconButton(
-                                                    onClick = {
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        menuState.show {
-                                                            SongMenu(
-                                                                originalSong = song!!,
-                                                                navController = navController,
-                                                                onDismiss = menuState::dismiss,
-                                                            )
-                                                        }
-                                                    },
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.more_vert),
-                                                        contentDescription = null,
-                                                    )
-                                                }
-                                            },
+                                            fillMaxWidth = true,
                                             modifier = itemModifier.combinedClickable(
                                                 onClick = {
                                                     if (!isListenTogetherGuest) {
