@@ -118,6 +118,7 @@ import com.metrolist.music.ui.component.BottomSheetState
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.MediaMetadataListItem
+import com.metrolist.music.ui.component.MetrolistQueueTrackItem
 import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.menu.QueueMenu
 import com.metrolist.music.ui.menu.SelectionMediaMetadataMenu
@@ -842,7 +843,7 @@ fun Queue(
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier.animateItem(),
                             ) {
-                                MediaMetadataListItem(
+                                MetrolistQueueTrackItem(
                                     mediaMetadata = window.mediaItem.metadata!!,
                                     isSelected = false,
                                     isActive = isActive,
