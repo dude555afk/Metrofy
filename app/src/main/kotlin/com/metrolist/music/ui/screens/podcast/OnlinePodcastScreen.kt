@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -174,13 +175,25 @@ fun OnlinePodcastScreen(
                                 podcast = podcastItem,
                                 episodeCount = episodes.size,
                                 inLibrary = libraryPodcast?.inLibrary == true,
+                                canPlay = episodes.any { !it.isUnavailable },
+                                onPlayClick = {
+                                    val playableEpisodes = episodes.filterNot { it.isUnavailable }
+                                    if (playableEpisodes.isNotEmpty()) {
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = podcastItem.title,
+                                                items = playableEpisodes.map { it.toMediaMetadata().toMediaItem() },
+                                            ),
+                                        )
+                                    }
+                                },
                                 onLibraryClick = { viewModel.toggleLibrary() },
                                 onViewChannelClick = {
                                     val channelId = podcastItem.channelId ?: podcastItem.author?.id
                                     if (channelId != null) {
                                         navController.navigate("artist/$channelId?isPodcastChannel=true")
                                     }
-                                }
+                                },
                             )
                         }
                     }
@@ -304,101 +317,148 @@ private fun PodcastHeader(
     podcast: PodcastItem,
     episodeCount: Int,
     inLibrary: Boolean,
+    canPlay: Boolean,
+    onPlayClick: () -> Unit,
     onLibraryClick: () -> Unit,
-    onViewChannelClick: () -> Unit
+    onViewChannelClick: () -> Unit,
 ) {
     val context = LocalContext.current
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    val canViewChannel = !podcast.channelId.isNullOrBlank() || !podcast.author?.id.isNullOrBlank()
+    val artwork: @Composable (Modifier) -> Unit = { artworkModifier ->
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(podcast.thumbnail)
+                .crossfade(true)
                 .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(200.dp)
-                .clip(RoundedCornerShape(8.dp))
+            modifier = artworkModifier.clip(RoundedCornerShape(16.dp)),
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
+    }
+    val titleAndMeta: @Composable () -> Unit = {
         Text(
             text = podcast.title,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
         )
-
         podcast.author?.name?.let { authorName ->
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = authorName,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-
-        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = podcast.episodeCountText ?: "$episodeCount episodes",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+    }
+    val actions: @Composable () -> Unit = {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedButton(
-                onClick = onLibraryClick,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = if (inLibrary)
-                        MaterialTheme.colorScheme.secondaryContainer
-                    else
-                        Color.Transparent
-                ),
+            Button(
+                onClick = onPlayClick,
+                enabled = canPlay,
+                modifier = Modifier.weight(1f).height(44.dp),
                 shape = RoundedCornerShape(50),
-                modifier = Modifier.height(40.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp),
             ) {
                 Icon(
-                    painter = painterResource(if (inLibrary) R.drawable.library_add_check else R.drawable.library_add),
+                    painter = painterResource(R.drawable.ic_widget_play),
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp),
                 )
-                Spacer(modifier = Modifier.size(8.dp))
+                Spacer(Modifier.size(6.dp))
+                Text(stringResource(R.string.play), maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = onLibraryClick,
+                modifier = Modifier.weight(1f).height(44.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (inLibrary) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                ),
+                shape = RoundedCornerShape(50),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (inLibrary) R.drawable.library_add_check else R.drawable.library_add,
+                    ),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.size(6.dp))
                 Text(
-                    text = stringResource(if (inLibrary) R.string.remove_from_library else R.string.add_to_library)
+                    stringResource(if (inLibrary) R.string.remove_from_library else R.string.add_to_library),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-
+        }
+        if (canViewChannel) {
             OutlinedButton(
                 onClick = onViewChannelClick,
+                modifier = Modifier.fillMaxWidth().height(40.dp),
                 shape = RoundedCornerShape(50),
-                modifier = Modifier.height(40.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.person),
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp),
                 )
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(
-                    text = stringResource(R.string.view_channel)
-                )
+                Spacer(Modifier.size(6.dp))
+                Text(stringResource(R.string.view_channel))
             }
         }
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        if (maxWidth >= 620.dp) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                artwork(Modifier.size(160.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    titleAndMeta()
+                    actions()
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    artwork(Modifier.size(96.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        titleAndMeta()
+                    }
+                }
+                actions()
+            }
+        }
     }
 }
