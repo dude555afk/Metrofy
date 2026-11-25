@@ -45,7 +45,7 @@ fun <T> MetrolistHomeGallery(
     val pageCount = (items.size + rows - 1) / rows
     val pagerState = rememberPagerState(pageCount = { pageCount })
     val flingBehavior = PagerDefaults.flingBehavior(
-        pagerState = pagerState,
+        pagerState,
         pagerSnapDistance = PagerSnapDistance.atMost(pageCount),
     )
 
