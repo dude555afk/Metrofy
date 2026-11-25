@@ -2434,27 +2434,25 @@ fun HomeScreen(
                                     )
                                 }
                                 item(key = "mood_and_genres_list") {
-                                    LazyHorizontalGrid(
-                                        rows = GridCells.Fixed(4),
+                                    MetrolistHomeGallery(
+                                        items = moodAndGenres,
+                                        rows = 4,
+                                        itemWidth = 192.dp,
+                                        rowHeight = MoodAndGenresButtonHeight + 12.dp,
+                                        pageSpacing = 5.dp,
+                                        rowSpacing = 5.dp,
                                         contentPadding = PaddingValues(6.dp),
-                                        modifier =
-                                            Modifier
-                                                .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp),
-                                    ) {
-                                        items(moodAndGenres) {
-                                            MoodAndGenresButton(
-                                                title = it.title,
-                                                onClick = {
-                                                    navController.navigate(
-                                                        "youtube_browse/${it.endpoint.browseId}?params=${it.endpoint.params}",
-                                                    )
-                                                },
-                                                modifier =
-                                                    Modifier
-                                                        .padding(6.dp)
-                                                        .width(180.dp),
-                                            )
-                                        }
+                                        key = { _, mood -> "mood_and_genres_${mood.endpoint.browseId}_${mood.endpoint.params}" },
+                                    ) { _, mood, itemModifier ->
+                                        MoodAndGenresButton(
+                                            title = mood.title,
+                                            onClick = {
+                                                navController.navigate(
+                                                    "youtube_browse/${mood.endpoint.browseId}?params=${mood.endpoint.params}",
+                                                )
+                                            },
+                                            modifier = itemModifier.padding(6.dp).width(180.dp),
+                                        )
                                     }
                                 }
                             }
