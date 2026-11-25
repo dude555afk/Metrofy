@@ -1911,32 +1911,14 @@ fun HomeScreen(
                                 }
 
                                 item(key = "keep_listening_list") {
-                                    val rows = if (keepListening.size > 6) 2 else 1
-                                    LazyHorizontalGrid(
-                                        state = rememberLazyGridState(),
-                                        rows = GridCells.Fixed(rows),
-                                        contentPadding =
-                                            WindowInsets.systemBars
-                                                .only(WindowInsetsSides.Horizontal)
-                                                .asPaddingValues(),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .height(
-                                                    (
-                                                        currentGridHeight +
-                                                            with(LocalDensity.current) {
-                                                                MaterialTheme.typography.bodyLarge.lineHeight
-                                                                    .toDp() * 2 +
-                                                                    MaterialTheme.typography.bodyMedium.lineHeight
-                                                                        .toDp() * 2
-                                                            }
-                                                    ) * rows,
-                                                ),
-                                    ) {
-                                        items(keepListening) {
-                                            localGridItem(it)
-                                        }
+                                    MetrolistHomeCarousel(
+                                        items = keepListening,
+                                        preferredItemWidth = currentGridHeight + 24.dp,
+                                        contentPadding = WindowInsets.systemBars
+                                            .only(WindowInsetsSides.Horizontal)
+                                            .asPaddingValues(),
+                                    ) { localItem, _ ->
+                                        localGridItem(localItem)
                                     }
                                 }
                             }
