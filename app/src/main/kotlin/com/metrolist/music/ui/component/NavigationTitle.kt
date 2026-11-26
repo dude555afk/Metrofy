@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,7 +61,7 @@ fun NavigationTitle(
                     if (onClick != null) {
                         Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable(onClick = onClick)
+                            .clickable(role = Role.Button, onClick = onClick)
                     } else {
                         Modifier
                     },
@@ -100,32 +100,49 @@ fun NavigationTitle(
                 )
             }
 
-            if (onPlayAllClick != null) {
+            // Match Metrolist SectionTitle: navigation takes precedence over
+            // shelf playback actions, so a navigable shelf never shows two actions.
+            if (onClick != null) {
                 Box(
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .size(width = 48.dp, height = 40.dp)
-                        .clip(RoundedCornerShape(100.dp))
-                        .background(MaterialTheme.colorScheme.primary)
-                        .clickable(onClick = onPlayAllClick),
+                    modifier = Modifier.size(if (isWide) 56.dp else 48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_widget_play),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp),
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(width = 40.dp, height = 32.dp)
+                            .clip(RoundedCornerShape(100.dp))
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.arrow_forward),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
-            }
-
-            if (onClick != null) {
-                Icon(
-                    painter = painterResource(R.drawable.arrow_forward),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
+            } else if (onPlayAllClick != null) {
+                Box(
+                    modifier = Modifier.size(if (isWide) 56.dp else 48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(width = 40.dp, height = 32.dp)
+                            .clip(RoundedCornerShape(100.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                            .clickable(role = Role.Button, onClick = onPlayAllClick),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_widget_play),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
             }
         }
     }
