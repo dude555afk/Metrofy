@@ -1,0 +1,21 @@
+Material 3 YouTube Music klient pro Android
+
+Funkce:
+
+- Bleskurychlé přehrávání YouTube Music bez přerušení
+- Podpora přihlášení do YouTube Music; i odhlášení uživatelé mohou aplikaci plně využívat
+- Design **Material 3 Expressive**
+- **Discord Rich Presence**, scrobblování přes **Last.fm a Listenbrainz**
+- **Žádné reklamy**, nikdy
+- Společný poslech s ostatními uživateli online v reálném čase
+- Streamování na zařízení **Google Cast**, F-Cast, SONOS a přes DLNA
+- Import záloh/playlistů z více než 29 jiných klientů a 6 různých služeb
+- Rozpoznávání hudby přes **Shazam**
+- Rychlý poskytovatel textů písní na míru, překlady textů a podpora romanizace
+- Překlady do více než 15 jazyků
+- Podpora **přehrávání videí**
+- Rozsáhlé filtrování obsahu
+- **Canvas z Apple Music**, Spotify a YouTube Music
+- Výběr z několika typů přehrávačů, miniatur, minipřehrávačů a pozadí
+- Podpora vlastního písma a ikony aplikace
+- … a mnohem více!

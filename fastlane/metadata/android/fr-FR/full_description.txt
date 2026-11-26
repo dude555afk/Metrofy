@@ -1,0 +1,21 @@
+Client YouTube Music Material 3 pour Android
+
+Fonctionnalités :
+
+- Lecture YouTube Music ultra-rapide et sans interruption
+- Prise en charge de la connexion à YouTube Music (les utilisateurs non connectés peuvent aussi profiter pleinement de l'application)
+- Design **Material 3 Expressive**
+- **Discord Rich Presence**, Scrobbling via **Last.fm et Listenbrainz**
+- **Sans publicité**, pour toujours
+- Écoute en groupe (Listen Together) avec d'autres personnes en ligne et en temps réel
+- Diffusion vers **Google Cast**, F-Cast, des appareils SONOS et via DLNA
+- Importation de sauvegardes/playlists depuis plus de 29 autres clients et 6 services différents
+- Reconnaissance musicale via **Shazam**
+- Fournisseur de paroles personnalisées rapide, prise en charge des traductions de paroles et de la romanisation
+- Traductions dans plus de 15 langues
+- Prise en charge de la **lecture vidéo**
+- Filtrage de contenu étendu
+- **Canvas (visuels animés) provenant d'Apple Music**, Spotify et YouTube Music
+- Plusieurs types de lecteurs, de vignettes, de mini-lecteurs et d'arrière-plans au choix
+- Prise en charge des polices personnalisées et des icônes d'application
+- ... et bien plus encore !
