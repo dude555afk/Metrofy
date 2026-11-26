@@ -5,6 +5,11 @@
  */
 package com.metrolist.music.ui.player
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,8 +18,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -31,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.metrolist.music.R
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MetrolistQueueHeader(
     title: String,
@@ -77,21 +86,23 @@ fun MetrolistQueueHeader(
                 )
             }
 
-            if (showLock) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+            AnimatedVisibility(
+                visible = showLock,
+                enter = fadeIn() + expandHorizontally(),
+                exit = fadeOut() + shrinkHorizontally(),
+            ) {
+                FilledTonalIconToggleButton(
+                    checked = isUnlocked,
+                    onCheckedChange = onUnlockedChange,
+                    shapes = IconButtonDefaults.toggleableShapes(),
+                    modifier = Modifier.size(48.dp),
                 ) {
-                    IconButton(
-                        onClick = { onUnlockedChange(!isUnlocked) },
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(if (isUnlocked) R.drawable.lock_open else R.drawable.lock),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                    }
+                    Icon(
+                        painter = painterResource(if (isUnlocked) R.drawable.lock_open else R.drawable.lock),
+                        contentDescription = stringResource(
+                            if (isUnlocked) R.string.unlock_queue else R.string.lock_queue,
+                        ),
+                    )
                 }
             }
         }

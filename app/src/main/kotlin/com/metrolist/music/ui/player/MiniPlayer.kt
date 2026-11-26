@@ -11,7 +11,11 @@ import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -34,19 +38,24 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.WavyProgressIndicatorDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableLongState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -56,8 +65,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -132,6 +143,9 @@ class ProgressState(
     private val positionState: MutableLongState,
     private val durationState: MutableLongState,
 ) {
+    val isAvailable: Boolean
+        get() = durationState.longValue > 0
+
     val progress: Float
         get() {
             val duration = durationState.longValue
@@ -328,7 +342,7 @@ private fun NewMiniPlayer(
             modifier
                 .fillMaxWidth()
                 .height(MiniPlayerHeight)
-                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
                 .padding(horizontal = 12.dp)
                 .let { baseModifier ->
                     if (swipeThumbnail) {
@@ -402,7 +416,7 @@ private fun NewMiniPlayer(
                     .shadow(3.dp, RoundedCornerShape(32.dp))
                     .clip(RoundedCornerShape(32.dp))
                     .background(color = backgroundColor)
-                    .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(32.dp)),
+                    .border(1.dp, outlineColor, RoundedCornerShape(32.dp)),
         ) {
             when (miniPlayerBackground) {
                 MiniPlayerBackgroundStyle.BLUR -> {
@@ -550,91 +564,77 @@ private fun NewMiniPlayerPlayButton(
     val isListenTogetherGuest = listenTogetherManager?.let { it.isInRoom && !it.isHost } ?: false
     val isMuted by playerConnection.isMuted.collectAsState()
 
-    val trackColor = outlineColor.copy(alpha = 0.2f)
-    val strokeWidth = 3.dp
+    val progressAvailable = progressState.isAvailable
+    val artworkSize = if (progressAvailable) 38.dp else 44.dp
+    val motionScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+    val motionEnabled = motionScale > 0f
+    val artworkCorner by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (effectiveIsPlaying && motionEnabled) 22.dp else 10.dp,
+        animationSpec = tween(durationMillis = if (motionEnabled) 450 else 0),
+        label = "miniPlayerArtworkShape",
+    )
+    val artworkShape = RoundedCornerShape(
+        topStart = artworkCorner,
+        topEnd = 10.dp,
+        bottomEnd = artworkCorner,
+        bottomStart = 10.dp,
+    )
+    val rotationTransition = rememberInfiniteTransition(label = "miniPlayerArtworkRotation")
+    val artworkRotation by rotationTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = if (effectiveIsPlaying && motionEnabled) 360f else 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = (12_000 / motionScale.coerceAtLeast(0.1f)).toInt().coerceAtLeast(1),
+            ),
+        ),
+        label = "miniPlayerArtworkRotation",
+    )
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier =
-            Modifier
-                .size(48.dp)
-                .drawWithContent {
-                    drawContent()
-                    // Draw progress arc - this reads progressState.progress during draw phase only
-                    val progress = progressState.progress
-                    val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
-                    val startAngle = -90f
-                    val sweepAngle = 360f * progress
-                    val diameter = size.minDimension
-                    val topLeft = Offset((size.width - diameter) / 2, (size.height - diameter) / 2)
-
-                    // Draw track
-                    drawArc(
-                        color = trackColor,
-                        startAngle = 0f,
-                        sweepAngle = 360f,
-                        useCenter = false,
-                        topLeft = topLeft,
-                        size = Size(diameter, diameter),
-                        style = stroke,
-                    )
-                    // Draw progress
-                    drawArc(
-                        color = primaryColor,
-                        startAngle = startAngle,
-                        sweepAngle = sweepAngle,
-                        useCenter = false,
-                        topLeft = topLeft,
-                        size = Size(diameter, diameter),
-                        style = stroke,
-                    )
-                },
+        modifier = Modifier.size(if (progressAvailable) 54.dp else 44.dp),
     ) {
-        // Thumbnail with play/pause overlay
         Box(
             contentAlignment = Alignment.Center,
-            modifier =
-                Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, outlineColor.copy(alpha = 0.3f), CircleShape)
-                    .clickable {
-                        if (isListenTogetherGuest) {
-                            playerConnection.toggleMute()
-                            return@clickable
-                        }
-                        if (isCasting) {
-                            if (castIsPlaying) castHandler?.pause() else castHandler?.play()
-                        } else if (playbackState == Player.STATE_ENDED) {
-                            playerConnection.player.seekTo(0, 0)
-                            playerConnection.player.playWhenReady = true
-                        } else {
-                            playerConnection.togglePlayPause()
-                        }
-                    },
+            modifier = Modifier
+                .size(artworkSize)
+                .graphicsLayer { rotationZ = artworkRotation }
+                .clip(artworkShape)
+                .border(1.dp, outlineColor.copy(alpha = 0.3f), artworkShape)
+                .clickable {
+                    if (isListenTogetherGuest) {
+                        playerConnection.toggleMute()
+                        return@clickable
+                    }
+                    if (isCasting) {
+                        if (castIsPlaying) castHandler?.pause() else castHandler?.play()
+                    } else if (playbackState == Player.STATE_ENDED) {
+                        playerConnection.player.seekTo(0, 0)
+                        playerConnection.player.playWhenReady = true
+                    } else {
+                        playerConnection.togglePlayPause()
+                    }
+                },
         ) {
             mediaMetadata?.let { metadata ->
-                val thumbnailUrl =
-                    remember(metadata.thumbnailUrl) {
-                        metadata.thumbnailUrl?.resize(120, 120)
-                    }
+                val thumbnailUrl = remember(metadata.thumbnailUrl) {
+                    metadata.thumbnailUrl?.resize(120, 120)
+                }
                 AsyncImage(
                     model = thumbnailUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    modifier = Modifier.fillMaxSize().clip(artworkShape),
                 )
             }
 
-            // Always show a play/pause/replay/volume icon over a dark scrim so the
-            // current playback state is unambiguous and visible against any cover.
             val iconRes = when {
                 isListenTogetherGuest -> if (isMuted) R.drawable.volume_off else R.drawable.volume_up
                 playbackState == Player.STATE_ENDED -> R.drawable.replay
                 effectiveIsPlaying -> R.drawable.pause
                 else -> R.drawable.play
             }
-            // Bright covers + white icon would wash out; flip to black there.
             val iconTint = if (coverIsLight) Color.Black else Color.White
             val scrimColor = if (coverIsLight) {
                 Color.White.copy(alpha = 0.35f)
@@ -642,16 +642,26 @@ private fun NewMiniPlayerPlayButton(
                 Color.Black.copy(alpha = 0.4f)
             }
             Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(scrimColor, CircleShape),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(scrimColor, artworkShape),
             )
             Icon(
                 painter = painterResource(iconRes),
                 contentDescription = null,
                 tint = iconTint,
                 modifier = Modifier.size(20.dp),
+            )
+        }
+
+        if (progressAvailable) {
+            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+            CircularWavyProgressIndicator(
+                progress = { progressState.progress },
+                modifier = Modifier.size(54.dp),
+                color = primaryColor,
+                trackColor = outlineColor.copy(alpha = 0.25f),
+                waveSpeed = if (effectiveIsPlaying) WavyProgressIndicatorDefaults.CircularWavelength else 0.dp,
             )
         }
     }

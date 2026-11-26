@@ -939,13 +939,18 @@ fun HomeScreen(
         }
     }
 
-    val ytGridItem: @Composable (YTItem, Modifier) -> Unit = { item, itemModifier ->
+    @Composable
+    fun ytGridItem(
+        item: YTItem,
+        itemModifier: Modifier,
+        thumbnailRatio: Float = 1f,
+    ) {
         YouTubeGridItem(
             item = item,
             isActive = item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id),
             isPlaying = isPlaying,
             coroutineScope = scope,
-            thumbnailRatio = 16f / 9f,
+            thumbnailRatio = thumbnailRatio,
             modifier =
                 itemModifier
                     .combinedClickable(
@@ -1047,6 +1052,11 @@ fun HomeScreen(
                         },
                     ),
         )
+    }
+
+    val videoAwareGridItem: @Composable (YTItem, Modifier) -> Unit = { item, itemModifier ->
+        val ratio = if (item is SongItem && item.isVideoSong) 16f / 9f else 1f
+        ytGridItem(item, itemModifier, ratio)
     }
 
     val homeSections =
@@ -1343,7 +1353,7 @@ fun HomeScreen(
                             item(key = "1_chip_section_list_${section.index}") {
                                 MetrolistVideoShelf(
                                     items = sectionData.items,
-                                    itemContent = { item, itemModifier -> ytGridItem(item, itemModifier) },
+                                    itemContent = videoAwareGridItem,
                                 )
                             }
                         }
