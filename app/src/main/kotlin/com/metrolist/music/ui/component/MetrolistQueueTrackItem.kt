@@ -10,6 +10,7 @@ package com.metrolist.music.ui.component
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,6 +53,7 @@ import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.utils.makeTimeString
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MetrolistQueueTrackItem(
     mediaMetadata: MediaMetadata,
@@ -64,15 +67,24 @@ fun MetrolistQueueTrackItem(
     val colorScheme = MaterialTheme.colorScheme
     val motionScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
     val motionEnabled = motionScale > 0f
-    val highlightProgress by animateFloatAsState(
-        targetValue = if (isActive) 1f else 0f,
-        animationSpec = tween(durationMillis = if (motionEnabled) 320 else 0),
+    val activeCornerPercent by animateIntAsState(
+        targetValue = if (isActive) 50 else 20,
+        animationSpec = if (motionEnabled) {
+            MaterialTheme.motionScheme.defaultSpatialSpec()
+        } else {
+            tween(durationMillis = 0)
+        },
         label = "queueTrackShape",
     )
-    val shape = RoundedCornerShape(12.dp + 38.dp * highlightProgress)
+    // 50% corner sizing resolves to CircleShape, giving the active row its pill morph.
+    val shape = RoundedCornerShape(percent = activeCornerPercent)
     val artworkCorner by androidx.compose.animation.core.animateDpAsState(
         targetValue = if (isActive) 22.dp else 6.dp,
-        animationSpec = tween(durationMillis = if (motionEnabled) 420 else 0),
+        animationSpec = if (motionEnabled) {
+            MaterialTheme.motionScheme.defaultSpatialSpec()
+        } else {
+            tween(durationMillis = 0)
+        },
         label = "queueArtworkShape",
     )
     val artworkShape = RoundedCornerShape(
