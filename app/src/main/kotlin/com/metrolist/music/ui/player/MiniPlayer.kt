@@ -56,7 +56,6 @@ import androidx.compose.runtime.MutableLongState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -545,6 +544,7 @@ private fun NewMiniPlayer(
  * Play button with circular progress indicator
  * Uses drawWithContent to update progress without recomposition
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun NewMiniPlayerPlayButton(
     progressState: ProgressState,
@@ -655,7 +655,6 @@ private fun NewMiniPlayerPlayButton(
         }
 
         if (progressAvailable) {
-            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
             CircularWavyProgressIndicator(
                 progress = { progressState.progress },
                 modifier = Modifier.size(54.dp),
