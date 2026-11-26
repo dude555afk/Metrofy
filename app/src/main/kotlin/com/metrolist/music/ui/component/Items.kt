@@ -9,6 +9,7 @@ package com.metrolist.music.ui.component
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandIn
@@ -46,6 +47,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -61,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -76,6 +79,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.zIndex
 import androidx.media3.common.MediaItem
@@ -147,29 +151,40 @@ inline fun ListItem(
     isActive: Boolean = false,
     isAvailable: Boolean = true,
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    val targetContainer =
+        when {
+            isActive -> colorScheme.primaryContainer
+            isSelected == true -> colorScheme.inversePrimary.copy(alpha = 0.4f)
+            else -> Color.Transparent
+        }
+    val containerColor by animateColorAsState(
+        targetValue = targetContainer,
+        animationSpec = tween(durationMillis = 220),
+        label = "metrolistListItemContainer",
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (isActive) colorScheme.onPrimaryContainer else colorScheme.onSurface,
+        animationSpec = tween(durationMillis = 220),
+        label = "metrolistListItemTitle",
+    )
+    val subtitleColor by animateColorAsState(
+        targetValue = if (isActive) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
+        animationSpec = tween(durationMillis = 220),
+        label = "metrolistListItemSubtitle",
+    )
+    val rowShape = if (isActive) CircleShape else RoundedCornerShape(20.dp)
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = if (isActive) {
-            modifier // playing highlight
+        modifier =
+            modifier
+                .fillMaxWidth()
                 .height(ListItemHeight)
                 .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(
-                    color = // selected active
-                        if (isSelected == true) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                        else MaterialTheme.colorScheme.secondaryContainer
-                )
-        } else if (isSelected == true) {
-            modifier // inactive selected
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(color = MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.4f))
-        } else {
-            modifier // default
-                .height(ListItemHeight)
-                .padding(horizontal = 8.dp)
-        }
+                .clip(rowShape)
+                .background(containerColor)
+                .alpha(if (isAvailable) 1f else 0.38f)
     ) {
         Box(
             modifier = Modifier.padding(6.dp),
@@ -206,14 +221,17 @@ inline fun ListItem(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
+                color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
             if (subtitle != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    subtitle()
+                CompositionLocalProvider(LocalContentColor provides subtitleColor) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        subtitle()
+                    }
                 }
             }
         }
@@ -240,7 +258,7 @@ fun ListItem(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -272,7 +290,7 @@ fun ListItem(
         if (!subtitle.isNullOrEmpty()) {
             Text(
                 text = subtitle,
-                color = MaterialTheme.colorScheme.secondary,
+                color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -326,9 +344,9 @@ fun GridItem(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             badges()
-
             subtitle()
         }
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -346,8 +364,8 @@ fun GridItem(
     title = {
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 19.sp),
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
@@ -357,8 +375,8 @@ fun GridItem(
     subtitle = {
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            style = MaterialTheme.typography.labelSmall.copy(lineHeight = 12.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -1090,8 +1108,8 @@ fun YouTubeGridItem(
     title = {
         Text(
             text = item.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 19.sp),
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
@@ -1110,8 +1128,8 @@ fun YouTubeGridItem(
         if (subtitle != null) {
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                style = MaterialTheme.typography.labelSmall.copy(lineHeight = 12.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

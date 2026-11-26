@@ -10,6 +10,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -57,6 +58,7 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -94,6 +96,7 @@ import com.metrolist.music.db.entities.PlaylistSongMap
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.YouTubePlaylistQueue
 import com.metrolist.music.ui.component.IconButton
+import com.metrolist.music.ui.component.MetrolistCollectionHeader
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.YouTubeListItem
 import com.metrolist.music.ui.menu.YouTubePlaylistMenu
@@ -477,51 +480,147 @@ private fun OnlinePlaylistHeader(
     val menuState = LocalMenuState.current
     val syncUtils = LocalSyncUtils.current
 
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Surface(
-            modifier =
-                Modifier
-                    .size(240.dp)
-                    .shadow(
-                        elevation = 24.dp,
-                        shape = RoundedCornerShape(3.dp),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    ),
-            shape = RoundedCornerShape(3.dp),
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val isWide = maxWidth >= 960.dp
+        val isMedium = maxWidth >= 600.dp && !isWide
+        val mediumArtworkSize = minOf(256.dp, (maxWidth - 56.dp).coerceAtLeast(0.dp) * 0.4f)
+        MetrolistCollectionHeader(
+            isWide = isWide,
+            isMedium = isMedium,
+            mediumArtworkSize = mediumArtworkSize,
+            artwork = { artworkModifier, cornerRadius ->
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current).data(playlist.thumbnail).build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = artworkModifier.clip(RoundedCornerShape(cornerRadius)),
+                )
+            },
+            actions = {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        onClick = {
+                            if (dbPlaylist != null) {
+                                database.transaction {
+                                    val currentPlaylist = dbPlaylist.playlist
+                                    update(currentPlaylist, playlist)
+                                    update(currentPlaylist.toggleLike())
+                                }
+                            } else {
+                                database.transaction {
+                                    val playlistEntity =
+                                        PlaylistEntity(
+                                            name = playlist.title,
+                                            browseId = playlist.id,
+                                            thumbnailUrl = playlist.thumbnail,
+                                            isEditable = playlist.isEditable,
+                                            remoteSongCount = playlist.songCountText?.let {
+                                                Regex("""\d+""").find(it)?.value?.toIntOrNull()
+                                            },
+                                            playEndpointParams = playlist.playEndpoint?.params,
+                                            shuffleEndpointParams = playlist.shuffleEndpoint?.params,
+                                            radioEndpointParams = playlist.radioEndpoint?.params,
+                                        ).toggleLike()
+                                    insert(playlistEntity)
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        songs
+                                            .map { it.toMediaMetadata() }
+                                            .onEach(::insert)
+                                            .mapIndexed { index, song ->
+                                                PlaylistSongMap(
+                                                    songId = song.id,
+                                                    playlistId = playlistEntity.id,
+                                                    position = index,
+                                                    setVideoId = song.setVideoId,
+                                                )
+                                            }.forEach(::insert)
+                                    }
+                                }
+                            }
+                        },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(
+                                painter = painterResource(
+                                    if (dbPlaylist?.playlist?.bookmarkedAt != null) R.drawable.favorite
+                                    else R.drawable.favorite_border,
+                                ),
+                                contentDescription = null,
+                                tint = if (dbPlaylist?.playlist?.bookmarkedAt != null)
+                                    MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
+                    Surface(
+                        onClick = {
+                            if (!isListenTogetherGuest && songs.isNotEmpty()) {
+                                playerConnection.playQueue(
+                                    YouTubePlaylistQueue(
+                                        playlistId = playlist.id,
+                                        playlistTitle = playlist.title,
+                                        initialSongs = songs,
+                                        initialContinuation = continuation,
+                                    ),
+                                )
+                            }
+                        },
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = CircleShape,
+                        modifier = Modifier.size(72.dp),
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(
+                                painter = painterResource(R.drawable.play),
+                                contentDescription = stringResource(R.string.play),
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(32.dp),
+                            )
+                        }
+                    }
+                    Surface(
+                        onClick = {
+                            menuState.show {
+                                YouTubePlaylistMenu(
+                                    playlist = playlist,
+                                    songs = songs,
+                                    coroutineScope = coroutineScope,
+                                    onDismiss = menuState::dismiss,
+                                )
+                            }
+                        },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(
+                                painter = painterResource(R.drawable.more_vert),
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
+                }
+            },
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current).data(playlist.thumbnail).build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+            Text(
+                text = playlist.title,
+                style = MaterialTheme.typography.headlineMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = playlist.title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 32.dp),
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Metadata - Song Count • Duration
-        val totalDuration = songs.sumOf { it.duration ?: 0 }
-        Text(
-            text =
-                buildString {
+            val totalDuration = songs.sumOf { it.duration ?: 0 }
+            Text(
+                text = buildString {
                     append(
                         if (isPodcastPlaylist) {
                             pluralStringResource(R.plurals.n_episode, songs.size, songs.size)
@@ -534,145 +633,11 @@ private fun OnlinePlaylistHeader(
                         append(makeTimeString(totalDuration * 1000L))
                     }
                 },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Like Button - Smaller secondary button
-            Surface(
-                onClick = {
-                    if (dbPlaylist != null) {
-                        database.transaction {
-                            val currentPlaylist = dbPlaylist.playlist
-                            update(currentPlaylist, playlist)
-                            update(currentPlaylist.toggleLike())
-                        }
-                    } else {
-                        database.transaction {
-                            val playlistEntity =
-                                PlaylistEntity(
-                                    name = playlist.title,
-                                    browseId = playlist.id,
-                                    thumbnailUrl = playlist.thumbnail,
-                                    isEditable = playlist.isEditable,
-                                    remoteSongCount =
-                                        playlist.songCountText?.let {
-                                            Regex("""\d+""").find(it)?.value?.toIntOrNull()
-                                        },
-                                    playEndpointParams = playlist.playEndpoint?.params,
-                                    shuffleEndpointParams = playlist.shuffleEndpoint?.params,
-                                    radioEndpointParams = playlist.radioEndpoint?.params,
-                                ).toggleLike()
-                            insert(playlistEntity)
-                            coroutineScope.launch(Dispatchers.IO) {
-                                songs
-                                    .map { it.toMediaMetadata() }
-                                    .onEach(::insert)
-                                    .mapIndexed { index, song ->
-                                        PlaylistSongMap(
-                                            songId = song.id,
-                                            playlistId = playlistEntity.id,
-                                            position = index,
-                                            setVideoId = song.setVideoId,
-                                        )
-                                    }.forEach(::insert)
-                            }
-                        }
-                    }
-                },
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter =
-                            painterResource(
-                                if (dbPlaylist?.playlist?.bookmarkedAt != null) R.drawable.favorite else R.drawable.favorite_border,
-                            ),
-                        contentDescription = null,
-                        tint =
-                            if (dbPlaylist?.playlist?.bookmarkedAt != null) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
-
-            // Play Button - Larger primary circular button
-            Surface(
-                onClick = {
-                    if (!isListenTogetherGuest && songs.isNotEmpty()) {
-                        playerConnection.playQueue(
-                            YouTubePlaylistQueue(
-                                playlistId = playlist.id,
-                                playlistTitle = playlist.title,
-                                initialSongs = songs,
-                                initialContinuation = continuation,
-                            ),
-                        )
-                    }
-                },
-                color = MaterialTheme.colorScheme.primary,
-                shape = CircleShape,
-                modifier = Modifier.size(72.dp),
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.play),
-                        contentDescription = stringResource(R.string.play),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(32.dp),
-                    )
-                }
-            }
-
-            // Menu Button - Smaller secondary button
-            Surface(
-                onClick = {
-                    menuState.show {
-                        YouTubePlaylistMenu(
-                            playlist = playlist,
-                            songs = songs,
-                            coroutineScope = coroutineScope,
-                            onDismiss = menuState::dismiss,
-                        )
-                    }
-                },
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.more_vert),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

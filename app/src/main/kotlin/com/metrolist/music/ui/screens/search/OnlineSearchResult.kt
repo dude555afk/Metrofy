@@ -94,7 +94,7 @@ import com.metrolist.music.db.entities.SearchHistory
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.SpotifyQueue
 import com.metrolist.music.playback.queues.YouTubeQueue
-import com.metrolist.music.ui.component.ChipsRow
+import com.metrolist.music.ui.component.ChipShelf
 import com.metrolist.music.ui.component.EmptyPlaceholder
 import com.metrolist.music.ui.component.HideOnScrollFAB
 import com.metrolist.music.ui.component.LocalMenuState
@@ -499,16 +499,10 @@ fun OnlineSearchResult(
         // Filter chips always on top of any overlay so they remain clickable while
         // the suggestion overlay is visible (see #69).
         if (isSpotifySearch) {
-            ChipsRow(
-                chips = listOf(
-                    null to stringResource(R.string.filter_all),
-                    "track" to stringResource(R.string.filter_songs),
-                    "album" to stringResource(R.string.filter_albums),
-                    "artist" to stringResource(R.string.filter_artists),
-                    "playlist" to stringResource(R.string.filter_playlists),
-                ),
-                currentValue = spotifyFilterValue,
-                onValueUpdate = { newFilter ->
+            ChipShelf(
+                options = listOf("track", "album", "artist", "playlist"),
+                selectedOption = spotifyFilterValue,
+                onSelectionChange = { newFilter ->
                     viewModel.spotifyFilter.value = newFilter
                     if (isSearchFocused) {
                         isSearchFocused = false
@@ -518,36 +512,39 @@ fun OnlineSearchResult(
                         lazyListState.animateScrollToItem(0)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                allLabel = stringResource(R.string.filter_all),
+                label = { filter ->
+                    stringResource(
+                        when (filter) {
+                            "track" -> R.string.filter_songs
+                            "album" -> R.string.filter_albums
+                            "artist" -> R.string.filter_artists
+                            "playlist" -> R.string.filter_playlists
+                            else -> R.string.filter_all
+                        },
+                    )
+                },
             )
         } else {
-            val visibleChips =
-                listOf(
-                    null to stringResource(R.string.filter_all),
-                    FILTER_SONG to stringResource(R.string.filter_songs),
-                ).let { baseChips ->
-                    if (!hideVideoSongs) {
-                        baseChips + (FILTER_VIDEO to stringResource(R.string.filter_videos))
-                    } else {
-                        baseChips
-                    }
-                } +
-                listOf(
-                    FILTER_ALBUM to stringResource(R.string.filter_albums),
-                    FILTER_ARTIST to stringResource(R.string.filter_artists),
-                    FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
-                    FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
-                    FILTER_PODCAST to stringResource(R.string.filter_podcasts),
-                    FILTER_EPISODE to stringResource(R.string.filter_episodes),
-                    FILTER_PROFILE to stringResource(R.string.filter_profiles),
-                )
+            val visibleFilters =
+                listOf(FILTER_SONG) +
+                    (if (hideVideoSongs) emptyList() else listOf(FILTER_VIDEO)) +
+                    listOf(
+                        FILTER_ALBUM,
+                        FILTER_ARTIST,
+                        FILTER_COMMUNITY_PLAYLIST,
+                        FILTER_FEATURED_PLAYLIST,
+                        FILTER_PODCAST,
+                        FILTER_EPISODE,
+                        FILTER_PROFILE,
+                    )
 
-            ChipsRow(
-                chips = visibleChips,
-                currentValue = searchFilter,
-                onValueUpdate = {
-                    if (viewModel.filter.value != it) {
-                        viewModel.filter.value = it
+            ChipShelf(
+                options = visibleFilters,
+                selectedOption = searchFilter,
+                onSelectionChange = { newFilter ->
+                    if (viewModel.filter.value != newFilter) {
+                        viewModel.filter.value = newFilter
                     }
                     if (isSearchFocused) {
                         isSearchFocused = false
@@ -557,7 +554,23 @@ fun OnlineSearchResult(
                         lazyListState.animateScrollToItem(0)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                allLabel = stringResource(R.string.filter_all),
+                label = { filter ->
+                    stringResource(
+                        when (filter) {
+                            FILTER_SONG -> R.string.filter_songs
+                            FILTER_VIDEO -> R.string.filter_videos
+                            FILTER_ALBUM -> R.string.filter_albums
+                            FILTER_ARTIST -> R.string.filter_artists
+                            FILTER_COMMUNITY_PLAYLIST -> R.string.filter_community_playlists
+                            FILTER_FEATURED_PLAYLIST -> R.string.filter_featured_playlists
+                            FILTER_PODCAST -> R.string.filter_podcasts
+                            FILTER_EPISODE -> R.string.filter_episodes
+                            FILTER_PROFILE -> R.string.filter_profiles
+                            else -> R.string.filter_all
+                        },
+                    )
+                },
             )
         }
 

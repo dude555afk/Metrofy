@@ -107,6 +107,7 @@ import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.LinkSegment
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.NavigationTitle
+import com.metrolist.music.ui.component.MetrolistArtistHeader
 import com.metrolist.music.ui.component.SongListItem
 import com.metrolist.music.ui.component.YouTubeGridItem
 import com.metrolist.music.ui.component.YouTubeListItem
@@ -288,160 +289,29 @@ fun ArtistScreen(
             } else {
                 item(key = "header") {
                     val thumbnail = artistPage?.artist?.thumbnail ?: libraryArtist?.artist?.thumbnailUrl
-                    val artistName = artistPage?.artist?.title ?: libraryArtist?.artist?.name
-
-                    Box {
-                        // Artist Image with offset
-                        if (thumbnail != null) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .aspectRatio(1f)
-                                        .offset {
-                                            IntOffset(x = 0, y = headerOffset)
-                                        },
-                            ) {
-                                AsyncImage(
-                                    model = thumbnail.resize(1200, 1200),
-                                    contentDescription = null,
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .align(Alignment.TopCenter)
-                                            .fadingEdge(
-                                                bottom = 200.dp,
-                                            ),
-                                )
+                    val artistName = artistPage?.artist?.title ?: libraryArtist?.artist?.name ?: "Unknown"
+                    MetrolistArtistHeader(
+                        artistName = artistName,
+                        imageUrl = thumbnail,
+                        imageOffsetY = headerOffset,
+                        subscriberCount = artistPage?.subscriberCountText.takeIf { showArtistSubscriberCount },
+                        monthlyListeners = artistPage?.monthlyListenerCount.takeIf { showMonthlyListeners },
+                        isSubscribed = isChannelSubscribed,
+                        showSubscribe = true,
+                        showRadio = !showLocal && !isGuest && artistPage?.artist?.radioEndpoint != null,
+                        showShuffle = !showLocal && !isGuest && artistPage?.artist?.shuffleEndpoint != null,
+                        onSubscribe = viewModel::toggleChannelSubscription,
+                        onRadio = {
+                            artistPage?.artist?.radioEndpoint?.let { endpoint ->
+                                playerConnection.playQueue(YouTubeQueue(endpoint))
                             }
-                        }
-
-                        // Artist Name and Controls Section - positioned at bottom of image
-                        Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        top =
-                                            if (thumbnail != null) {
-                                                // Position content at the bottom part of the image
-                                                // Using screen width to calculate aspect ratio height minus overlap
-                                                LocalResources.current.displayMetrics.widthPixels.let { screenWidth ->
-                                                    with(density) {
-                                                        ((screenWidth / 1.2f) - 144).toDp()
-                                                    }
-                                                }
-                                            } else {
-                                                16.dp
-                                            },
-                                    ),
-                        ) {
-                            Column(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp),
-                            ) {
-                                // Artist Name
-                                Text(
-                                    text = artistName ?: "Unknown",
-                                    style = MaterialTheme.typography.headlineLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    fontSize = 32.sp,
-                                    modifier = Modifier.padding(bottom = 16.dp),
-                                )
-
-                                // Buttons Row
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    // Subscribe Button
-                                    OutlinedButton(
-                                        onClick = {
-                                            viewModel.toggleChannelSubscription()
-                                        },
-                                        colors =
-                                            ButtonDefaults.outlinedButtonColors(
-                                                containerColor =
-                                                    if (isChannelSubscribed) {
-                                                        MaterialTheme.colorScheme.surface
-                                                    } else {
-                                                        Color.Transparent
-                                                    },
-                                            ),
-                                        shape = RoundedCornerShape(50),
-                                        modifier = Modifier.height(40.dp),
-                                    ) {
-                                        Text(
-                                            text = stringResource(if (isChannelSubscribed) R.string.subscribed else R.string.subscribe),
-                                            fontSize = 14.sp,
-                                            color = if (!isChannelSubscribed) MaterialTheme.colorScheme.error else LocalContentColor.current,
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.weight(1f))
-
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        // Radio Button
-                                        if (!showLocal && !isGuest) {
-                                            artistPage?.artist?.radioEndpoint?.let { radioEndpoint ->
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        playerConnection.playQueue(YouTubeQueue(radioEndpoint))
-                                                    },
-                                                    shape = RoundedCornerShape(50),
-                                                    modifier = Modifier.height(40.dp),
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.radio),
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(20.dp),
-                                                    )
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text(
-                                                        text = stringResource(R.string.radio),
-                                                        fontSize = 14.sp,
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        // Shuffle Button
-                                        if (!showLocal && !isGuest) {
-                                            artistPage?.artist?.shuffleEndpoint?.let { shuffleEndpoint ->
-                                                IconButton(
-                                                    onClick = {
-                                                        playerConnection.playQueue(YouTubeQueue(shuffleEndpoint))
-                                                    },
-                                                    modifier =
-                                                        Modifier
-                                                            .size(48.dp)
-                                                            .background(
-                                                                MaterialTheme.colorScheme.primary,
-                                                                RoundedCornerShape(24.dp),
-                                                            ),
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.shuffle),
-                                                        contentDescription = "Shuffle",
-                                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                                        modifier = Modifier.size(20.dp),
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                        },
+                        onShuffle = {
+                            artistPage?.artist?.shuffleEndpoint?.let { endpoint ->
+                                playerConnection.playQueue(YouTubeQueue(endpoint))
                             }
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
+                        },
+                    )
                 }
 
                 // About Artist Section

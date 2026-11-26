@@ -7,6 +7,9 @@ package com.metrolist.music.ui.screens.album
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -55,6 +58,7 @@ import com.metrolist.music.playback.queues.SpotifyPlaylistQueue
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.ItemThumbnail
 import com.metrolist.music.ui.component.ListItem
+import com.metrolist.music.ui.component.MetrolistCollectionHeader
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.joinByBullet
 import com.metrolist.music.utils.makeTimeString
@@ -98,109 +102,124 @@ fun SpotifyAlbumScreen(
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
             item(key = "header") {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                ) {
-                    val thumbnailUrl = album?.images
-                        ?.firstOrNull { (it.width ?: 0) >= 300 }?.url
-                        ?: album?.images?.firstOrNull()?.url
+                val thumbnailUrl = album?.images
+                    ?.firstOrNull { (it.width ?: 0) >= 300 }?.url
+                    ?: album?.images?.firstOrNull()?.url
 
-                    if (thumbnailUrl != null) {
-                        AsyncImage(
-                            model = thumbnailUrl,
-                            contentDescription = album?.name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(240.dp)
-                                .clip(RoundedCornerShape(ThumbnailCornerRadius)),
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val isWide = maxWidth >= 960.dp
+                    val isMedium = maxWidth >= 600.dp && !isWide
+                    val mediumArtworkSize = minOf(256.dp, (maxWidth - 56.dp).coerceAtLeast(0.dp) * 0.4f)
 
-                    Text(
-                        text = album?.name ?: "",
-                        style = MaterialTheme.typography.headlineSmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = album?.artists?.joinToString { it.name } ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    val metaInfo = buildList {
-                        album?.albumType?.replaceFirstChar { it.uppercase() }?.let { add(it) }
-                        album?.releaseDate?.take(4)?.let { add(it) }
-                        if (tracks.isNotEmpty()) {
-                            add(pluralStringResource(R.plurals.n_song, tracks.size, tracks.size))
-                        }
-                    }
-                    if (metaInfo.isNotEmpty()) {
+                    MetrolistCollectionHeader(
+                        isWide = isWide,
+                        isMedium = isMedium,
+                        mediumArtworkSize = mediumArtworkSize,
+                        artwork = { artworkModifier, cornerRadius ->
+                            if (thumbnailUrl != null) {
+                                AsyncImage(
+                                    model = thumbnailUrl,
+                                    contentDescription = album?.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = artworkModifier.clip(RoundedCornerShape(cornerRadius)),
+                                )
+                            } else {
+                                Box(
+                                    modifier = artworkModifier
+                                        .clip(RoundedCornerShape(cornerRadius))
+                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                )
+                            }
+                        },
+                        actions = {
+                            if (!isLoading && tracks.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    androidx.compose.material3.FilledTonalIconButton(
+                                        onClick = {
+                                            val albumId = album?.id ?: return@FilledTonalIconButton
+                                            val shuffled = tracks.shuffled()
+                                            if (shuffled.isNotEmpty()) {
+                                                playerConnection.playQueue(
+                                                    SpotifyPlaylistQueue(
+                                                        playlistId = "album_$albumId",
+                                                        initialTracks = shuffled,
+                                                        startIndex = 0,
+                                                        mapper = viewModel.mapper,
+                                                    ),
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier.size(48.dp),
+                                    ) {
+                                        Icon(
+                                            painterResource(R.drawable.shuffle),
+                                            contentDescription = stringResource(R.string.shuffle),
+                                            modifier = Modifier.size(22.dp),
+                                        )
+                                    }
+                                    androidx.compose.material3.FilledIconButton(
+                                        onClick = {
+                                            val albumId = album?.id ?: return@FilledIconButton
+                                            if (tracks.isNotEmpty()) {
+                                                playerConnection.playQueue(
+                                                    SpotifyPlaylistQueue(
+                                                        playlistId = "album_$albumId",
+                                                        initialTracks = tracks,
+                                                        startIndex = 0,
+                                                        mapper = viewModel.mapper,
+                                                    ),
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier.size(64.dp),
+                                    ) {
+                                        Icon(
+                                            painterResource(R.drawable.play),
+                                            contentDescription = stringResource(R.string.play),
+                                            modifier = Modifier.size(30.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                    ) {
                         Text(
-                            text = metaInfo.joinToString(" · "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = album?.name.orEmpty(),
+                            style = MaterialTheme.typography.headlineMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                    }
+                        Text(
+                            text = album?.artists?.joinToString { it.name }.orEmpty(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
 
-                    if (!isLoading && tracks.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row {
-                            Button(
-                                onClick = {
-                                    val albumId = album?.id ?: return@Button
-                                    if (tracks.isEmpty()) return@Button
-                                    playerConnection.playQueue(
-                                        SpotifyPlaylistQueue(
-                                            playlistId = "album_$albumId",
-                                            initialTracks = tracks,
-                                            startIndex = 0,
-                                            mapper = viewModel.mapper,
-                                        )
-                                    )
-                                },
-                            ) {
-                                Icon(
-                                    painterResource(R.drawable.play),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                                Spacer(modifier = Modifier.size(8.dp))
-                                Text(stringResource(R.string.play))
+                        val metaInfo = buildList {
+                            album?.albumType?.replaceFirstChar { it.uppercase() }?.let(::add)
+                            album?.releaseDate?.take(4)?.let(::add)
+                            if (tracks.isNotEmpty()) {
+                                add(pluralStringResource(R.plurals.n_song, tracks.size, tracks.size))
+                            } else {
+                                album?.totalTracks?.takeIf { it > 0 }?.let {
+                                    add(pluralStringResource(R.plurals.n_song, it, it))
+                                }
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedButton(
-                                onClick = {
-                                    val albumId = album?.id ?: return@OutlinedButton
-                                    val shuffled = tracks.shuffled()
-                                    if (shuffled.isEmpty()) return@OutlinedButton
-                                    playerConnection.playQueue(
-                                        SpotifyPlaylistQueue(
-                                            playlistId = "album_$albumId",
-                                            initialTracks = shuffled,
-                                            startIndex = 0,
-                                            mapper = viewModel.mapper,
-                                        )
-                                    )
-                                },
-                            ) {
-                                Icon(
-                                    painterResource(R.drawable.shuffle),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                                Spacer(modifier = Modifier.size(8.dp))
-                                Text(stringResource(R.string.shuffle))
-                            }
+                        }
+                        if (metaInfo.isNotEmpty()) {
+                            Text(
+                                text = metaInfo.joinToString(" • "),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                 }

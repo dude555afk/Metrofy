@@ -59,6 +59,7 @@ import com.metrolist.music.R
 import com.metrolist.music.constants.ChipSortTypeKey
 import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.DefaultOpenTabKey
+import com.metrolist.music.constants.FloatingTopBarKey
 import com.metrolist.music.constants.DensityScale
 import com.metrolist.music.constants.DensityScaleKey
 import com.metrolist.music.constants.DynamicThemeKey
@@ -291,6 +292,12 @@ fun AppearanceSettings(
         rememberEnumPreference(
             GridItemsSizeKey,
             defaultValue = GridItemSize.SMALL,
+        )
+
+    val (floatingTopBar, onFloatingTopBarChange) =
+        rememberPreference(
+            FloatingTopBarKey,
+            defaultValue = true,
         )
 
     val (slimNav, onSlimNavChange) =
@@ -1688,6 +1695,27 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onSwipeToRemoveSongChange(!swipeToRemoveSong) },
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.nav_bar),
+                        title = { Text(stringResource(R.string.floating_top_bar)) },
+                        description = { Text(stringResource(R.string.floating_top_bar_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = floatingTopBar,
+                                onCheckedChange = onFloatingTopBarChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (floatingTopBar) R.drawable.check else R.drawable.close,
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                },
+                            )
+                        },
+                        onClick = { onFloatingTopBarChange(!floatingTopBar) },
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.nav_bar),

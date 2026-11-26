@@ -10,6 +10,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -61,10 +64,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -75,6 +80,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil3.compose.AsyncImage
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
@@ -89,6 +95,7 @@ import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.ItemThumbnail
 import com.metrolist.music.ui.component.ListItem
 import com.metrolist.music.ui.component.LocalMenuState
+import com.metrolist.music.ui.component.MetrolistCollectionHeader
 import com.metrolist.music.ui.component.SortHeader
 import com.metrolist.music.ui.menu.SpotifyTrackMenu
 import com.metrolist.music.ui.utils.backToMain
@@ -280,54 +287,89 @@ fun SpotifyPlaylistScreen(
         ) {
             // Playlist header
             item(key = "header") {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                ) {
-                    Text(
-                        text = playlist?.name ?: "",
-                        style = MaterialTheme.typography.headlineSmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = playlist?.owner?.displayName ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = pluralStringResource(R.plurals.n_song, tracks.size, tracks.size),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                val thumbnailUrl = playlist?.images
+                    ?.firstOrNull { (it.width ?: 0) >= 300 }?.url
+                    ?: playlist?.images?.firstOrNull()?.url
 
-                    if (!isLoading && tracks.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row {
-                            // Play all button
-                            androidx.compose.material3.Button(
-                                onClick = {
-                    playerConnection.playQueue(
-                        SpotifyPlaylistQueue(
-                            playlistId = viewModel.playlistId,
-                            initialTracks = sortedItems.mapNotNull { it.track },
-                            startIndex = 0,
-                            mapper = viewModel.mapper,
-                        )
-                    )
-                                },
-                            ) {
-                                Icon(
-                                    painterResource(R.drawable.play),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val isWide = maxWidth >= 960.dp
+                    val isMedium = maxWidth >= 600.dp && !isWide
+                    val mediumArtworkSize = minOf(256.dp, (maxWidth - 56.dp).coerceAtLeast(0.dp) * 0.4f)
+
+                    MetrolistCollectionHeader(
+                        isWide = isWide,
+                        isMedium = isMedium,
+                        mediumArtworkSize = mediumArtworkSize,
+                        artwork = { artworkModifier, cornerRadius ->
+                            if (thumbnailUrl != null) {
+                                AsyncImage(
+                                    model = thumbnailUrl,
+                                    contentDescription = playlist?.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = artworkModifier.clip(RoundedCornerShape(cornerRadius)),
                                 )
-                                Spacer(modifier = Modifier.size(8.dp))
-                                Text(stringResource(R.string.play))
+                            } else {
+                                Box(
+                                    modifier = artworkModifier
+                                        .clip(RoundedCornerShape(cornerRadius))
+                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                )
                             }
+                        },
+                        actions = {
+                            if (!isLoading && tracks.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    androidx.compose.material3.FilledIconButton(
+                                        onClick = {
+                                            playerConnection.playQueue(
+                                                SpotifyPlaylistQueue(
+                                                    playlistId = viewModel.playlistId,
+                                                    initialTracks = sortedItems.mapNotNull { it.track },
+                                                    startIndex = 0,
+                                                    mapper = viewModel.mapper,
+                                                ),
+                                            )
+                                        },
+                                        modifier = Modifier.size(64.dp),
+                                    ) {
+                                        Icon(
+                                            painterResource(R.drawable.play),
+                                            contentDescription = stringResource(R.string.play),
+                                            modifier = Modifier.size(30.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                    ) {
+                        Text(
+                            text = playlist?.name.orEmpty(),
+                            style = MaterialTheme.typography.headlineMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = playlist?.owner?.displayName.orEmpty(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = pluralStringResource(R.plurals.n_song, tracks.size, tracks.size),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        playlist?.description?.takeIf(String::isNotBlank)?.let { description ->
+                            Text(
+                                text = description,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }

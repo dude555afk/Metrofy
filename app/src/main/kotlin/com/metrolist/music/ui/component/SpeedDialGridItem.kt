@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.music.R
@@ -48,7 +49,7 @@ fun SpeedDialGridItem(
             thumbnailUrl = item.thumbnail,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+            shape = if (item is ArtistItem || item is PodcastItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
             modifier = Modifier.fillMaxSize()
         )
 
@@ -59,10 +60,9 @@ fun SpeedDialGridItem(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.4f), // Top scrim for icon visibility on bright covers
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.6f),
-                            Color.Black.copy(alpha = 0.9f)
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.8f)
                         )
                     )
                 )
@@ -79,7 +79,7 @@ fun SpeedDialGridItem(
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.titleSmall, // Smaller, punchier font
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
                 color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -87,7 +87,7 @@ fun SpeedDialGridItem(
             )
             
             // Navigation Chevron for browsable items (Album, Playlist, Artist)
-            if (item !is SongItem) {
+            if (item is ArtistItem || item is PodcastItem) {
                 Icon(
                     painter = painterResource(R.drawable.navigate_next),
                     contentDescription = null,

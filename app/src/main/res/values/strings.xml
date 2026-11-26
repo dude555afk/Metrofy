@@ -256,6 +256,8 @@
     <string name="audio_quality_high">High</string>
     <string name="audio_quality_low">Low</string>
     <string name="queue">Queue</string>
+    <string name="lock_queue">Lock queue</string>
+    <string name="unlock_queue">Unlock queue</string>
     <string name="persistent_queue">Persistent queue</string>
     <string name="persistent_queue_desc">Restore your last queue when the app starts</string>
     <string name="auto_load_more">Auto load more songs</string>

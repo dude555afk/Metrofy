@@ -5,12 +5,12 @@
 
 package com.metrolist.music.ui.screens
 
+import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,6 +78,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -119,6 +120,7 @@ import com.metrolist.music.constants.RandomizeHomeOrderKey
 import com.metrolist.music.constants.ShowPlayRandomButtonKey
 import com.metrolist.music.constants.ShowRecognizeButtonKey
 import com.metrolist.music.constants.SmallGridThumbnailHeight
+import com.metrolist.music.constants.speedDialLayout
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.db.entities.Album
 import com.metrolist.music.db.entities.Artist
@@ -143,7 +145,13 @@ import com.metrolist.music.ui.component.YouTubeListItem
 import com.metrolist.music.ui.component.AlbumGridItem
 import com.metrolist.music.ui.component.ArtistGridItem
 import com.metrolist.music.ui.component.ChipsRow
+import com.metrolist.music.ui.component.ChipShelf
 import com.metrolist.music.ui.component.HideOnScrollFAB
+import com.metrolist.music.ui.component.MetrolistHomeLoadingPlaceholder
+import com.metrolist.music.ui.component.MetrolistHomeGallery
+import com.metrolist.music.ui.component.MetrolistHomeCarousel
+import com.metrolist.music.ui.component.MetrolistVideoShelf
+import com.metrolist.music.ui.component.MetrolistSpeedDialPageIndicator
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.menu.SpotifyPlaylistMenu
@@ -161,10 +169,6 @@ import com.metrolist.music.ui.component.SongGridItem
 import com.metrolist.music.ui.component.SongListItem
 import com.metrolist.music.ui.component.SpeedDialGridItem
 import com.metrolist.music.ui.component.YouTubeGridItem
-import com.metrolist.music.ui.component.YouTubeListItem
-import com.metrolist.music.ui.component.shimmer.GridItemPlaceHolder
-import com.metrolist.music.ui.component.shimmer.ShimmerHost
-import com.metrolist.music.ui.component.shimmer.TextPlaceholder
 import com.metrolist.music.ui.menu.AlbumMenu
 import com.metrolist.music.ui.menu.ArtistMenu
 import com.metrolist.music.ui.menu.SongMenu
@@ -172,7 +176,6 @@ import com.metrolist.music.ui.menu.YouTubeAlbumMenu
 import com.metrolist.music.ui.menu.YouTubeArtistMenu
 import com.metrolist.music.ui.menu.YouTubePlaylistMenu
 import com.metrolist.music.ui.menu.YouTubeSongMenu
-import com.metrolist.music.ui.utils.SnapLayoutInfoProvider
 import com.metrolist.music.utils.isSpotifyId
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
@@ -694,9 +697,6 @@ fun HomeScreen(
     val isRandomizing by viewModel.isRandomizing.collectAsState()
     val pullRefreshState = rememberPullToRefreshState()
 
-    val quickPicksLazyGridState = rememberLazyGridState()
-    val forgottenFavoritesLazyGridState = rememberLazyGridState()
-
     val accountName by viewModel.accountName.collectAsState()
     val accountImageUrl by viewModel.accountImageUrl.collectAsState()
     val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
@@ -939,15 +939,20 @@ fun HomeScreen(
         }
     }
 
-    val ytGridItem: @Composable (YTItem) -> Unit = { item ->
+    @Composable
+    fun ytGridItem(
+        item: YTItem,
+        itemModifier: Modifier,
+        thumbnailRatio: Float = 1f,
+    ) {
         YouTubeGridItem(
             item = item,
             isActive = item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id),
             isPlaying = isPlaying,
             coroutineScope = scope,
-            thumbnailRatio = 1f,
+            thumbnailRatio = thumbnailRatio,
             modifier =
-                Modifier
+                itemModifier
                     .combinedClickable(
                         onClick = {
                             when (item) {
@@ -1047,6 +1052,11 @@ fun HomeScreen(
                         },
                     ),
         )
+    }
+
+    val videoAwareGridItem: @Composable (YTItem, Modifier) -> Unit = { item, itemModifier ->
+        val ratio = if (item is SongItem && item.isVideoSong) 16f / 9f else 1f
+        ytGridItem(item, itemModifier, ratio)
     }
 
     val homeSections =
@@ -1157,15 +1167,6 @@ fun HomeScreen(
             }
         }
 
-
-    LaunchedEffect(quickPicks) {
-        quickPicksLazyGridState.scrollToItem(0)
-    }
-
-    LaunchedEffect(forgottenFavorites) {
-        forgottenFavoritesLazyGridState.scrollToItem(0)
-    }
-
     PullToRefreshBox(
         state = pullRefreshState,
         isRefreshing = isRefreshing,
@@ -1187,36 +1188,16 @@ fun HomeScreen(
         ) {
             val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f
             val horizontalLazyGridItemWidth = maxWidth * horizontalLazyGridItemWidthFactor
-            val quickPicksSnapLayoutInfoProvider =
-                remember(quickPicksLazyGridState) {
-                    SnapLayoutInfoProvider(
-                        lazyGridState = quickPicksLazyGridState,
-                        positionInLayout = { layoutSize, itemSize ->
-                            (layoutSize * horizontalLazyGridItemWidthFactor / 2f - itemSize / 2f)
-                        },
-                    )
-                }
-            val forgottenFavoritesSnapLayoutInfoProvider =
-                remember(forgottenFavoritesLazyGridState) {
-                    SnapLayoutInfoProvider(
-                        lazyGridState = forgottenFavoritesLazyGridState,
-                        positionInLayout = { layoutSize, itemSize ->
-                            (layoutSize * horizontalLazyGridItemWidthFactor / 2f - itemSize / 2f)
-                        },
-                    )
-                }
-
             LazyColumn(
                 state = lazylistState,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 item {
-                    ChipsRow(
-                        chips = homePage?.chips?.map { it to it.title } ?: emptyList(),
-                        currentValue = selectedChip,
-                        onValueUpdate = {
-                            viewModel.toggleChip(it)
-                        },
+                    ChipShelf(
+                        options = homePage?.chips.orEmpty(),
+                        selectedOption = selectedChip,
+                        onSelectionChange = viewModel::toggleChip,
+                        label = { it.title },
                     )
                 }
 
@@ -1257,16 +1238,10 @@ fun HomeScreen(
                         }
 
                         item(key = "00_your_shows_list") {
-                            LazyRow(
-                                contentPadding =
-                                    WindowInsets.systemBars
-                                        .only(WindowInsetsSides.Horizontal)
-                                        .asPaddingValues(),
-                            ) {
-                                items(savedPodcastShows) { podcast ->
-                                    ytGridItem(podcast)
-                                }
-                            }
+                            MetrolistVideoShelf(
+                                items = savedPodcastShows,
+                                itemContent = { podcast, itemModifier -> ytGridItem(podcast, itemModifier, thumbnailRatio = 1f) },
+                            )
                         }
                     }
 
@@ -1282,16 +1257,10 @@ fun HomeScreen(
                         }
 
                         item(key = "00_episodes_for_later_list") {
-                            LazyRow(
-                                contentPadding =
-                                    WindowInsets.systemBars
-                                        .only(WindowInsetsSides.Horizontal)
-                                        .asPaddingValues(),
-                            ) {
-                                items(episodesForLater) { episode ->
-                                    ytGridItem(episode)
-                                }
-                            }
+                            MetrolistVideoShelf(
+                                items = episodesForLater,
+                                itemContent = { episode, itemModifier -> ytGridItem(episode, itemModifier, thumbnailRatio = 1f) },
+                            )
                         }
                     }
 
@@ -1305,16 +1274,10 @@ fun HomeScreen(
                         }
 
                         item(key = "0_podcast_channels_list") {
-                            LazyRow(
-                                contentPadding =
-                                    WindowInsets.systemBars
-                                        .only(WindowInsetsSides.Horizontal)
-                                        .asPaddingValues(),
-                            ) {
-                                items(featuredPodcasts) { podcast ->
-                                    ytGridItem(podcast)
-                                }
-                            }
+                            MetrolistVideoShelf(
+                                items = featuredPodcasts,
+                                itemContent = { podcast, itemModifier -> ytGridItem(podcast, itemModifier) },
+                            )
                         }
                     }
 
@@ -1388,16 +1351,10 @@ fun HomeScreen(
                             }
 
                             item(key = "1_chip_section_list_${section.index}") {
-                                LazyRow(
-                                    contentPadding =
-                                        WindowInsets.systemBars
-                                            .only(WindowInsetsSides.Horizontal)
-                                            .asPaddingValues(),
-                                ) {
-                                    items(sectionData.items) { item ->
-                                        ytGridItem(item)
-                                    }
-                                }
+                                MetrolistVideoShelf(
+                                    items = sectionData.items,
+                                    itemContent = videoAwareGridItem,
+                                )
                             }
                         }
                     }
@@ -1478,21 +1435,14 @@ fun HomeScreen(
                                 }
 
                                 item(key = "speed_dial_list") {
-                                    val targetItemSize = 160.dp
                                     val availableWidth = maxWidth - 32.dp
-                                    val columns = (availableWidth / targetItemSize).toInt().coerceAtLeast(3)
-                                    val rows =
-                                        if (columns >= 6) {
-                                            1
-                                        } else if (columns >= 4) {
-                                            2
-                                        } else {
-                                            3
-                                        }
-                                    val itemsPerPage = columns * rows
+                                    val speedDialLayout = speedDialLayout(availableWidth, gridItemSize)
+                                    val columns = speedDialLayout.columns
+                                    val rows = speedDialLayout.rows
+                                    val itemsPerPage = speedDialLayout.itemsPerPage
                                     val itemWidth = availableWidth / columns
 
-                                    val pagerState = rememberPagerState(pageCount = { (items.size + itemsPerPage - 1) / itemsPerPage })
+                                    val pagerState = rememberPagerState(pageCount = { (items.size + 1 + itemsPerPage - 1) / itemsPerPage })
 
                                     Column(
                                         modifier =
@@ -1508,16 +1458,17 @@ fun HomeScreen(
                                                     .fillMaxWidth()
                                                     .height(itemWidth * rows),
                                         ) { page ->
-                                            val pageStartIndex = page * itemsPerPage
-                                            val pageItems = items.drop(pageStartIndex).take(itemsPerPage)
-
                                             Column(modifier = Modifier.fillMaxSize()) {
                                                 for (row in 0 until rows) {
                                                     Row(modifier = Modifier.fillMaxWidth()) {
                                                         for (col in 0 until columns) {
-                                                            val itemIndex = row * columns + col
-
-                                                            val isRandomizeSlot = (page == 0 && itemIndex == itemsPerPage - 1)
+                                                            // Metrolist maps pager cells column-first and counts the random slot
+                                                            // as a real entry, so no speed-dial item is lost when the slot appears.
+                                                            val contentIndex = page * itemsPerPage + col * rows + row
+                                                            val isRandomizeSlot = contentIndex == itemsPerPage - 1
+                                                            val itemIndex =
+                                                                if (contentIndex < itemsPerPage - 1) contentIndex
+                                                                else contentIndex - 1
 
                                                             if (isRandomizeSlot) {
                                                                 Box(
@@ -1592,8 +1543,8 @@ fun HomeScreen(
                                                                         },
                                                                     )
                                                                 }
-                                                            } else if (itemIndex < pageItems.size) {
-                                                                val item = pageItems[itemIndex]
+                                                            } else if (contentIndex < items.size + 1 && itemIndex in items.indices) {
+                                                                val item = items[itemIndex]
                                                                 val isPinned by database.speedDialDao
                                                                     .isPinned(
                                                                         item.id,
@@ -1744,33 +1695,7 @@ fun HomeScreen(
                                             }
                                         }
 
-                                        if (pagerState.pageCount > 1) {
-                                            Row(
-                                                modifier =
-                                                    Modifier
-                                                        .height(24.dp)
-                                                        .fillMaxWidth(),
-                                                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                repeat(pagerState.pageCount) { iteration ->
-                                                    val color =
-                                                        if (pagerState.currentPage == iteration) {
-                                                            MaterialTheme.colorScheme.primary
-                                                        } else {
-                                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                                        }
-                                                    Box(
-                                                        modifier =
-                                                            Modifier
-                                                                .padding(4.dp)
-                                                                .clip(CircleShape)
-                                                                .background(color)
-                                                                .size(8.dp),
-                                                    )
-                                                }
-                                            }
-                                        }
+                                        MetrolistSpeedDialPageIndicator(pagerState)
                                     }
                                 }
                             }
@@ -1800,82 +1725,70 @@ fun HomeScreen(
                                 }
 
                                 item(key = "quick_picks_list") {
-                                    LazyHorizontalGrid(
-                                        state = quickPicksLazyGridState,
-                                        rows = GridCells.Fixed(4),
-                                        flingBehavior = rememberSnapFlingBehavior(quickPicksSnapLayoutInfoProvider),
-                                        contentPadding =
-                                            WindowInsets.systemBars
-                                                .only(WindowInsetsSides.Horizontal)
-                                                .asPaddingValues(),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .height(ListItemHeight * 4),
-                                    ) {
-                                        items(
-                                            items = quickPicks.distinctBy { it.id },
-                                            key = { "home_quickpick_${it.id}" },
-                                        ) { originalSong ->
-                                            // fetch song from database to keep updated
-                                            val song by database
-                                                .song(originalSong.id)
-                                                .collectAsState(initial = originalSong)
+                                    MetrolistHomeGallery(
+                                        items = quickPicks.distinctBy { it.id },
+                                        rows = 4,
+                                        itemWidth = horizontalLazyGridItemWidth,
+                                        rowHeight = ListItemHeight,
+                                        pageSpacing = 16.dp,
+                                        contentPadding = WindowInsets.systemBars
+                                            .only(WindowInsetsSides.Horizontal)
+                                            .asPaddingValues(),
+                                        key = { _, song -> "home_quickpick_${song.id}" },
+                                    ) { _, originalSong, itemModifier ->
+                                        // Refresh the database entity without changing Metrofy's queue/menu actions.
+                                        val song by database
+                                            .song(originalSong.id)
+                                            .collectAsState(initial = originalSong)
 
-                                            SongListItem(
-                                                song = song!!,
-                                                showInLibraryIcon = true,
-                                                isActive = song!!.id == mediaMetadata?.id,
-                                                isPlaying = isPlaying,
-                                                isSwipeable = false,
-                                                trailingContent = {
-                                                    IconButton(
-                                                        onClick = {
-                                                            menuState.show {
-                                                                SongMenu(
-                                                                    originalSong = song!!,
-                                                                    navController = navController,
-                                                                    onDismiss = menuState::dismiss,
-                                                                )
-                                                            }
-                                                        },
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.more_vert),
-                                                            contentDescription = null,
+                                        SongListItem(
+                                            song = song!!,
+                                            showInLibraryIcon = true,
+                                            isActive = song!!.id == mediaMetadata?.id,
+                                            isPlaying = isPlaying,
+                                            isSwipeable = false,
+                                            trailingContent = {
+                                                IconButton(
+                                                    onClick = {
+                                                        menuState.show {
+                                                            SongMenu(
+                                                                originalSong = song!!,
+                                                                navController = navController,
+                                                                onDismiss = menuState::dismiss,
+                                                            )
+                                                        }
+                                                    },
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.more_vert),
+                                                        contentDescription = null,
+                                                    )
+                                                }
+                                            },
+                                            modifier = itemModifier.combinedClickable(
+                                                onClick = {
+                                                    if (!isListenTogetherGuest) {
+                                                        if (song!!.id == mediaMetadata?.id) {
+                                                            playerConnection.togglePlayPause()
+                                                        } else {
+                                                            playerConnection.playQueue(
+                                                                YouTubeQueue.radio(song!!.toMediaMetadata()),
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                onLongClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    menuState.show {
+                                                        SongMenu(
+                                                            originalSong = song!!,
+                                                            navController = navController,
+                                                            onDismiss = menuState::dismiss,
                                                         )
                                                     }
                                                 },
-                                                modifier =
-                                                    Modifier
-                                                        .width(horizontalLazyGridItemWidth)
-                                                        .combinedClickable(
-                                                            onClick = {
-                                                                if (!isListenTogetherGuest) {
-                                                                    if (song!!.id == mediaMetadata?.id) {
-                                                                        playerConnection.togglePlayPause()
-                                                                    } else {
-                                                                        playerConnection.playQueue(
-                                                                            YouTubeQueue.radio(
-                                                                                song!!.toMediaMetadata(),
-                                                                            ),
-                                                                        )
-                                                                    }
-                                                                }
-                                                            },
-                                                            onLongClick = {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                menuState.show {
-                                                                    SongMenu(
-                                                                        originalSong = song!!,
-                                                                        navController = navController,
-                                                                        onDismiss = menuState::dismiss,
-                                                                    )
-                                                                }
-                                                            },
-                                                        ),
-                                            )
-                                        }
+                                            ),
+                                        )
                                     }
                                 }
                             }
@@ -1998,32 +1911,14 @@ fun HomeScreen(
                                 }
 
                                 item(key = "keep_listening_list") {
-                                    val rows = if (keepListening.size > 6) 2 else 1
-                                    LazyHorizontalGrid(
-                                        state = rememberLazyGridState(),
-                                        rows = GridCells.Fixed(rows),
-                                        contentPadding =
-                                            WindowInsets.systemBars
-                                                .only(WindowInsetsSides.Horizontal)
-                                                .asPaddingValues(),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .height(
-                                                    (
-                                                        currentGridHeight +
-                                                            with(LocalDensity.current) {
-                                                                MaterialTheme.typography.bodyLarge.lineHeight
-                                                                    .toDp() * 2 +
-                                                                    MaterialTheme.typography.bodyMedium.lineHeight
-                                                                        .toDp() * 2
-                                                            }
-                                                    ) * rows,
-                                                ),
-                                    ) {
-                                        items(keepListening) {
-                                            localGridItem(it)
-                                        }
+                                    MetrolistHomeCarousel(
+                                        items = keepListening,
+                                        preferredItemWidth = currentGridHeight + 24.dp,
+                                        contentPadding = WindowInsets.systemBars
+                                            .only(WindowInsetsSides.Horizontal)
+                                            .asPaddingValues(),
+                                    ) { localItem, _ ->
+                                        localGridItem(localItem)
                                     }
                                 }
                             }
@@ -2071,20 +1966,10 @@ fun HomeScreen(
                                 }
 
                                 item(key = "account_playlists_list") {
-                                    LazyRow(
-                                        contentPadding =
-                                            WindowInsets.systemBars
-                                                .only(WindowInsetsSides.Horizontal)
-                                                .asPaddingValues(),
-                                        modifier = Modifier,
-                                    ) {
-                                        items(
-                                            items = accountPlaylists.distinctBy { it.id },
-                                            key = { "home_account_playlist_${it.id}" },
-                                        ) { item ->
-                                            ytGridItem(item)
-                                        }
-                                    }
+                                    MetrolistVideoShelf(
+                                        items = accountPlaylists.distinctBy { it.id },
+                                        itemContent = { item, itemModifier -> ytGridItem(item, itemModifier) },
+                                    )
                                 }
                             }
                         }
@@ -2113,87 +1998,46 @@ fun HomeScreen(
                                 }
 
                                 item(key = "forgotten_favorites_list") {
-                                    // take min in case list size is less than 4
-                                    val rows = min(4, forgottenFavorites.size)
-                                    LazyHorizontalGrid(
-                                        state = forgottenFavoritesLazyGridState,
-                                        rows = GridCells.Fixed(rows),
-                                        contentPadding =
-                                            WindowInsets.systemBars
-                                                .only(WindowInsetsSides.Horizontal)
-                                                .asPaddingValues(),
-                                        flingBehavior =
-                                            rememberSnapFlingBehavior(
-                                                forgottenFavoritesSnapLayoutInfoProvider,
-                                            ),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .height(ListItemHeight * rows),
-                                    ) {
-                                        items(
-                                            items = forgottenFavorites.distinctBy { it.id },
-                                            key = { "home_forgotten_${it.id}" },
-                                        ) { originalSong ->
-                                            val song by database
-                                                .song(originalSong.id)
-                                                .collectAsState(initial = originalSong)
+                                    val songs = forgottenFavorites.distinctBy { it.id }
+                                    MetrolistHomeCarousel(
+                                        items = songs,
+                                        preferredItemWidth = currentGridHeight + 24.dp,
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                    ) { originalSong, itemModifier ->
+                                        val song by database
+                                            .song(originalSong.id)
+                                            .collectAsState(initial = originalSong)
 
-                                            SongListItem(
-                                                song = song!!,
-                                                showInLibraryIcon = true,
-                                                isActive = song!!.id == mediaMetadata?.id,
-                                                isPlaying = isPlaying,
-                                                isSwipeable = false,
-                                                trailingContent = {
-                                                    IconButton(
-                                                        onClick = {
-                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                            menuState.show {
-                                                                SongMenu(
-                                                                    originalSong = song!!,
-                                                                    navController = navController,
-                                                                    onDismiss = menuState::dismiss,
-                                                                )
-                                                            }
-                                                        },
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.more_vert),
-                                                            contentDescription = null,
+                                        SongGridItem(
+                                            song = song!!,
+                                            showInLibraryIcon = true,
+                                            isActive = song!!.id == mediaMetadata?.id,
+                                            isPlaying = isPlaying,
+                                            fillMaxWidth = true,
+                                            modifier = itemModifier.combinedClickable(
+                                                onClick = {
+                                                    if (!isListenTogetherGuest) {
+                                                        if (song!!.id == mediaMetadata?.id) {
+                                                            playerConnection.togglePlayPause()
+                                                        } else {
+                                                            playerConnection.playQueue(
+                                                                YouTubeQueue.radio(song!!.toMediaMetadata()),
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                onLongClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    menuState.show {
+                                                        SongMenu(
+                                                            originalSong = song!!,
+                                                            navController = navController,
+                                                            onDismiss = menuState::dismiss,
                                                         )
                                                     }
                                                 },
-                                                modifier =
-                                                    Modifier
-                                                        .width(horizontalLazyGridItemWidth)
-                                                        .combinedClickable(
-                                                            onClick = {
-                                                                if (!isListenTogetherGuest) {
-                                                                    if (song!!.id == mediaMetadata?.id) {
-                                                                        playerConnection.togglePlayPause()
-                                                                    } else {
-                                                                        playerConnection.playQueue(
-                                                                            YouTubeQueue.radio(
-                                                                                song!!.toMediaMetadata(),
-                                                                            ),
-                                                                        )
-                                                                    }
-                                                                }
-                                                            },
-                                                            onLongClick = {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                menuState.show {
-                                                                    SongMenu(
-                                                                        originalSong = song!!,
-                                                                        navController = navController,
-                                                                        onDismiss = menuState::dismiss,
-                                                                    )
-                                                                }
-                                                            },
-                                                        ),
-                                            )
-                                        }
+                                            ),
+                                        )
                                     }
                                 }
                             }
@@ -2249,17 +2093,10 @@ fun HomeScreen(
                                 }
 
                                 item(key = "similar_to_list_${section.index}") {
-                                    LazyRow(
-                                        contentPadding =
-                                            WindowInsets.systemBars
-                                                .only(WindowInsetsSides.Horizontal)
-                                                .asPaddingValues(),
-                                        modifier = Modifier,
-                                    ) {
-                                        items(recommendation.items) { item ->
-                                            ytGridItem(item)
-                                        }
-                                    }
+                                    MetrolistVideoShelf(
+                                        items = recommendation.items,
+                                        itemContent = { item, itemModifier -> ytGridItem(item, itemModifier) },
+                                    )
                                 }
                             }
                         }
@@ -2351,130 +2188,72 @@ fun HomeScreen(
                                 if (isSongsOnlySection) {
                                     // Render songs as a horizontal scrollable list (like Quick picks in YouTube Music)
                                     item(key = "home_section_list_${section.index}") {
-                                        LazyHorizontalGrid(
-                                            state = rememberLazyGridState(),
-                                            rows = GridCells.Fixed(4),
-                                            contentPadding =
-                                                WindowInsets.systemBars
-                                                    .only(WindowInsetsSides.Horizontal)
-                                                    .asPaddingValues(),
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .height(ListItemHeight * 4),
-                                        ) {
-                                            items(
-                                                items = sectionSongs.distinctBy { it.id },
-                                                key = { "home_section_${section.index}_song_${it.id}" },
-                                            ) { song ->
-                                                YouTubeListItem(
-                                                    item = song,
-                                                    isActive = song.id == mediaMetadata?.id,
-                                                    isPlaying = isPlaying,
-                                                    isSwipeable = false,
-                                                    trailingContent = {
-                                                        IconButton(
-                                                            onClick = {
-                                                                menuState.show {
-                                                                    YouTubeSongMenu(
-                                                                        song = song,
-                                                                        navController = navController,
-                                                                        onDismiss = menuState::dismiss,
-                                                                    )
-                                                                }
-                                                            },
-                                                        ) {
-                                                            Icon(
-                                                                painter = painterResource(R.drawable.more_vert),
-                                                                contentDescription = null,
+                                        val songs = sectionSongs.distinctBy { it.id }
+                                        MetrolistHomeGallery(
+                                            items = songs,
+                                            rows = 4,
+                                            itemWidth = horizontalLazyGridItemWidth,
+                                            rowHeight = ListItemHeight,
+                                            pageSpacing = 16.dp,
+                                            contentPadding = WindowInsets.systemBars
+                                                .only(WindowInsetsSides.Horizontal)
+                                                .asPaddingValues(),
+                                            key = { _, song -> "home_section_${section.index}_song_${song.id}" },
+                                        ) { _, song, itemModifier ->
+                                            YouTubeListItem(
+                                                item = song,
+                                                isActive = song.id == mediaMetadata?.id,
+                                                isPlaying = isPlaying,
+                                                isSwipeable = false,
+                                                trailingContent = {
+                                                    IconButton(
+                                                        onClick = {
+                                                            menuState.show {
+                                                                YouTubeSongMenu(
+                                                                    song = song,
+                                                                    navController = navController,
+                                                                    onDismiss = menuState::dismiss,
+                                                                )
+                                                            }
+                                                        },
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.more_vert),
+                                                            contentDescription = null,
+                                                        )
+                                                    }
+                                                },
+                                                modifier = itemModifier.combinedClickable(
+                                                    onClick = {
+                                                        if (song is SongItem && !isListenTogetherGuest) {
+                                                            playerConnection.playQueue(
+                                                                YouTubeQueue(
+                                                                    song.endpoint ?: WatchEndpoint(videoId = song.id),
+                                                                    song.toMediaMetadata(),
+                                                                ),
                                                             )
                                                         }
                                                     },
-                                                    modifier =
-                                                        Modifier
-                                                            .width(horizontalLazyGridItemWidth)
-                                                            .combinedClickable(
-                                                                onClick = {
-                                                                    when (song) {
-                                                                        is SongItem -> {
-                                                                            if (!isListenTogetherGuest) {
-                                                                                playerConnection.playQueue(
-                                                                                    YouTubeQueue(
-                                                                                        song.endpoint ?: WatchEndpoint(videoId = song.id),
-                                                                                        song.toMediaMetadata(),
-                                                                                    ),
-                                                                                )
-                                                                            }
-                                                                        }
-
-                                                                        // TODO: this will trigger an error in future kotlin releases, make sure it doesnt
-
-                                                                        // is AlbumItem -> {
-                                                                        //    navController.navigate("album/${song.id}")
-                                                                        // }
-
-                                                                        // is ArtistItem -> {
-                                                                        //    navController.navigate("artist/${song.id}")
-                                                                        // }
-
-                                                                        // is PlaylistItem -> {
-                                                                        //    navController.navigate(
-                                                                        //        "online_playlist/${song.id.removePrefix("VL")}",
-                                                                        //    )
-                                                                        // }
-
-                                                                        // is PodcastItem -> {
-                                                                        //    navController.navigate("online_podcast/${song.id}")
-                                                                        // }
-
-                                                                        // is EpisodeItem -> {
-                                                                        //    if (!isListenTogetherGuest) {
-                                                                        //        playerConnection.playQueue(
-                                                                        //            ListQueue(
-                                                                        //                title = song.title,
-                                                                        //                items =
-                                                                        //                    listOf(
-                                                                        //                        (song as EpisodeItem)
-                                                                        //                            .toMediaMetadata()
-                                                                        //                            .toMediaItem(),
-                                                                        //                    ),
-                                                                        //            ),
-                                                                        //        )
-                                                                        //    }
-                                                                        // }
-                                                                    }
-                                                                },
-                                                                onLongClick = {
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                    menuState.show {
-                                                                        YouTubeSongMenu(
-                                                                            song = song,
-                                                                            navController = navController,
-                                                                            onDismiss = menuState::dismiss,
-                                                                        )
-                                                                    }
-                                                                },
-                                                            ),
-                                                )
-                                            }
+                                                    onLongClick = {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        menuState.show {
+                                                            YouTubeSongMenu(
+                                                                song = song,
+                                                                navController = navController,
+                                                                onDismiss = menuState::dismiss,
+                                                            )
+                                                        }
+                                                    },
+                                                ),
+                                            )
                                         }
                                     }
                                 } else {
                                     item(key = "home_section_list_${section.index}") {
-                                        LazyRow(
-                                            contentPadding =
-                                                WindowInsets.systemBars
-                                                    .only(WindowInsetsSides.Horizontal)
-                                                    .asPaddingValues(),
-                                            modifier = Modifier,
-                                        ) {
-                                            items(
-                                                items = sectionData.items.distinctBy { it.id },
-                                                key = { "home_section_${section.index}_item_${it.id}" },
-                                            ) { item ->
-                                                ytGridItem(item)
-                                            }
-                                        }
+                                        MetrolistVideoShelf(
+                                            items = sectionData.items.distinctBy { it.id },
+                                            itemContent = { item, itemModifier -> ytGridItem(item, itemModifier) },
+                                        )
                                     }
                                 }
                             }
@@ -2589,27 +2368,25 @@ fun HomeScreen(
                                     )
                                 }
                                 item(key = "mood_and_genres_list") {
-                                    LazyHorizontalGrid(
-                                        rows = GridCells.Fixed(4),
+                                    MetrolistHomeGallery(
+                                        items = moodAndGenres,
+                                        rows = 4,
+                                        itemWidth = 192.dp,
+                                        rowHeight = MoodAndGenresButtonHeight + 12.dp,
+                                        pageSpacing = 5.dp,
+                                        rowSpacing = 5.dp,
                                         contentPadding = PaddingValues(6.dp),
-                                        modifier =
-                                            Modifier
-                                                .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp),
-                                    ) {
-                                        items(moodAndGenres) {
-                                            MoodAndGenresButton(
-                                                title = it.title,
-                                                onClick = {
-                                                    navController.navigate(
-                                                        "youtube_browse/${it.endpoint.browseId}?params=${it.endpoint.params}",
-                                                    )
-                                                },
-                                                modifier =
-                                                    Modifier
-                                                        .padding(6.dp)
-                                                        .width(180.dp),
-                                            )
-                                        }
+                                        key = { _, mood -> "mood_and_genres_${mood.endpoint.browseId}_${mood.endpoint.params}" },
+                                    ) { _, mood, itemModifier ->
+                                        MoodAndGenresButton(
+                                            title = mood.title,
+                                            onClick = {
+                                                navController.navigate(
+                                                    "youtube_browse/${mood.endpoint.browseId}?params=${mood.endpoint.params}",
+                                                )
+                                            },
+                                            modifier = itemModifier.padding(6.dp).width(180.dp),
+                                        )
                                     }
                                 }
                             }
@@ -2734,54 +2511,12 @@ fun HomeScreen(
                     }
                 }
 
-                // Only show shimmer during initial loading, not for pagination
+                // Source-ported Metrolist Home skeleton: chip loading remains handled by the Metrofy chip row above.
                 if (isLoading && homePage?.sections.isNullOrEmpty()) {
                     item(key = "loading_shimmer") {
-                        ShimmerHost(
-                            modifier = Modifier,
-                        ) {
-                            repeat(2) {
-                                TextPlaceholder(
-                                    height = 36.dp,
-                                    modifier =
-                                        Modifier
-                                            .padding(12.dp)
-                                            .width(250.dp),
-                                )
-                                LazyRow(
-                                    contentPadding =
-                                        WindowInsets.systemBars
-                                            .only(WindowInsetsSides.Horizontal)
-                                            .asPaddingValues(),
-                                ) {
-                                    items(4) {
-                                        GridItemPlaceHolder()
-                                    }
-                                }
-                            }
-
-                            TextPlaceholder(
-                                height = 36.dp,
-                                modifier =
-                                    Modifier
-                                        .padding(vertical = 12.dp, horizontal = 12.dp)
-                                        .width(250.dp),
-                            )
-                            repeat(4) {
-                                Row {
-                                    repeat(2) {
-                                        TextPlaceholder(
-                                            height = MoodAndGenresButtonHeight,
-                                            shape = RoundedCornerShape(6.dp),
-                                            modifier =
-                                                Modifier
-                                                    .padding(horizontal = 12.dp)
-                                                    .width(200.dp),
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        MetrolistHomeLoadingPlaceholder(
+                            isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE,
+                        )
                     }
                 }
             }

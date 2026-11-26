@@ -17,7 +17,7 @@ import androidx.navigation.NavController
 import com.metrolist.music.R
 import com.metrolist.music.constants.ChipSortTypeKey
 import com.metrolist.music.constants.LibraryFilter
-import com.metrolist.music.ui.component.ChipsRow
+import com.metrolist.music.ui.component.ChipShelf
 import com.metrolist.music.ui.screens.library.local.LocalFilesScreen
 import com.metrolist.music.utils.rememberEnumPreference
 
@@ -25,24 +25,34 @@ import com.metrolist.music.utils.rememberEnumPreference
 fun LibraryScreen(navController: NavController) {
     var filterType by rememberEnumPreference(ChipSortTypeKey, LibraryFilter.LIBRARY)
 
+    val libraryFilters = listOf(
+        LibraryFilter.PLAYLISTS,
+        LibraryFilter.SONGS,
+        LibraryFilter.ALBUMS,
+        LibraryFilter.ARTISTS,
+        LibraryFilter.PODCASTS,
+        LibraryFilter.LOCAL_FILES,
+    )
+
     val filterContent = @Composable {
-        Row {
-            ChipsRow(
-                chips = listOf(
-                    LibraryFilter.PLAYLISTS to stringResource(R.string.filter_playlists),
-                    LibraryFilter.SONGS to stringResource(R.string.filter_songs),
-                    LibraryFilter.ALBUMS to stringResource(R.string.filter_albums),
-                    LibraryFilter.ARTISTS to stringResource(R.string.filter_artists),
-                    LibraryFilter.PODCASTS to stringResource(R.string.filter_podcasts),
-                    LibraryFilter.LOCAL_FILES to stringResource(R.string.filter_local_files),
-                ),
-                currentValue = filterType,
-                onValueUpdate = {
-                    filterType = if (filterType == it) LibraryFilter.LIBRARY else it
-                },
-                modifier = Modifier.weight(1f),
-            )
-        }
+        ChipShelf(
+            options = libraryFilters,
+            selectedOption = filterType.takeUnless { it == LibraryFilter.LIBRARY },
+            onSelectionChange = { filterType = it ?: LibraryFilter.LIBRARY },
+            label = { filter ->
+                stringResource(
+                    when (filter) {
+                        LibraryFilter.PLAYLISTS -> R.string.filter_playlists
+                        LibraryFilter.SONGS -> R.string.filter_songs
+                        LibraryFilter.ALBUMS -> R.string.filter_albums
+                        LibraryFilter.ARTISTS -> R.string.filter_artists
+                        LibraryFilter.PODCASTS -> R.string.filter_podcasts
+                        LibraryFilter.LOCAL_FILES -> R.string.filter_local_files
+                        LibraryFilter.LIBRARY -> R.string.filter_library
+                    },
+                )
+            },
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

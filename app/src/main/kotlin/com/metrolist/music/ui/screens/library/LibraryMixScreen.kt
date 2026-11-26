@@ -92,6 +92,7 @@ import com.metrolist.music.ui.component.ArtistGridItem
 import com.metrolist.music.ui.component.ArtistListItem
 import com.metrolist.music.ui.component.LibrarySearchEmptyPlaceholder
 import com.metrolist.music.ui.component.LibrarySearchHeader
+import com.metrolist.music.ui.component.MetrolistLibraryViewToggle
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.PlaylistGridItem
 import com.metrolist.music.ui.component.PlaylistListItem
@@ -421,28 +422,12 @@ fun LibraryMixScreen(
                 )
             }
 
-            IconButton(
-                onClick = {
-                    viewType = viewType.toggle()
-                },
-                modifier = Modifier.padding(end = 8.dp).size(40.dp),
-            ) {
-                Icon(
-                    painter =
-                    painterResource(
-                        when (viewType) {
-                            LibraryViewType.LIST -> R.drawable.list
-                            LibraryViewType.GRID -> R.drawable.grid_view
-                        },
-                    ),
-                    contentDescription = stringResource(
-                        when (viewType) {
-                            LibraryViewType.LIST -> R.string.switch_to_grid_view
-                            LibraryViewType.GRID -> R.string.switch_to_list_view
-                        },
-                    ),
-                )
-            }
+            MetrolistLibraryViewToggle(
+                isGrid = viewType == LibraryViewType.GRID,
+                onListClick = { viewType = LibraryViewType.LIST },
+                onGridClick = { viewType = LibraryViewType.GRID },
+                modifier = Modifier.padding(end = 8.dp),
+            )
         }
     }
 

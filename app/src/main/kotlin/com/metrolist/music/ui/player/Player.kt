@@ -81,6 +81,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -187,11 +189,6 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.roundToInt
 import com.metrolist.music.ui.component.Icon as MIcon
-import com.metrolist.music.constants.SleepTimerDefaultKey
-import com.metrolist.music.utils.dataStore
-import androidx.datastore.preferences.core.edit
-import com.metrolist.music.constants.SleepTimerFadeOutKey
-import com.metrolist.music.constants.SleepTimerStopAfterCurrentSongKey
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -372,6 +369,41 @@ fun BottomSheetPlayer(
         }
     }
 
+    var sliderPosition by remember {
+        mutableStateOf<Long?>(null)
+    }
+
+    // Metrolist-style frame interpolation keeps the playback thumb and elapsed clock smooth
+    // between Media3 position callbacks. Manual seeks and Cast remain authoritative.
+    val latestPosition by rememberUpdatedState(effectivePosition)
+    val latestDuration by rememberUpdatedState(duration)
+    val interpolatedPosition by produceState(
+        initialValue = effectivePosition,
+        mediaMetadata?.id,
+        effectiveIsPlaying,
+        isCasting,
+        sliderPosition != null,
+        duration > 0L,
+    ) {
+        value = effectivePosition
+        if (effectiveIsPlaying && !isCasting && sliderPosition == null && duration > 0L) {
+            var sampledPosition = latestPosition
+            var sampleFrameNanos = 0L
+            while (true) {
+                withFrameNanos { frameNanos ->
+                    val newSample = latestPosition
+                    if (newSample != sampledPosition || sampleFrameNanos == 0L) {
+                        sampledPosition = newSample
+                        sampleFrameNanos = frameNanos
+                    }
+                    value =
+                        (sampledPosition + (frameNanos - sampleFrameNanos) / 1_000_000L)
+                            .coerceIn(0L, latestDuration.coerceAtLeast(0L))
+                }
+            }
+        }
+    }
+
     val canvasLyricEntries = remember(currentLyrics?.lyrics) {
         currentLyrics?.lyrics?.let(LyricsUtils::parseLyrics).orEmpty()
     }
@@ -384,9 +416,6 @@ fun BottomSheetPlayer(
         }
     }
 
-    var sliderPosition by remember {
-        mutableStateOf<Long?>(null)
-    }
     // Track when we last manually set position to avoid Cast overwriting it
     var lastManualSeekTime by remember { mutableLongStateOf(0L) }
 
@@ -1096,84 +1125,27 @@ fun BottomSheetPlayer(
                         if (mediaMetadata.explicit) MIcon.Explicit()
 
                         if (mediaMetadata.artists.any { it.name.isNotBlank() }) {
-                            val annotatedString =
-                                buildAnnotatedString {
-                                    mediaMetadata.artists.forEachIndexed { index, artist ->
-                                        val tag = "artist_${artist.id.orEmpty()}"
-                                        pushStringAnnotation(tag = tag, annotation = artist.id.orEmpty())
-                                        withStyle(SpanStyle(color = TextBackgroundColor, fontSize = 16.sp)) {
-                                            append(artist.name)
-                                        }
-                                        pop()
-                                        if (index != mediaMetadata.artists.lastIndex) append(", ")
-                                    }
-                                }
-
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
-                                        .padding(end = 12.dp),
-                            ) {
-                                var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-                                var clickOffset by remember { mutableStateOf<Offset?>(null) }
-                                Text(
-                                    text = annotatedString,
-                                    style = MaterialTheme.typography.titleMedium.copy(color = TextBackgroundColor),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    onTextLayout = { layoutResult = it },
-                                    modifier =
-                                        Modifier
-                                            .pointerInput(Unit) {
-                                                awaitPointerEventScope {
-                                                    while (true) {
-                                                        val event = awaitPointerEvent()
-                                                        val tapPosition = event.changes.firstOrNull()?.position
-                                                        if (tapPosition != null) {
-                                                            clickOffset = tapPosition
-                                                        }
-                                                    }
-                                                }
-                                            }.combinedClickable(
-                                                enabled = true,
-                                                indication = null,
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                onClick = {
-                                                    val tapPosition = clickOffset
-                                                    val layout = layoutResult
-                                                    if (tapPosition != null && layout != null) {
-                                                        val offset = layout.getOffsetForPosition(tapPosition)
-                                                        annotatedString
-                                                            .getStringAnnotations(offset, offset)
-                                                            .firstOrNull()
-                                                            ?.let { ann ->
-                                                                val artistId = ann.item
-                                                                if (artistId.isNotBlank()) {
-                                                                    state.collapseSoft()
-                                                                    navController.navigate("artist/$artistId")
-                                                                }
-                                                            }
-                                                    }
-                                                },
-                                                onLongClick = {
-                                                    val clip =
-                                                        ClipData.newPlainText(
-                                                            copiedArtistStr,
-                                                            annotatedString,
-                                                        )
-                                                    clipboardManager.setPrimaryClip(clip)
-                                                    Toast
-                                                        .makeText(
-                                                            context,
-                                                            copiedArtistStr,
-                                                            Toast.LENGTH_SHORT,
-                                                        ).show()
-                                                },
-                                            ),
-                                )
-                            }
+                            MetrolistPlayerArtistLine(
+                                artists = mediaMetadata.artists,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    color = TextBackgroundColor,
+                                    fontSize = 16.sp,
+                                ),
+                                color = TextBackgroundColor,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(end = 12.dp),
+                                onNavigateToArtist = { artistId ->
+                                    state.collapseSoft()
+                                    navController.navigate("artist/$artistId")
+                                },
+                                onLongClick = {
+                                    val artistsText = mediaMetadata.artists.joinToString(", ") { it.name }
+                                    val clip = ClipData.newPlainText(copiedArtistStr, artistsText)
+                                    clipboardManager.setPrimaryClip(clip)
+                                    Toast.makeText(context, copiedArtistStr, Toast.LENGTH_SHORT).show()
+                                },
+                            )
                         }
                     }
                 }
@@ -1428,7 +1400,7 @@ fun BottomSheetPlayer(
             when (sliderStyle) {
                 SliderStyle.DEFAULT -> {
                     Slider(
-                        value = (sliderPosition ?: effectivePosition).toFloat(),
+                        value = (sliderPosition ?: interpolatedPosition).toFloat(),
                         valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                         onValueChange = {
                             if (!isListenTogetherGuest) {
@@ -1458,7 +1430,7 @@ fun BottomSheetPlayer(
                 SliderStyle.WAVY -> {
                     if (squigglySlider) {
                         SquigglySlider(
-                            value = (sliderPosition ?: effectivePosition).toFloat(),
+                            value = (sliderPosition ?: interpolatedPosition).toFloat(),
                             valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
@@ -1481,7 +1453,7 @@ fun BottomSheetPlayer(
                         )
                     } else {
                         WavySlider(
-                            value = (sliderPosition ?: effectivePosition).toFloat(),
+                            value = (sliderPosition ?: interpolatedPosition).toFloat(),
                             valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
@@ -1507,7 +1479,7 @@ fun BottomSheetPlayer(
 
                 SliderStyle.SLIM -> {
                     Slider(
-                        value = (sliderPosition ?: effectivePosition).toFloat(),
+                        value = (sliderPosition ?: interpolatedPosition).toFloat(),
                         valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                         onValueChange = {
                             if (!isListenTogetherGuest) {
@@ -1552,7 +1524,7 @@ fun BottomSheetPlayer(
                         .padding(horizontal = PlayerHorizontalPadding + 4.dp),
             ) {
                 Text(
-                    text = makeTimeString(sliderPosition ?: effectivePosition),
+                    text = makeTimeString(sliderPosition ?: interpolatedPosition),
                     style = MaterialTheme.typography.labelMedium,
                     color = TextBackgroundColor,
                     maxLines = 1,

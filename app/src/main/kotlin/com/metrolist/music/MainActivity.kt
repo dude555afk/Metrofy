@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
@@ -131,6 +132,7 @@ import com.metrolist.music.constants.DefaultOpenTabKey
 import com.metrolist.music.constants.DisableScreenshotKey
 import com.metrolist.music.constants.DynamicThemeKey
 import com.metrolist.music.constants.EnableHighRefreshRateKey
+import com.metrolist.music.constants.FloatingTopBarKey
 import com.metrolist.music.constants.ExperimentalLyricsKey
 import com.metrolist.music.constants.LastSeenVersionKey
 import com.metrolist.music.constants.ListenTogetherInTopBarKey
@@ -155,6 +157,8 @@ import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.constants.SkippedUpdateVersionKey
 import com.metrolist.music.constants.UpdateChannelKey
 import com.metrolist.music.constants.UpdateNotificationsEnabledKey
+import com.metrolist.music.ui.component.FloatingTopAppBar
+import com.metrolist.music.ui.component.TopBarIconButton
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.SearchHistory
@@ -668,6 +672,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
+                val (useFloatingTopBar) = rememberPreference(FloatingTopBarKey, defaultValue = true)
                 val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
                 val defaultOpenTab =
                     remember {
@@ -953,80 +958,103 @@ class MainActivity : ComponentActivity() {
                                 exit = fadeOut(animationSpec = tween(durationMillis = 200)),
                             ) {
                                 Row {
-                                    TopAppBar(
-                                        title = {
-                                            Text(
-                                                text = currentTitleRes?.let { stringResource(it) } ?: "",
-                                                style = MaterialTheme.typography.titleLarge,
-                                            )
-                                        },
-                                        actions = {
-                                            if (showHistoryButton) {
-                                                IconButton(onClick = { navController.navigate("history") }) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.history),
-                                                        contentDescription = stringResource(R.string.history),
-                                                    )
-                                                }
-                                            }
-                                            IconButton(onClick = { navController.navigate("stats") }) {
+                                    val topBarTitle: @Composable () -> Unit = {
+                                        Text(
+                                            text = currentTitleRes?.let { stringResource(it) } ?: "",
+                                            style = MaterialTheme.typography.titleLarge,
+                                        )
+                                    }
+                                    val topBarActions: @Composable RowScope.() -> Unit = {
+                                        if (showHistoryButton) {
+                                            TopBarIconButton(
+                                                onClick = { navController.navigate("history") },
+                                                floating = useFloatingTopBar,
+                                            ) {
                                                 Icon(
-                                                    painter = painterResource(R.drawable.stats),
-                                                    contentDescription = stringResource(R.string.stats),
+                                                    painter = painterResource(R.drawable.history),
+                                                    contentDescription = stringResource(R.string.history),
                                                 )
                                             }
-                                            if (listenTogetherInTopBar) {
-                                                IconButton(onClick = { navController.navigate("listen_together_from_topbar") }) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.group_outlined),
-                                                        contentDescription = stringResource(R.string.together),
-                                                    )
-                                                }
+                                        }
+                                        TopBarIconButton(
+                                            onClick = { navController.navigate("stats") },
+                                            floating = useFloatingTopBar,
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.stats),
+                                                contentDescription = stringResource(R.string.stats),
+                                            )
+                                        }
+                                        if (listenTogetherInTopBar) {
+                                            TopBarIconButton(
+                                                onClick = { navController.navigate("listen_together_from_topbar") },
+                                                floating = useFloatingTopBar,
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.group_outlined),
+                                                    contentDescription = stringResource(R.string.together),
+                                                )
                                             }
-                                            IconButton(onClick = { showAccountDialog = true }) {
-                                                BadgedBox(badge = {
+                                        }
+                                        TopBarIconButton(
+                                            onClick = { showAccountDialog = true },
+                                            floating = useFloatingTopBar,
+                                        ) {
+                                            BadgedBox(
+                                                badge = {
                                                     if (Updater.isUpdateAvailable(BuildConfig.VERSION_NAME, latestVersionName)) {
                                                         Badge()
                                                     }
-                                                }) {
-                                                    if (accountImageUrl != null) {
-                                                        AsyncImage(
-                                                            model = accountImageUrl,
-                                                            contentDescription = stringResource(R.string.account),
-                                                            modifier =
-                                                                Modifier
-                                                                    .size(24.dp)
-                                                                    .clip(CircleShape),
-                                                        )
-                                                    } else {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.account),
-                                                            contentDescription = stringResource(R.string.account),
-                                                            modifier = Modifier.size(24.dp),
-                                                        )
-                                                    }
+                                                },
+                                            ) {
+                                                if (accountImageUrl != null) {
+                                                    AsyncImage(
+                                                        model = accountImageUrl,
+                                                        contentDescription = stringResource(R.string.account),
+                                                        modifier = Modifier.size(24.dp).clip(CircleShape),
+                                                    )
+                                                } else {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.account),
+                                                        contentDescription = stringResource(R.string.account),
+                                                        modifier = Modifier.size(24.dp),
+                                                    )
                                                 }
                                             }
-                                        },
-                                        scrollBehavior = topAppBarScrollBehavior,
-                                        colors =
-                                            TopAppBarDefaults.topAppBarColors(
-                                                containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                                scrolledContainerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                                                actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            ),
-                                        modifier =
-                                            Modifier.windowInsetsPadding(
-                                                if (showRail) {
-                                                    WindowInsets(left = NavigationBarHeight)
-                                                        .add(cutoutInsets.only(WindowInsetsSides.Start))
-                                                } else {
-                                                    cutoutInsets.only(WindowInsetsSides.Start + WindowInsetsSides.End)
-                                                },
-                                            ),
-                                    )
+                                        }
+                                    }
+                                    val topBarModifier =
+                                        Modifier.windowInsetsPadding(
+                                            if (showRail) {
+                                                WindowInsets(left = NavigationBarHeight)
+                                                    .add(cutoutInsets.only(WindowInsetsSides.Start))
+                                            } else {
+                                                cutoutInsets.only(WindowInsetsSides.Start + WindowInsetsSides.End)
+                                            },
+                                        )
+
+                                    if (useFloatingTopBar) {
+                                        FloatingTopAppBar(
+                                            title = topBarTitle,
+                                            actions = topBarActions,
+                                            modifier = topBarModifier,
+                                        )
+                                    } else {
+                                        TopAppBar(
+                                            title = topBarTitle,
+                                            actions = topBarActions,
+                                            scrollBehavior = topAppBarScrollBehavior,
+                                            colors =
+                                                TopAppBarDefaults.topAppBarColors(
+                                                    containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                                                    scrolledContainerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                                                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                                                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                ),
+                                            modifier = topBarModifier,
+                                        )
+                                    }
                                 }
                             }
                         },

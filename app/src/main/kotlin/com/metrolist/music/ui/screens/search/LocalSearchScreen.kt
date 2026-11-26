@@ -58,7 +58,7 @@ import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.ui.component.AlbumListItem
 import com.metrolist.music.ui.component.ArtistListItem
-import com.metrolist.music.ui.component.ChipsRow
+import com.metrolist.music.ui.component.ChipShelf
 import com.metrolist.music.ui.component.EmptyPlaceholder
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.PlaylistListItem
@@ -121,17 +121,27 @@ fun LocalSearchScreen(
                     }
                 },
     ) {
-        ChipsRow(
-            chips =
-                listOf(
-                    LocalFilter.ALL to stringResource(R.string.filter_all),
-                    LocalFilter.SONG to stringResource(R.string.filter_songs),
-                    LocalFilter.ALBUM to stringResource(R.string.filter_albums),
-                    LocalFilter.ARTIST to stringResource(R.string.filter_artists),
-                    LocalFilter.PLAYLIST to stringResource(R.string.filter_playlists),
-                ),
-            currentValue = searchFilter,
-            onValueUpdate = { viewModel.filter.value = it },
+        ChipShelf(
+            options = listOf(
+                LocalFilter.SONG,
+                LocalFilter.ALBUM,
+                LocalFilter.ARTIST,
+                LocalFilter.PLAYLIST,
+            ),
+            selectedOption = searchFilter.takeUnless { it == LocalFilter.ALL },
+            onSelectionChange = { viewModel.filter.value = it ?: LocalFilter.ALL },
+            allLabel = stringResource(R.string.filter_all),
+            label = { filter ->
+                stringResource(
+                    when (filter) {
+                        LocalFilter.SONG -> R.string.filter_songs
+                        LocalFilter.ALBUM -> R.string.filter_albums
+                        LocalFilter.ARTIST -> R.string.filter_artists
+                        LocalFilter.PLAYLIST -> R.string.filter_playlists
+                        LocalFilter.ALL -> R.string.filter_all
+                    },
+                )
+            },
         )
 
         LazyColumn(
