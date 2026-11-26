@@ -51,7 +51,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Metrolist"
+rootProject.name = "Metrofy"
 if (useLocalInnerTubeX) {
     includeBuild("../innertubex") {
         dependencySubstitution {
