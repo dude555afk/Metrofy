@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: metrofy-android-${{ github.ref }}
@@ -26,7 +26,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Remove temporary import branch
-        run: git push origin --delete bootstrap/import-v14
+        run: |
+          if git ls-remote --exit-code --heads origin refs/heads/bootstrap/import-v14 >/dev/null; then
+            git push origin --delete bootstrap/import-v14
+          else
+            echo 'Temporary import branch already deleted.'
+          fi
 
       - name: Set up Java 25
         uses: actions/setup-java@v4
