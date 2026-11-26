@@ -9,7 +9,6 @@ package com.metrolist.music.ui.component
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -77,7 +76,7 @@ fun MetrolistQueueTrackItem(
         label = "queueTrackShape",
     )
     // 50% corner sizing resolves to CircleShape, giving the active row its pill morph.
-    val shape = RoundedCornerShape(percent = activeCornerPercent)
+    val shape = if (activeCornerPercent == 50) CircleShape else RoundedCornerShape(percent = activeCornerPercent)
     val artworkCorner by androidx.compose.animation.core.animateDpAsState(
         targetValue = if (isActive) 22.dp else 6.dp,
         animationSpec = if (motionEnabled) {
