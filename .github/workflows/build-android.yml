@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: metrofy-android-${{ github.ref }}
@@ -24,6 +24,9 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
+      - name: Remove temporary import branch
+        run: git push origin --delete bootstrap/import-v14
 
       - name: Set up Java 25
         uses: actions/setup-java@v4
