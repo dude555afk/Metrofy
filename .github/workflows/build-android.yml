@@ -31,16 +31,16 @@ jobs:
           distribution: temurin
           java-version: "25"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android SDK components
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          sdkmanager --install \
+          yes | "$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager" --licenses
+          "$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager" --install \
             "platforms;android-37-ext1" \
             "build-tools;37.0.0" \
             "ndk;30.0.16248370"
-          yes | sdkmanager --licenses
 
       - name: Configure Gradle
         uses: gradle/actions/setup-gradle@v4
