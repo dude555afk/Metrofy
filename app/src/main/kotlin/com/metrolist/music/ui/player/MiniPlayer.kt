@@ -39,7 +39,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
@@ -790,7 +789,7 @@ private fun LegacyMiniPlayer(
             modifier
                 .then(if (isTabletLandscape) Modifier.width(500.dp) else Modifier.fillMaxWidth())
                 .height(MiniPlayerHeight)
-                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
                 .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                 .background(
                     if (pureBlack && isSystemInDarkTheme()) {
