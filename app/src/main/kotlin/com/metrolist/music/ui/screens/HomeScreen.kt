@@ -1240,7 +1240,7 @@ fun HomeScreen(
                         item(key = "00_your_shows_list") {
                             MetrolistVideoShelf(
                                 items = savedPodcastShows,
-                                itemContent = { podcast, itemModifier -> ytGridItem(podcast, itemModifier) },
+                                itemContent = { podcast, itemModifier -> ytGridItem(podcast, itemModifier, thumbnailRatio = 1f) },
                             )
                         }
                     }
@@ -1259,7 +1259,7 @@ fun HomeScreen(
                         item(key = "00_episodes_for_later_list") {
                             MetrolistVideoShelf(
                                 items = episodesForLater,
-                                itemContent = { episode, itemModifier -> ytGridItem(episode, itemModifier) },
+                                itemContent = { episode, itemModifier -> ytGridItem(episode, itemModifier, thumbnailRatio = 1f) },
                             )
                         }
                     }
