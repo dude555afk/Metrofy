@@ -600,7 +600,7 @@ private fun NewMiniPlayerPlayButton(
                 .size(artworkSize)
                 .graphicsLayer { rotationZ = artworkRotation }
                 .clip(artworkShape)
-                .border(1.dp, outlineColor.copy(alpha = 0.3f), artworkShape)
+                .border(1.dp, outlineColor, artworkShape)
                 .clickable {
                     if (isListenTogetherGuest) {
                         playerConnection.toggleMute()
