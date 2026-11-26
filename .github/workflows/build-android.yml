@@ -48,7 +48,7 @@ jobs:
         run: |
           yes | sdkmanager --licenses
           sdkmanager --install \
-            "platforms;android-37-ext1" \
+            "platforms;android-37.1" \
             "build-tools;37.0.0" \
             "ndk;30.0.16248370"
 
