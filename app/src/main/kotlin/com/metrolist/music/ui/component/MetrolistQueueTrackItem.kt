@@ -62,14 +62,14 @@ fun MetrolistQueueTrackItem(
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val motionScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+    val motionEnabled = motionScale > 0f
     val highlightProgress by animateFloatAsState(
         targetValue = if (isActive) 1f else 0f,
-        animationSpec = tween(durationMillis = 320),
+        animationSpec = tween(durationMillis = if (motionEnabled) 320 else 0),
         label = "queueTrackShape",
     )
     val shape = RoundedCornerShape(12.dp + 38.dp * highlightProgress)
-    val motionScale = rememberCoroutineScope().coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
-    val motionEnabled = motionScale > 0f
     val artworkCorner by androidx.compose.animation.core.animateDpAsState(
         targetValue = if (isActive) 22.dp else 6.dp,
         animationSpec = tween(durationMillis = if (motionEnabled) 420 else 0),
