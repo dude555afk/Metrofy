@@ -290,6 +290,7 @@ class App :
         LastFM.renderedPageLoader = LastFmGalleryBrowser::load
         playbackNetworkMonitor.start()
         AppLocale.sync(this)
+        Settings.shared.sentryEnabled = false
         onboardingManager = OnboardingManager(this)
         legacyInstallMigration = LegacyInstallMigration(this)
         hadLegacyInstallationAtStartup = legacyInstallMigration.hasLegacyInstallation()
