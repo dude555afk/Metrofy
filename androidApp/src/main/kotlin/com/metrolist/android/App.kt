@@ -47,7 +47,6 @@ import com.metrolist.android.ui.GlobalPlaybackNetworkMonitor
 import com.metrolist.android.update.AppUpdateManager
 import com.metrolist.android.utils.CrashHandler
 import com.metrolist.android.utils.IconUtils
-import com.metrolist.android.utils.SentryManager
 import com.metrolist.android.utils.createAppImageLoader
 import com.metrolist.android.utils.isAndroidTv
 import com.metrolist.android.widget.ExpressiveWidgetReceiver
@@ -297,12 +296,9 @@ class App :
         applyTvContinuePlaybackDefault()
         if (hadLegacyInstallationAtStartup) Settings.shared.migrateLegacyV13AccountSettings()
         setPlaybackServicesEnabled(onboardingManager.isComplete)
-        migrateTelemetryConsent()
         migrateCleartextIntegrations()
         migrateLegacyEqualizerProfiles()
         EqualizerProfiles.ensureDefaultProfile()
-
-        if (onboardingManager.isComplete) SentryManager.initialize(this)
 
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
@@ -373,14 +369,6 @@ class App :
                 .joinToString("\n")
     }
 
-    private fun migrateTelemetryConsent() {
-        if (!isCrashReportingAvailable()) return
-        val preferences = getSharedPreferences("metrolist_security_migrations", MODE_PRIVATE)
-        if (!preferences.getBoolean("telemetry_consent_v1", false)) {
-            Settings.shared.sentryEnabled = false
-            preferences.edit { putBoolean("telemetry_consent_v1", true) }
-        }
-    }
 
     private fun applyTvContinuePlaybackDefault() {
         val preferences = getSharedPreferences("metrolist_onboarding", MODE_PRIVATE)
@@ -402,7 +390,6 @@ class App :
         if (isCrashReportingAvailable()) Settings.shared.sentryEnabled = sendCrashReports
         onboardingManager.complete()
         setPlaybackServicesEnabled(true)
-        SentryManager.initialize(this)
         startDatabaseDependentServices()
     }
 
@@ -429,7 +416,6 @@ class App :
         get<CoroutineScope>().launch(Dispatchers.IO) {
             SongLikeState.recoverDatabaseLikes(get<MusicDatabase>())
         }
-        get<CoroutineScope>().launch(Dispatchers.IO) { SentryManager.reportPlaybackClientStats() }
         get<CoroutineScope>().launch {
             MusicRecognitionService.status.collect {
                 try {
