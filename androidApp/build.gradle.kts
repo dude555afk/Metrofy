@@ -462,6 +462,9 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.splashscreen)
 
+    // Retain the release-only SDK classes required by the no-op/reporting source variants; runtime Sentry init is disabled.
+    releaseImplementation(libs.sentry.android.ndk)
+
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.junit4)
