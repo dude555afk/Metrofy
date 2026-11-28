@@ -73,7 +73,6 @@ import com.metrolist.shared.state.GlobalYouTube
 import com.metrolist.shared.state.SongLikeState
 import com.metrolist.shared.state.SongMetadataState
 import com.metrolist.shared.state.coreModule
-import com.metrolist.shared.utils.isCrashReportingAvailable
 import com.metrolist.shared.youtube.di.sharedModule
 import com.metrolist.shared.youtube.playback.AndroidContextProvider
 import com.metrolist.shared.youtube.playback.PlaybackEventLevel
@@ -388,7 +387,7 @@ class App :
     }
 
     fun completeOnboarding(sendCrashReports: Boolean) {
-        if (isCrashReportingAvailable()) Settings.shared.sentryEnabled = sendCrashReports
+        Settings.shared.sentryEnabled = false
         onboardingManager.complete()
         setPlaybackServicesEnabled(true)
         startDatabaseDependentServices()
